@@ -62,8 +62,8 @@ ENVIRONMENT = "production"
 
 # Custom Domain 설정
 [[routes]]
-pattern = "plakker.bloupla.net"
-custom_domain = true
+pattern = "plakker.bloupla.net/*"
+zone_name = "bloupla.net"
 ```
 
 ### 4. 먼저 기본 배포
