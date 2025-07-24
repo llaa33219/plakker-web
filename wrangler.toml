@@ -16,4 +16,4 @@ ENVIRONMENT = "production"
 # Custom Domain 설정 (2025년 최신 방식)
 routes = [
   { pattern = "plakker.bloupla.net", custom_domain = true }
-] 
+]
