@@ -2,6 +2,8 @@
 
 Cloudflare Workers로 구동되는 이모티콘 팩 공유 사이트입니다.
 
+**🔗 사이트 주소: https://plakker.bloupla.net**
+
 ## 기능
 
 - 🎨 **이모티콘 팩 업로드**: 제목, 썸네일, 제작자 정보와 함께 여러 이모티콘을 업로드
@@ -45,23 +47,32 @@ wrangler r2 bucket create plakker-storage-preview
 ```toml
 name = "plakker"
 main = "src/index.js"
-compatibility_date = "2024-01-15"
+compatibility_date = "2025-01-15"
 
 [[kv_namespaces]]
 binding = "PLAKKER_KV"
 id = "your-kv-namespace-id"          # 실제 KV ID로 변경
-preview_id = "your-preview-kv-id"    # 실제 preview KV ID로 변경
 
 [[r2_buckets]]
 binding = "PLAKKER_R2"
 bucket_name = "plakker-storage"
-preview_bucket_name = "plakker-storage-preview"
 
 [vars]
 ENVIRONMENT = "production"
+
+# 커스텀 도메인 설정 (plakker.bloupla.net)
+[[routes]]
+pattern = "plakker.bloupla.net/*"
 ```
 
-### 4. 개발 서버 실행
+### 4. 도메인 설정
+
+Cloudflare에서 도메인 설정:
+1. Cloudflare 대시보드에서 Workers & Pages > plakker 선택
+2. Settings > Triggers > Custom Domains에서 `plakker.bloupla.net` 추가
+3. DNS 레코드가 자동으로 설정됩니다
+
+### 5. 개발 서버 실행
 
 ```bash
 npm run dev
@@ -87,9 +98,9 @@ GET /api/packs?page={page}
   "packs": [
     {
       "id": "pack_id",
-      "title": "팩 제목",
-      "creator": "제작자",
-      "thumbnail": "/r2/thumbnails/pack_id_thumbnail",
+      "title": "예시 팩 1",
+      "creator": "예시 제작자 1",
+      "thumbnail": "https://plakker.bloupla.net/r2/thumbnails/pack_id_thumbnail",
       "createdAt": "2024-01-01T00:00:00.000Z"
     }
   ],
@@ -108,14 +119,14 @@ GET /api/pack/{pack_id}
 ```json
 {
   "id": "pack_id",
-  "title": "팩 제목",
-  "creator": "제작자",
-  "creatorLink": "https://example.com",
-  "thumbnail": "/r2/thumbnails/pack_id_thumbnail",
+  "title": "예시 팩 1",
+  "creator": "예시 제작자 1",
+  "creatorLink": "https://example.com/creator1",
+  "thumbnail": "https://plakker.bloupla.net/r2/thumbnails/pack_id_thumbnail",
   "emoticons": [
-    "/r2/emoticons/pack_id_0",
-    "/r2/emoticons/pack_id_1",
-    "/r2/emoticons/pack_id_2"
+    "https://plakker.bloupla.net/r2/emoticons/pack_id_0",
+    "https://plakker.bloupla.net/r2/emoticons/pack_id_1",
+    "https://plakker.bloupla.net/r2/emoticons/pack_id_2"
   ],
   "createdAt": "2024-01-01T00:00:00.000Z"
 }

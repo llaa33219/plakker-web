@@ -111,7 +111,7 @@ const HTML_TEMPLATES = {
         <div class="api-section">
             <h3>기본 정보</h3>
             <div class="api-info">
-                <p><strong>Base URL:</strong> <code>${typeof window !== 'undefined' ? window.location.origin : 'https://your-domain.com'}</code></p>
+                <p><strong>Base URL:</strong> <code>${typeof window !== 'undefined' ? window.location.origin : 'https://plakker.bloupla.net'}</code></p>
                 <p><strong>Content-Type:</strong> <code>application/json</code> (GET 요청), <code>multipart/form-data</code> (POST 요청)</p>
                 <p><strong>Rate Limit:</strong> Cloudflare Workers 기본 제한 적용</p>
             </div>
@@ -149,9 +149,9 @@ const HTML_TEMPLATES = {
   "packs": [
     {
       "id": "pack_1704067200000_abc123",
-      "title": "귀여운 동물 이모티콘",
-      "creator": "이모지작가",
-      "thumbnail": "/r2/thumbnails/pack_1704067200000_abc123_thumbnail",
+      "title": "예시 팩 1",
+      "creator": "예시 제작자 1",
+      "thumbnail": "https://plakker.bloupla.net/r2/thumbnails/pack_1704067200000_abc123_thumbnail",
       "createdAt": "2024-01-01T00:00:00.000Z"
     }
   ],
@@ -189,14 +189,14 @@ const HTML_TEMPLATES = {
                     <h4>Response Example</h4>
                     <pre class="code-block">{
   "id": "pack_1704067200000_abc123",
-  "title": "귀여운 동물 이모티콘",
-  "creator": "이모지작가",
-  "creatorLink": "https://twitter.com/emoji_artist",
-  "thumbnail": "/r2/thumbnails/pack_1704067200000_abc123_thumbnail",
+  "title": "예시 팩 1",
+  "creator": "예시 제작자 1",
+  "creatorLink": "https://example.com/creator1",
+  "thumbnail": "https://plakker.bloupla.net/r2/thumbnails/pack_1704067200000_abc123_thumbnail",
   "emoticons": [
-    "/r2/emoticons/pack_1704067200000_abc123_0",
-    "/r2/emoticons/pack_1704067200000_abc123_1",
-    "/r2/emoticons/pack_1704067200000_abc123_2"
+    "https://plakker.bloupla.net/r2/emoticons/pack_1704067200000_abc123_0",
+    "https://plakker.bloupla.net/r2/emoticons/pack_1704067200000_abc123_1",
+    "https://plakker.bloupla.net/r2/emoticons/pack_1704067200000_abc123_2"
   ],
   "createdAt": "2024-01-01T00:00:00.000Z"
 }</pre>
@@ -319,8 +319,8 @@ console.log(pack.emoticons);
 
 // 팩 업로드
 const formData = new FormData();
-formData.append('title', '내 이모티콘 팩');
-formData.append('creator', '나');
+formData.append('title', '예시 팩 2');
+formData.append('creator', '예시 제작자 2');
 formData.append('thumbnail', thumbnailFile);
 formData.append('emoticons', emoticonFile1);
 formData.append('emoticons', emoticonFile2);
@@ -334,15 +334,15 @@ const result = await uploadResponse.json();</pre>
 
             <h4>cURL</h4>
             <pre class="code-block"># 팩 목록 조회
-curl "https://your-domain.com/api/packs?page=1"
+curl "https://plakker.bloupla.net/api/packs?page=1"
 
 # 특정 팩 조회
-curl "https://your-domain.com/api/pack/pack_1704067200000_abc123"
+curl "https://plakker.bloupla.net/api/pack/pack_1704067200000_abc123"
 
 # 팩 업로드
-curl -X POST "https://your-domain.com/api/upload" \\
-  -F "title=내 이모티콘 팩" \\
-  -F "creator=나" \\
+curl -X POST "https://plakker.bloupla.net/api/upload" \\
+  -F "title=예시 팩 3" \\
+  -F "creator=예시 제작자 3" \\
   -F "thumbnail=@thumbnail.png" \\
   -F "emoticons=@emoticon1.png" \\
   -F "emoticons=@emoticon2.png" \\
@@ -1111,6 +1111,32 @@ function generateId() {
     return 'pack_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
+// URL을 절대 URL로 변환하는 함수
+function toAbsoluteUrl(url, baseUrl) {
+    if (!url) return url;
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url; // 이미 절대 URL
+    }
+    return baseUrl + url; // 상대 URL을 절대 URL로 변환
+}
+
+// 팩 객체의 URL들을 절대 URL로 변환
+function convertPackToAbsoluteUrls(pack, baseUrl) {
+    if (!pack) return pack;
+    
+    const convertedPack = { ...pack };
+    
+    if (convertedPack.thumbnail) {
+        convertedPack.thumbnail = toAbsoluteUrl(convertedPack.thumbnail, baseUrl);
+    }
+    
+    if (convertedPack.emoticons && Array.isArray(convertedPack.emoticons)) {
+        convertedPack.emoticons = convertedPack.emoticons.map(url => toAbsoluteUrl(url, baseUrl));
+    }
+    
+    return convertedPack;
+}
+
 // Worker 메인 함수
 export default {
     async fetch(request, env, ctx) {
@@ -1175,7 +1201,7 @@ export default {
         
         if (path.startsWith('/pack/')) {
             const packId = path.split('/')[2];
-            return handlePackDetail(packId, env);
+            return handlePackDetail(packId, env, request);
         }
         
         // 404
@@ -1200,7 +1226,7 @@ async function handleAPI(request, env, path) {
     
     if (path.startsWith('/api/pack/')) {
         const packId = path.split('/')[3];
-        return handleGetPack(packId, env);
+        return handleGetPack(packId, env, request);
     }
     
     return new Response('API Not Found', { status: 404 });
@@ -1210,6 +1236,7 @@ async function handleAPI(request, env, path) {
 async function handleGetPacks(request, env) {
     try {
         const url = new URL(request.url);
+        const baseUrl = `${url.protocol}//${url.host}`;
         const page = parseInt(url.searchParams.get('page') || '1');
         const limit = 20;
         const offset = (page - 1) * limit;
@@ -1218,7 +1245,13 @@ async function handleGetPacks(request, env) {
         
         const startIndex = offset;
         const endIndex = offset + limit;
-        const paginatedPacks = packList.slice(startIndex, endIndex);
+        const paginatedPacks = packList.slice(startIndex, endIndex).map(pack => {
+            const convertedPack = { ...pack };
+            if (convertedPack.thumbnail) {
+                convertedPack.thumbnail = toAbsoluteUrl(convertedPack.thumbnail, baseUrl);
+            }
+            return convertedPack;
+        });
         
         return new Response(JSON.stringify({
             packs: paginatedPacks,
@@ -1237,8 +1270,10 @@ async function handleGetPacks(request, env) {
 }
 
 // 특정 팩 조회
-async function handleGetPack(packId, env) {
+async function handleGetPack(packId, env, request) {
     try {
+        const url = new URL(request.url);
+        const baseUrl = `${url.protocol}//${url.host}`;
         const pack = await env.PLAKKER_KV.get(`pack_${packId}`, 'json');
         
         if (!pack) {
@@ -1248,7 +1283,9 @@ async function handleGetPack(packId, env) {
             });
         }
         
-        return new Response(JSON.stringify(pack), {
+        const convertedPack = convertPackToAbsoluteUrls(pack, baseUrl);
+        
+        return new Response(JSON.stringify(convertedPack), {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
@@ -1260,15 +1297,19 @@ async function handleGetPack(packId, env) {
 }
 
 // 팩 상세 페이지
-async function handlePackDetail(packId, env) {
+async function handlePackDetail(packId, env, request) {
     try {
+        const url = new URL(request.url);
+        const baseUrl = `${url.protocol}//${url.host}`;
         const pack = await env.PLAKKER_KV.get(`pack_${packId}`, 'json');
         
         if (!pack) {
             return new Response('팩을 찾을 수 없습니다', { status: 404 });
         }
         
-        return new Response(HTML_TEMPLATES.base(`${pack.title} - 이모티콘 팩`, HTML_TEMPLATES.detail(pack)), {
+        const convertedPack = convertPackToAbsoluteUrls(pack, baseUrl);
+        
+        return new Response(HTML_TEMPLATES.base(`${pack.title} - 이모티콘 팩`, HTML_TEMPLATES.detail(convertedPack)), {
             headers: { 'Content-Type': 'text/html' }
         });
     } catch (error) {
@@ -1279,6 +1320,8 @@ async function handlePackDetail(packId, env) {
 // 파일 업로드 처리
 async function handleUpload(request, env) {
     try {
+        const url = new URL(request.url);
+        const baseUrl = `${url.protocol}//${url.host}`;
         const formData = await request.formData();
         
         const title = formData.get('title');
@@ -1314,7 +1357,7 @@ async function handleUpload(request, env) {
                 httpMetadata: { contentType: emoticon.type }
             });
             
-            emoticonUrls.push(`/r2/${emoticonKey}`);
+            emoticonUrls.push(`${baseUrl}/r2/${emoticonKey}`);
         }
         
         // 팩 정보 저장
@@ -1323,7 +1366,7 @@ async function handleUpload(request, env) {
             title,
             creator,
             creatorLink,
-            thumbnail: `/r2/${thumbnailKey}`,
+            thumbnail: `${baseUrl}/r2/${thumbnailKey}`,
             emoticons: emoticonUrls,
             createdAt: new Date().toISOString()
         };

@@ -11,4 +11,8 @@ binding = "PLAKKER_R2"
 bucket_name = "plakker-storage"
 
 [vars]
-ENVIRONMENT = "production" 
+ENVIRONMENT = "production"
+
+# 커스텀 도메인 설정
+[[routes]]
+pattern = "plakker.bloupla.net/*" 
