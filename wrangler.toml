@@ -13,6 +13,7 @@ bucket_name = "plakker-storage"
 [vars]
 ENVIRONMENT = "production"
 
-# 커스텀 도메인 설정
-[[routes]]
-pattern = "plakker.bloupla.net/*" 
+# Custom Domain 설정
+routes = [
+  { pattern = "plakker.bloupla.net", custom_domain = true }
+] 

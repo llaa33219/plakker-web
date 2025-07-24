@@ -60,19 +60,31 @@ bucket_name = "plakker-storage"
 [vars]
 ENVIRONMENT = "production"
 
-# 커스텀 도메인 설정 (plakker.bloupla.net)
-[[routes]]
-pattern = "plakker.bloupla.net/*"
+# Custom Domain 설정
+routes = [
+  { pattern = "plakker.bloupla.net", custom_domain = true }
+]
 ```
 
-### 4. 도메인 설정
+### 4. 먼저 기본 배포
+
+```bash
+npm run deploy
+```
+
+### 5. 도메인 설정
 
 Cloudflare에서 도메인 설정:
-1. Cloudflare 대시보드에서 Workers & Pages > plakker 선택
-2. Settings > Triggers > Custom Domains에서 `plakker.bloupla.net` 추가
-3. DNS 레코드가 자동으로 설정됩니다
+1. Cloudflare 대시보드에서 **Workers & Pages** 이동
+2. 배포된 **plakker** Worker 선택
+3. **Settings** > **Triggers** > **Custom Domains** 클릭
+4. **Add Custom Domain** 버튼 클릭
+5. `plakker.bloupla.net` 입력 후 **Add Domain** 클릭
+6. DNS 레코드가 자동으로 설정됩니다
 
-### 5. 개발 서버 실행
+> **참고**: wrangler.toml에서 routes 설정은 제거했습니다. Cloudflare 대시보드에서 직접 커스텀 도메인을 설정하는 것이 더 안정적입니다.
+
+### 6. 개발 서버 실행
 
 ```bash
 npm run dev
