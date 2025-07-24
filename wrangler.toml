@@ -1,0 +1,14 @@
+name = "plakker"
+main = "src/index.js"
+compatibility_date = "2025-01-15"
+
+[[kv_namespaces]]
+binding = "PLAKKER_KV"
+id = "5e59a6f63f12430aaea1b884e68bf8cd"
+
+[[r2_buckets]]
+binding = "PLAKKER_R2"
+bucket_name = "plakker-storage"
+
+[vars]
+ENVIRONMENT = "production" 
