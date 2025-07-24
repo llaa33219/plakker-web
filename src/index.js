@@ -15,6 +15,7 @@ const HTML_TEMPLATES = {
         <nav>
             <a href="/">홈</a>
             <a href="/upload">업로드</a>
+            <a href="/api-docs">API 문서</a>
         </nav>
     </header>
     <main class="main">
@@ -65,6 +66,12 @@ const HTML_TEMPLATES = {
             <label for="emoticons">이모티콘들 (최소 3개)</label>
             <input type="file" id="emoticons" name="emoticons" accept="image/*" multiple required>
             <div class="file-info">최소 3개의 이미지를 선택해주세요. 자동으로 150x150으로 리사이즈됩니다.</div>
+            <div id="emoticon-preview" class="file-preview"></div>
+        </div>
+        
+        <div class="form-group">
+            <label for="thumbnail">썸네일 미리보기</label>
+            <div id="thumbnail-preview" class="file-preview"></div>
         </div>
         
         <button type="submit" class="submit-btn">업로드</button>
@@ -91,6 +98,266 @@ const HTML_TEMPLATES = {
         </div>
         <div class="pack-actions">
             <button onclick="downloadPack('${pack.id}')" class="download-btn">팩 다운로드</button>
+        </div>
+    </div>
+</div>`,
+
+  apiDocs: () => `
+<div class="container">
+    <div class="api-docs">
+        <h2>Plakker API 문서</h2>
+        <p class="api-intro">Plakker의 REST API를 사용하여 이모티콘 팩 데이터에 프로그래밍 방식으로 접근할 수 있습니다.</p>
+        
+        <div class="api-section">
+            <h3>기본 정보</h3>
+            <div class="api-info">
+                <p><strong>Base URL:</strong> <code>${typeof window !== 'undefined' ? window.location.origin : 'https://your-domain.com'}</code></p>
+                <p><strong>Content-Type:</strong> <code>application/json</code> (GET 요청), <code>multipart/form-data</code> (POST 요청)</p>
+                <p><strong>Rate Limit:</strong> Cloudflare Workers 기본 제한 적용</p>
+            </div>
+        </div>
+
+        <div class="api-section">
+            <h3>엔드포인트</h3>
+            
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/packs</span>
+                </div>
+                <div class="endpoint-content">
+                    <p class="description">이모티콘 팩 목록을 페이지네이션으로 조회합니다.</p>
+                    
+                    <h4>Query Parameters</h4>
+                    <table class="param-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Required</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td><code>page</code></td>
+                            <td>integer</td>
+                            <td>No</td>
+                            <td>페이지 번호 (기본값: 1, 페이지당 20개)</td>
+                        </tr>
+                    </table>
+                    
+                    <h4>Response Example</h4>
+                    <pre class="code-block">{
+  "packs": [
+    {
+      "id": "pack_1704067200000_abc123",
+      "title": "귀여운 동물 이모티콘",
+      "creator": "이모지작가",
+      "thumbnail": "/r2/thumbnails/pack_1704067200000_abc123_thumbnail",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "currentPage": 1,
+  "hasNext": true,
+  "total": 25
+}</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/pack/{pack_id}</span>
+                </div>
+                <div class="endpoint-content">
+                    <p class="description">특정 이모티콘 팩의 상세 정보와 모든 이모티콘 URL을 조회합니다.</p>
+                    
+                    <h4>Path Parameters</h4>
+                    <table class="param-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Required</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td><code>pack_id</code></td>
+                            <td>string</td>
+                            <td>Yes</td>
+                            <td>이모티콘 팩의 고유 ID</td>
+                        </tr>
+                    </table>
+                    
+                    <h4>Response Example</h4>
+                    <pre class="code-block">{
+  "id": "pack_1704067200000_abc123",
+  "title": "귀여운 동물 이모티콘",
+  "creator": "이모지작가",
+  "creatorLink": "https://twitter.com/emoji_artist",
+  "thumbnail": "/r2/thumbnails/pack_1704067200000_abc123_thumbnail",
+  "emoticons": [
+    "/r2/emoticons/pack_1704067200000_abc123_0",
+    "/r2/emoticons/pack_1704067200000_abc123_1",
+    "/r2/emoticons/pack_1704067200000_abc123_2"
+  ],
+  "createdAt": "2024-01-01T00:00:00.000Z"
+}</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/upload</span>
+                </div>
+                <div class="endpoint-content">
+                    <p class="description">새로운 이모티콘 팩을 업로드합니다.</p>
+                    
+                    <h4>Request Body (multipart/form-data)</h4>
+                    <table class="param-table">
+                        <tr>
+                            <th>Field</th>
+                            <th>Type</th>
+                            <th>Required</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td><code>title</code></td>
+                            <td>string</td>
+                            <td>Yes</td>
+                            <td>이모티콘 팩 제목</td>
+                        </tr>
+                        <tr>
+                            <td><code>creator</code></td>
+                            <td>string</td>
+                            <td>Yes</td>
+                            <td>제작자 이름</td>
+                        </tr>
+                        <tr>
+                            <td><code>creatorLink</code></td>
+                            <td>string</td>
+                            <td>No</td>
+                            <td>제작자 웹사이트/SNS 링크</td>
+                        </tr>
+                        <tr>
+                            <td><code>thumbnail</code></td>
+                            <td>file</td>
+                            <td>Yes</td>
+                            <td>썸네일 이미지 파일</td>
+                        </tr>
+                        <tr>
+                            <td><code>emoticons</code></td>
+                            <td>file[]</td>
+                            <td>Yes</td>
+                            <td>이모티콘 이미지 파일들 (최소 3개)</td>
+                        </tr>
+                    </table>
+                    
+                    <h4>Response Example</h4>
+                    <pre class="code-block">{
+  "success": true,
+  "id": "pack_1704067200000_abc123"
+}</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/pack/{pack_id}/download</span>
+                </div>
+                <div class="endpoint-content">
+                    <p class="description">이모티콘 팩을 ZIP 파일로 다운로드합니다. (추후 구현 예정)</p>
+                    
+                    <h4>Response</h4>
+                    <p>현재는 501 상태 코드와 함께 구현 예정 메시지를 반환합니다.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="api-section">
+            <h3>Error Codes</h3>
+            <table class="param-table">
+                <tr>
+                    <th>Status Code</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td><code>200</code></td>
+                    <td>성공</td>
+                </tr>
+                <tr>
+                    <td><code>400</code></td>
+                    <td>잘못된 요청 (필수 파라미터 누락 등)</td>
+                </tr>
+                <tr>
+                    <td><code>404</code></td>
+                    <td>리소스를 찾을 수 없음</td>
+                </tr>
+                <tr>
+                    <td><code>500</code></td>
+                    <td>서버 내부 오류</td>
+                </tr>
+                <tr>
+                    <td><code>501</code></td>
+                    <td>구현되지 않은 기능</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="api-section">
+            <h3>사용 예시</h3>
+            
+            <h4>JavaScript (Fetch API)</h4>
+            <pre class="code-block">// 팩 목록 조회
+const response = await fetch('/api/packs?page=1');
+const data = await response.json();
+console.log(data.packs);
+
+// 특정 팩 조회
+const packResponse = await fetch('/api/pack/pack_1704067200000_abc123');
+const pack = await packResponse.json();
+console.log(pack.emoticons);
+
+// 팩 업로드
+const formData = new FormData();
+formData.append('title', '내 이모티콘 팩');
+formData.append('creator', '나');
+formData.append('thumbnail', thumbnailFile);
+formData.append('emoticons', emoticonFile1);
+formData.append('emoticons', emoticonFile2);
+formData.append('emoticons', emoticonFile3);
+
+const uploadResponse = await fetch('/api/upload', {
+    method: 'POST',
+    body: formData
+});
+const result = await uploadResponse.json();</pre>
+
+            <h4>cURL</h4>
+            <pre class="code-block"># 팩 목록 조회
+curl "https://your-domain.com/api/packs?page=1"
+
+# 특정 팩 조회
+curl "https://your-domain.com/api/pack/pack_1704067200000_abc123"
+
+# 팩 업로드
+curl -X POST "https://your-domain.com/api/upload" \\
+  -F "title=내 이모티콘 팩" \\
+  -F "creator=나" \\
+  -F "thumbnail=@thumbnail.png" \\
+  -F "emoticons=@emoticon1.png" \\
+  -F "emoticons=@emoticon2.png" \\
+  -F "emoticons=@emoticon3.png"</pre>
+        </div>
+
+        <div class="api-section">
+            <h3>제한사항</h3>
+            <ul>
+                <li>개별 파일 크기: 최대 25MB (Cloudflare Workers 제한)</li>
+                <li>요청 CPU 시간: 최대 50ms (무료 플랜 기준)</li>
+                <li>KV 읽기/쓰기: 일일 한도 적용</li>
+                <li>이모티콘 최소 개수: 3개</li>
+                <li>지원 이미지 형식: PNG, JPEG, GIF, WebP</li>
+            </ul>
         </div>
     </div>
 </div>`
@@ -225,6 +492,73 @@ body {
     font-size: 0.875rem;
     color: #6c757d;
     margin-top: 0.25rem;
+}
+
+.file-preview {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 2px dashed #e9ecef;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+}
+
+.file-preview.has-files {
+    border-color: #007bff;
+    background-color: #f0f8ff;
+}
+
+.preview-item {
+    position: relative;
+    text-align: center;
+}
+
+.preview-image {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+.preview-filename {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+    word-break: break-all;
+    line-height: 1.2;
+}
+
+.preview-remove {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.preview-remove:hover {
+    background: #c82333;
+}
+
+.preview-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100px;
+    color: #6c757d;
+    font-size: 0.875rem;
 }
 
 .submit-btn {
@@ -362,6 +696,181 @@ body {
         flex-direction: column;
         gap: 1rem;
     }
+}
+
+/* API 문서 스타일 */
+.api-docs {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    max-width: none;
+}
+
+.api-intro {
+    font-size: 1.1rem;
+    color: #6c757d;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+.api-section {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.api-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.api-section h3 {
+    color: #007bff;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.api-section h4 {
+    color: #495057;
+    font-size: 1.1rem;
+    margin: 1.5rem 0 0.5rem 0;
+}
+
+.api-info {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+    border-left: 4px solid #007bff;
+}
+
+.endpoint {
+    margin-bottom: 2rem;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.endpoint-header {
+    background: #f8f9fa;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.method {
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+}
+
+.method.get {
+    background: #28a745;
+    color: white;
+}
+
+.method.post {
+    background: #007bff;
+    color: white;
+}
+
+.path {
+    font-family: 'Courier New', monospace;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #495057;
+}
+
+.endpoint-content {
+    padding: 1.5rem;
+}
+
+.description {
+    color: #6c757d;
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+
+.param-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    background: white;
+}
+
+.param-table th,
+.param-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border: 1px solid #e9ecef;
+}
+
+.param-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+}
+
+.param-table code {
+    background: #f8f9fa;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    color: #e83e8c;
+    border: 1px solid #e9ecef;
+}
+
+.code-block {
+    background: #2d3748;
+    color: #e2e8f0;
+    padding: 1.5rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    margin: 1rem 0;
+    border: 1px solid #4a5568;
+}
+
+.api-section ul {
+    margin-left: 1.5rem;
+}
+
+.api-section li {
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+    .api-docs {
+        padding: 1rem;
+    }
+    
+    .endpoint-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .param-table {
+        font-size: 0.875rem;
+    }
+    
+    .param-table th,
+    .param-table td {
+        padding: 0.5rem;
+    }
+    
+    .code-block {
+        font-size: 0.75rem;
+        padding: 1rem;
+    }
 }`;
 
 // JavaScript 클라이언트 코드 (템플릿 리터럴을 일반 문자열로 변경)
@@ -429,8 +938,22 @@ function updatePagination(page, hasNext) {
 function setupUploadForm() {
     const form = document.getElementById('upload-form');
     const emoticonInput = document.getElementById('emoticons');
+    const thumbnailInput = document.getElementById('thumbnail');
     
+    let selectedEmoticons = [];
+    let selectedThumbnail = null;
+    
+    // 썸네일 미리보기
+    thumbnailInput.addEventListener('change', function() {
+        selectedThumbnail = this.files[0];
+        updateThumbnailPreview();
+    });
+    
+    // 이모티콘 미리보기
     emoticonInput.addEventListener('change', function() {
+        selectedEmoticons = Array.from(this.files);
+        updateEmoticonPreview();
+        
         if (this.files.length < 3) {
             alert('최소 3개의 이모티콘 이미지를 선택해주세요.');
         }
@@ -446,7 +969,7 @@ function setupUploadForm() {
         const thumbnail = document.getElementById('thumbnail').files[0];
         const emoticons = document.getElementById('emoticons').files;
         
-        if (!title || !creator || !thumbnail || emoticons.length < 3) {
+        if (!title || !creator || !selectedThumbnail || selectedEmoticons.length < 3) {
             alert('모든 필수 항목을 입력해주세요. 이모티콘은 최소 3개 이상 선택해야 합니다.');
             return;
         }
@@ -454,10 +977,10 @@ function setupUploadForm() {
         formData.append('title', title);
         formData.append('creator', creator);
         if (creatorLink) formData.append('creatorLink', creatorLink);
-        formData.append('thumbnail', thumbnail);
+        formData.append('thumbnail', selectedThumbnail);
         
-        for (let i = 0; i < emoticons.length; i++) {
-            formData.append('emoticons', emoticons[i]);
+        for (let i = 0; i < selectedEmoticons.length; i++) {
+            formData.append('emoticons', selectedEmoticons[i]);
         }
         
         const submitBtn = form.querySelector('.submit-btn');
@@ -486,6 +1009,79 @@ function setupUploadForm() {
             submitBtn.textContent = '업로드';
         }
     });
+    
+    // 썸네일 미리보기 업데이트
+    function updateThumbnailPreview() {
+        const previewContainer = document.getElementById('thumbnail-preview');
+        
+        if (!selectedThumbnail) {
+            previewContainer.innerHTML = '<div class="preview-placeholder">썸네일을 선택해주세요</div>';
+            previewContainer.classList.remove('has-files');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewContainer.innerHTML = 
+                '<div class="preview-item">' +
+                '    <img src="' + e.target.result + '" class="preview-image" alt="썸네일 미리보기">' +
+                '    <div class="preview-filename">' + selectedThumbnail.name + '</div>' +
+                '    <button type="button" class="preview-remove" onclick="removeThumbnail()">×</button>' +
+                '</div>';
+            previewContainer.classList.add('has-files');
+        };
+        reader.readAsDataURL(selectedThumbnail);
+    }
+    
+    // 이모티콘 미리보기 업데이트
+    function updateEmoticonPreview() {
+        const previewContainer = document.getElementById('emoticon-preview');
+        
+        if (selectedEmoticons.length === 0) {
+            previewContainer.innerHTML = '<div class="preview-placeholder">이모티콘을 선택해주세요 (최소 3개)</div>';
+            previewContainer.classList.remove('has-files');
+            return;
+        }
+        
+        previewContainer.innerHTML = '';
+        previewContainer.classList.add('has-files');
+        
+        selectedEmoticons.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const previewItem = document.createElement('div');
+                previewItem.className = 'preview-item';
+                previewItem.innerHTML = 
+                    '<img src="' + e.target.result + '" class="preview-image" alt="이모티콘 ' + (index + 1) + '">' +
+                    '<div class="preview-filename">' + file.name + '</div>' +
+                    '<button type="button" class="preview-remove" onclick="removeEmoticon(' + index + ')">×</button>';
+                previewContainer.appendChild(previewItem);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+    
+    // 전역 함수로 만들어서 onclick에서 사용 가능하도록
+    window.removeThumbnail = function() {
+        selectedThumbnail = null;
+        document.getElementById('thumbnail').value = '';
+        updateThumbnailPreview();
+    };
+    
+    window.removeEmoticon = function(index) {
+        selectedEmoticons.splice(index, 1);
+        
+        // FileList는 직접 수정할 수 없으므로 새로운 DataTransfer 객체 생성
+        const dt = new DataTransfer();
+        selectedEmoticons.forEach(file => dt.items.add(file));
+        document.getElementById('emoticons').files = dt.files;
+        
+        updateEmoticonPreview();
+    };
+    
+    // 초기 미리보기 표시
+    updateThumbnailPreview();
+    updateEmoticonPreview();
 }
 
 async function downloadPack(packId) {
@@ -567,6 +1163,12 @@ export default {
         
         if (path === '/upload') {
             return new Response(HTML_TEMPLATES.base('업로드', HTML_TEMPLATES.upload()), {
+                headers: { 'Content-Type': 'text/html' }
+            });
+        }
+        
+        if (path === '/api-docs') {
+            return new Response(HTML_TEMPLATES.base('API 문서', HTML_TEMPLATES.apiDocs()), {
                 headers: { 'Content-Type': 'text/html' }
             });
         }
