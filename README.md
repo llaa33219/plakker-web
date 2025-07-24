@@ -60,10 +60,10 @@ bucket_name = "plakker-storage"
 [vars]
 ENVIRONMENT = "production"
 
-# Custom Domain 설정
-[[routes]]
-pattern = "plakker.bloupla.net/*"
-zone_name = "bloupla.net"
+# Custom Domain 설정 (2025년 최신 방식)
+routes = [
+  { pattern = "plakker.bloupla.net", custom_domain = true }
+]
 ```
 
 ### 4. 먼저 기본 배포
