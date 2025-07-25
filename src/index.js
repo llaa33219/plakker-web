@@ -114,6 +114,7 @@ const HTML_TEMPLATES = {
                 <p><strong>Base URL:</strong> <code>${typeof window !== 'undefined' ? window.location.origin : 'https://plakker.bloupla.net'}</code></p>
                 <p><strong>Content-Type:</strong> <code>application/json</code> (GET 요청), <code>multipart/form-data</code> (POST 요청)</p>
                 <p><strong>Rate Limit:</strong> Cloudflare Workers 기본 제한 적용</p>
+                <p><strong>CORS:</strong> 모든 도메인에서 접근 가능 (크롬 확장 프로그램 포함)</p>
             </div>
         </div>
 
@@ -332,6 +333,36 @@ const uploadResponse = await fetch('/api/upload', {
 });
 const result = await uploadResponse.json();</pre>
 
+            <h4>Chrome Extension (Manifest V3)</h4>
+            <pre class="code-block">// manifest.json에 권한 추가
+{
+  "permissions": ["activeTab"],
+  "host_permissions": ["https://plakker.bloupla.net/*"]
+}
+
+// content script 또는 popup에서 사용
+async function loadEmoticonPacks() {
+  try {
+    const response = await fetch('https://plakker.bloupla.net/api/packs?page=1');
+    const data = await response.json();
+    
+    data.packs.forEach(pack => {
+      console.log('팩:', pack.title, '제작자:', pack.creator);
+    });
+    
+    return data.packs;
+  } catch (error) {
+    console.error('API 호출 실패:', error);
+  }
+}
+
+// 특정 팩의 이모티콘들 가져오기
+async function getEmoticons(packId) {
+  const response = await fetch(\`https://plakker.bloupla.net/api/pack/\${packId}\`);
+  const pack = await response.json();
+  return pack.emoticons; // 이모티콘 URL 배열
+}</pre>
+
             <h4>cURL</h4>
             <pre class="code-block"># 팩 목록 조회
 curl "https://plakker.bloupla.net/api/packs?page=1"
@@ -357,6 +388,17 @@ curl -X POST "https://plakker.bloupla.net/api/upload" \\
                 <li>KV 읽기/쓰기: 일일 한도 적용</li>
                 <li>이모티콘 최소 개수: 3개</li>
                 <li>지원 이미지 형식: PNG, JPEG, GIF, WebP</li>
+            </ul>
+        </div>
+
+        <div class="api-section">
+            <h3>크롬 확장 프로그램 사용 시 주의사항</h3>
+            <ul>
+                <li><strong>Manifest V3:</strong> <code>host_permissions</code>에 도메인 권한 추가 필요</li>
+                <li><strong>CORS:</strong> 모든 출처에서 접근 가능하도록 설정되어 있음</li>
+                <li><strong>Content Security Policy:</strong> fetch() API 사용 권장</li>
+                <li><strong>파일 업로드:</strong> 확장 프로그램에서 FormData 사용 가능</li>
+                <li><strong>이미지 표시:</strong> 반환된 URL을 직접 img 태그 src에 사용 가능</li>
             </ul>
         </div>
     </div>
@@ -1209,27 +1251,52 @@ export default {
     }
 };
 
+// CORS 헤더 추가 함수
+function addCorsHeaders(response) {
+    const corsHeaders = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+        'Access-Control-Max-Age': '86400' // 24시간
+    };
+    
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+    });
+    
+    return response;
+}
+
+// OPTIONS preflight 요청 처리
+function handleOptions() {
+    return addCorsHeaders(new Response(null, { status: 204 }));
+}
+
 // API 핸들러
 async function handleAPI(request, env, path) {
+    // OPTIONS preflight 요청 처리
+    if (request.method === 'OPTIONS') {
+        return handleOptions();
+    }
+    
+    let response;
+    
     if (path === '/api/packs' && request.method === 'GET') {
-        return handleGetPacks(request, env);
-    }
-    
-    if (path === '/api/upload' && request.method === 'POST') {
-        return handleUpload(request, env);
-    }
-    
-    if (path.startsWith('/api/pack/') && path.endsWith('/download')) {
+        response = await handleGetPacks(request, env);
+    } else if (path === '/api/upload' && request.method === 'POST') {
+        response = await handleUpload(request, env);
+    } else if (path.startsWith('/api/pack/') && path.endsWith('/download')) {
         const packId = path.split('/')[3];
-        return handleDownload(packId, env);
-    }
-    
-    if (path.startsWith('/api/pack/')) {
+        response = await handleDownload(packId, env);
+    } else if (path.startsWith('/api/pack/')) {
         const packId = path.split('/')[3];
-        return handleGetPack(packId, env, request);
+        response = await handleGetPack(packId, env, request);
+    } else {
+        response = new Response('API Not Found', { status: 404 });
     }
     
-    return new Response('API Not Found', { status: 404 });
+    // 모든 API 응답에 CORS 헤더 추가
+    return addCorsHeaders(response);
 }
 
 // 팩 리스트 조회
