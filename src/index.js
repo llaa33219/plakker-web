@@ -361,6 +361,22 @@ async function getEmoticons(packId) {
   const response = await fetch(\`https://plakker.bloupla.net/api/pack/\${packId}\`);
   const pack = await response.json();
   return pack.emoticons; // 이모티콘 URL 배열
+}
+
+// 이미지를 직접 DOM에 표시
+function displayEmoticon(imageUrl, containerId) {
+  const img = document.createElement('img');
+  img.src = imageUrl; // CORS 설정으로 직접 사용 가능
+  img.style.width = '150px';
+  img.style.height = '150px';
+  document.getElementById(containerId).appendChild(img);
+}
+
+// 이미지를 Blob으로 다운로드 (Canvas 처리 등에 사용)
+async function downloadEmoticonAsBlob(imageUrl) {
+  const response = await fetch(imageUrl);
+  const blob = await response.blob();
+  return blob; // 이 blob을 canvas에 그리거나 파일로 저장 가능
 }</pre>
 
             <h4>cURL</h4>
@@ -395,10 +411,12 @@ curl -X POST "https://plakker.bloupla.net/api/upload" \\
             <h3>크롬 확장 프로그램 사용 시 주의사항</h3>
             <ul>
                 <li><strong>Manifest V3:</strong> <code>host_permissions</code>에 도메인 권한 추가 필요</li>
-                <li><strong>CORS:</strong> 모든 출처에서 접근 가능하도록 설정되어 있음</li>
+                <li><strong>API CORS:</strong> 모든 출처에서 API 접근 가능하도록 설정되어 있음</li>
+                <li><strong>이미지 CORS:</strong> 모든 이미지 리소스에 CORS 헤더가 설정되어 크로스 오리진 접근 가능</li>
                 <li><strong>Content Security Policy:</strong> fetch() API 사용 권장</li>
                 <li><strong>파일 업로드:</strong> 확장 프로그램에서 FormData 사용 가능</li>
-                <li><strong>이미지 표시:</strong> 반환된 URL을 직접 img 태그 src에 사용 가능</li>
+                <li><strong>이미지 표시:</strong> 반환된 URL을 직접 img 태그 src나 canvas에 사용 가능</li>
+                <li><strong>이미지 다운로드:</strong> fetch()로 이미지를 Blob으로 다운로드 가능</li>
             </ul>
         </div>
     </div>
@@ -1226,6 +1244,17 @@ export default {
         
         // R2 이미지 서빙
         if (path.startsWith('/r2/')) {
+            // OPTIONS preflight 요청 처리
+            if (request.method === 'OPTIONS') {
+                const headers = new Headers();
+                headers.set('Access-Control-Allow-Origin', '*');
+                headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+                headers.set('Access-Control-Allow-Headers', 'Content-Type, Range');
+                headers.set('Access-Control-Max-Age', '86400');
+                headers.set('Permissions-Policy', getPermissionsPolicyHeader());
+                return new Response(null, { status: 204, headers });
+            }
+            
             const key = path.substring(4); // '/r2/' 제거
             try {
                 const object = await env.PLAKKER_R2.get(key);
@@ -1236,6 +1265,16 @@ export default {
                 const headers = new Headers();
                 object.writeHttpMetadata(headers);
                 headers.set('etag', object.httpEtag);
+                
+                // 이미지에 CORS 헤더 추가
+                headers.set('Access-Control-Allow-Origin', '*');
+                headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+                headers.set('Access-Control-Allow-Headers', 'Content-Type, Range');
+                headers.set('Access-Control-Max-Age', '86400');
+                headers.set('Permissions-Policy', getPermissionsPolicyHeader());
+                
+                // 이미지 캐싱 헤더 추가
+                headers.set('Cache-Control', 'public, max-age=31536000, immutable'); // 1년 캐시
                 
                 return new Response(object.body, { headers });
             } catch (error) {
