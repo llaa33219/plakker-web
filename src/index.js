@@ -1179,6 +1179,28 @@ function convertPackToAbsoluteUrls(pack, baseUrl) {
     return convertedPack;
 }
 
+// HTML 응답에 보안 헤더 추가
+function createHtmlResponse(content, status = 200) {
+    const response = new Response(content, {
+        status,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    });
+    
+    // 보안 헤더 추가
+    const securityHeaders = {
+        'Permissions-Policy': getPermissionsPolicyHeader(),
+        'X-Frame-Options': 'DENY',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'strict-origin-when-cross-origin'
+    };
+    
+    Object.entries(securityHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+    });
+    
+    return response;
+}
+
 // Worker 메인 함수
 export default {
     async fetch(request, env, ctx) {
@@ -1187,15 +1209,19 @@ export default {
         
         // 정적 파일 서빙
         if (path === '/static/style.css') {
-            return new Response(CSS_STYLES, {
-                headers: { 'Content-Type': 'text/css' }
+            const response = new Response(CSS_STYLES, {
+                headers: { 'Content-Type': 'text/css; charset=utf-8' }
             });
+            response.headers.set('Permissions-Policy', getPermissionsPolicyHeader());
+            return response;
         }
         
         if (path === '/static/script.js') {
-            return new Response(JS_CLIENT, {
-                headers: { 'Content-Type': 'application/javascript' }
+            const response = new Response(JS_CLIENT, {
+                headers: { 'Content-Type': 'application/javascript; charset=utf-8' }
             });
+            response.headers.set('Permissions-Policy', getPermissionsPolicyHeader());
+            return response;
         }
         
         // R2 이미지 서빙
@@ -1224,21 +1250,15 @@ export default {
         
         // 페이지 라우팅
         if (path === '/') {
-            return new Response(HTML_TEMPLATES.base('홈', HTML_TEMPLATES.home()), {
-                headers: { 'Content-Type': 'text/html' }
-            });
+            return createHtmlResponse(HTML_TEMPLATES.base('홈', HTML_TEMPLATES.home()));
         }
         
         if (path === '/upload') {
-            return new Response(HTML_TEMPLATES.base('업로드', HTML_TEMPLATES.upload()), {
-                headers: { 'Content-Type': 'text/html' }
-            });
+            return createHtmlResponse(HTML_TEMPLATES.base('업로드', HTML_TEMPLATES.upload()));
         }
         
         if (path === '/api-docs') {
-            return new Response(HTML_TEMPLATES.base('API 문서', HTML_TEMPLATES.apiDocs()), {
-                headers: { 'Content-Type': 'text/html' }
-            });
+            return createHtmlResponse(HTML_TEMPLATES.base('API 문서', HTML_TEMPLATES.apiDocs()));
         }
         
         if (path.startsWith('/pack/')) {
@@ -1251,13 +1271,27 @@ export default {
     }
 };
 
-// CORS 헤더 추가 함수
+// Permissions-Policy 헤더 문자열 생성
+function getPermissionsPolicyHeader() {
+    return [
+        'attribution-reporting=()',
+        'private-aggregation=()',
+        'private-state-token-issuance=()',
+        'private-state-token-redemption=()',
+        'join-ad-interest-group=()',
+        'run-ad-auction=()',
+        'browsing-topics=()'
+    ].join(', ');
+}
+
+// CORS 및 보안 헤더 추가 함수
 function addCorsHeaders(response) {
     const corsHeaders = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-        'Access-Control-Max-Age': '86400' // 24시간
+        'Access-Control-Max-Age': '86400', // 24시간
+        'Permissions-Policy': getPermissionsPolicyHeader()
     };
     
     Object.entries(corsHeaders).forEach(([key, value]) => {
@@ -1371,16 +1405,14 @@ async function handlePackDetail(packId, env, request) {
         const pack = await env.PLAKKER_KV.get(`pack_${packId}`, 'json');
         
         if (!pack) {
-            return new Response('팩을 찾을 수 없습니다', { status: 404 });
+            return createHtmlResponse('팩을 찾을 수 없습니다', 404);
         }
         
         const convertedPack = convertPackToAbsoluteUrls(pack, baseUrl);
         
-        return new Response(HTML_TEMPLATES.base(`${pack.title} - 이모티콘 팩`, HTML_TEMPLATES.detail(convertedPack)), {
-            headers: { 'Content-Type': 'text/html' }
-        });
+        return createHtmlResponse(HTML_TEMPLATES.base(`${pack.title} - 이모티콘 팩`, HTML_TEMPLATES.detail(convertedPack)));
     } catch (error) {
-        return new Response('서버 오류', { status: 500 });
+        return createHtmlResponse('서버 오류', 500);
     }
 }
 
