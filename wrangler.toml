@@ -17,7 +17,7 @@ bucket_name = "plakker-storage"
 
 [vars]
 ENVIRONMENT = "production"
-# Gemini API Key for image validation (REQUIRED for service operation)
+# Gemini 2.5 Flash API Key for image validation (REQUIRED for service operation)
 GEMINI_API_KEY = "AIzaSyAgLwJmesiDug0FOab3TRN8Dyv8AeTd8cA"
 
 # For production deployment, use secrets instead:

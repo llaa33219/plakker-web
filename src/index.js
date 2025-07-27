@@ -431,7 +431,7 @@ curl -X POST "https://plakker.bloupla.net/api/upload" \\
 
         <div class="api-section">
             <h3>이미지 검증 기능 (필수)</h3>
-            <p><strong>모든 업로드 이미지는 Google Gemini AI를 통한 검증을 반드시 통과해야 합니다.</strong> 검증에 실패하거나 오류가 발생하면 업로드가 차단됩니다.</p>
+            <p><strong>모든 업로드 이미지는 Google Gemini 2.5 Flash AI를 통한 검증을 반드시 통과해야 합니다.</strong> 검증에 실패하거나 오류가 발생하면 업로드가 차단됩니다.</p>
             
             <h4>검증 기준</h4>
             <ul>
@@ -444,13 +444,13 @@ curl -X POST "https://plakker.bloupla.net/api/upload" \\
             </ul>
             
             <h4>환경 설정 (필수)</h4>
-            <p><strong>서비스 운영을 위해 Gemini API 키 설정이 필수입니다:</strong></p>
+            <p><strong>서비스 운영을 위해 Gemini 2.5 Flash API 키 설정이 필수입니다:</strong></p>
             <pre class="code-block"># Cloudflare Workers 환경변수 설정 (권장)
 wrangler secret put GEMINI_API_KEY
 
 # 또는 wrangler.toml에서 설정 (보안상 권장하지 않음)
 [vars]
-GEMINI_API_KEY = "your-api-key-here"</pre>
+GEMINI_API_KEY = "your-gemini-2.5-flash-api-key-here"</pre>
             
             <div class="api-info">
                 <p><strong>중요:</strong> API 키가 설정되지 않으면 모든 업로드가 차단됩니다. 검증 시스템 오류 시에도 업로드가 거부됩니다.</p>
@@ -1503,7 +1503,7 @@ async function resizeImage(imageBuffer, width = 150, height = 150) {
     return imageBuffer;
 }
 
-// Gemini API를 통한 이모티콘 검증
+// Gemini 2.5 Flash API를 통한 이모티콘 검증
 async function validateEmoticonWithGemini(imageBuffer, apiKey) {
     try {
         // 이미지 크기 제한 (20MB)
@@ -1549,7 +1549,7 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey) {
             '응답은 반드시 다음 JSON 형식으로만 해주세요:\n' +
             '{"classification": "APPROPRIATE|INAPPROPRIATE", "reason": "분류 이유를 한 줄로"}';
         
-        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey, {
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
