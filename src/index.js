@@ -1748,7 +1748,7 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
             '5. 불법적인 내용 (마약, 불법 활동 등)\n\n' +
             '위 기준에 해당하지 않는 모든 이미지는 적절한 것으로 분류해주세요.\n' +
             '(일반 사진, 음식, 동물, 풍경, 캐릭터, 만화, 밈, 텍스트 등은 모두 적절함)\n\n' +
-            '응답은 반드시 다음 JSON 형식으로만 해주세요:\n' +
+            'CRITICAL: 응답은 반드시 정확한 JSON 형식으로만 해주세요. 다른 텍스트 없이 JSON만 출력하세요:\n' +
             '{"classification": "APPROPRIATE|INAPPROPRIATE", "reason": "분류 이유를 한 줄로"}';
         
         // Cloudflare AI Gateway를 통한 요청 (지역 제한 우회)
@@ -1788,13 +1788,7 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
                 }],
                 generationConfig: {
                     temperature: 0,
-                    maxOutputTokens: 150,
-                    responseMimeType: "application/json"
-                },
-                systemInstruction: {
-                    parts: [{
-                        text: "You are a fast content moderator. Respond only in the exact JSON format requested with no additional text or explanation."
-                    }]
+                    maxOutputTokens: 150
                 }
             })
         });
@@ -1837,7 +1831,18 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
         
         // JSON 응답 파싱
         try {
-            const parsed = JSON.parse(content.trim());
+            // JSON만 추출 (앞뒤 추가 텍스트 제거)
+            let jsonContent = content.trim();
+            
+            // JSON 시작/끝 찾기
+            const jsonStart = jsonContent.indexOf('{');
+            const jsonEnd = jsonContent.lastIndexOf('}');
+            
+            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+                jsonContent = jsonContent.substring(jsonStart, jsonEnd + 1);
+            }
+            
+            const parsed = JSON.parse(jsonContent);
             const isValid = parsed.classification === 'APPROPRIATE';
             return {
                 isValid,
@@ -1845,18 +1850,20 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
                 classification: parsed.classification
             };
         } catch (parseError) {
-            // JSON 파싱 실패 시 텍스트에서 분류 추출
+            console.error('Gemini JSON 파싱 오류:', parseError.message, 'Content:', content.substring(0, 200));
+            
+            // 백업: 텍스트 분석
             const upperContent = content.toUpperCase();
             if (upperContent.includes('INAPPROPRIATE')) {
-                return { isValid: false, reason: '부적절한 콘텐츠로 분류됨' };
+                return { isValid: false, reason: '부적절한 콘텐츠로 분류됨 (텍스트 분석)' };
             } else if (upperContent.includes('APPROPRIATE')) {
-                return { isValid: true, reason: '텍스트 분석으로 적절한 콘텐츠로 승인' };
+                return { isValid: true, reason: '적절한 콘텐츠로 승인 (텍스트 분석)' };
             } else {
-                // 파싱 실패하고 명확하지 않은 경우 검증 실패로 처리
+                // 파싱 실패하고 명확하지 않은 경우 안전을 위해 검증 실패
                 return { 
                     isValid: false, 
-                    reason: 'AI 응답 형식 오류로 검증 실패',
-                    error: 'JSON parse failed: ' + parseError.message
+                    reason: 'AI 응답 분석 실패 - 안전을 위해 거부',
+                    error: 'JSON 파싱 및 텍스트 분석 실패: ' + parseError.message
                 };
             }
         }
