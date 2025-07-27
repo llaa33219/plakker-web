@@ -12,8 +12,8 @@ const HTML_TEMPLATES = {
 <body>
     <header class="header">
         <div class="header-content">
-            <img src="https://i.imgur.com/2MkyDCh.png" alt="Logo" style="width: 90px; height: auto; cursor: pointer;" onclick="location.href='https://bloupla.net/';">
-            <h1 style="font-size: 1.5em;">Plakker</h1>
+            <img src="https://i.imgur.com/2MkyDCh.png" alt="Logo" style="width: 100px; height: auto; cursor: pointer;" onclick="location.href='https://bloupla.net/';">
+            <h1 style="font-size: 1.5em;"><a href="/">Plakker</a></h1>
         </div>
         <nav>
             <a href="/">홈</a>
