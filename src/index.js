@@ -50,9 +50,7 @@ const HTML_TEMPLATES = {
     
     <div class="ai-validation-notice">
         <span class="info-icon"></span>
-        <strong>AI 검열 안내:</strong> 모든 이미지는 Google Gemini AI를 통한 자동 검열을 거칩니다. 
-        부적절한 내용(정치적, 선정적, 잔인한, 혐오적 내용)이 포함된 이미지는 자동으로 제외됩니다. 
-        검열 과정으로 인해 업로드에 <strong>1-2분</strong> 소요될 수 있습니다.
+        <strong>검열 안내:</strong> 검열로 인해 업로드에 시간이 걸릴 수 있습니다.
     </div>
     
     <form id="upload-form" class="upload-form">
@@ -92,7 +90,7 @@ const HTML_TEMPLATES = {
                     <span class="plus-icon">+</span>
                     이미지 추가
                 </button>
-                <div class="file-info">최소 3개의 이미지를 선택하세요. 자동으로 150x150으로 리사이즈되며, 모든 이미지는 AI 검증을 통과해야 업로드됩니다.</div>
+                <div class="file-info">최소 3개의 이미지를 선택하세요. 자동으로 150x150으로 리사이즈되며, 모든 이미지는 검증을 통과해야 업로드됩니다.</div>
             </div>
             <div id="emoticon-preview" class="file-preview"></div>
         </div>
@@ -1718,7 +1716,7 @@ function setupUploadForm() {
         }
         
         // 최종 확인
-        const confirmed = confirm(\`업로드하시겠습니까?\\n\\n제목: \${title}\\n제작자: \${creator}\\n이미지 개수: \${selectedEmoticons.length}개\\n\\n모든 이미지는 AI 검열을 거칩니다 (1-2분 소요)\\n업로드 후에는 수정할 수 없습니다.\`);
+        const confirmed = confirm(\`업로드하시겠습니까?\\n\\n제목: \${title}\\n제작자: \${creator}\\n이미지 개수: \${selectedEmoticons.length}개\\n\\n모든 이미지는 검열을 거칩니다 (1-2분 소요)\\n업로드 후에는 수정할 수 없습니다.\`);
         if (!confirmed) {
             return;
         }
@@ -1871,7 +1869,7 @@ function setupUploadForm() {
                     
                     \${validationInfo ? \`
                         <div class="validation-summary">
-                            <h4>AI 검열 결과</h4>
+                            <h4>검열 결과</h4>
                             <div class="validation-stats">
                                 <div class="stat-item">
                                     <span class="stat-label">제출된 이미지:</span>
