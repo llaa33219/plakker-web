@@ -13,7 +13,7 @@ const HTML_TEMPLATES = {
     <header class="header">
         <div class="header-content">
             <img src="https://i.imgur.com/2MkyDCh.png" alt="Logo" style="width: 80px; height: auto; cursor: pointer;" onclick="location.href='https://bloupla.net/';">
-            <h1 style="font-size: 1.8em;"><a href="/">Plakker</a></h1>
+            <h1 style="font-size: 1.8em;">Plakker</h1>
         </div>
         <nav>
             <a href="/">홈</a>
