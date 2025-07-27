@@ -572,12 +572,6 @@ button:disabled {
     border-radius: 14px;
 }
 
-.header h1 a {
-    text-decoration: none;
-    color: #007bff;
-    font-size: 1.5rem;
-}
-
 .header nav a {
     text-decoration: none;
     color: #6c757d;
