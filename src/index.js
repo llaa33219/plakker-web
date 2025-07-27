@@ -608,10 +608,13 @@ button:disabled {
 }
 
 .pack-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
     margin: 2rem 0;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .pack-item {
@@ -621,6 +624,9 @@ button:disabled {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
 }
 
 .pack-item:hover {
@@ -629,22 +635,29 @@ button:disabled {
 }
 
 .pack-thumbnail {
-    width: 100%;
-    height: 150px;
+    width: 80px;
+    height: 80px;
     object-fit: cover;
-    border-radius: 4px;
-    margin-bottom: 0.5rem;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.pack-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
 }
 
 .pack-title {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     font-weight: bold;
-    margin-bottom: 0.25rem;
+    color: #333;
 }
 
 .pack-creator {
     color: #6c757d;
-    font-size: 0.9rem;
+    font-size: 1rem;
 }
 
 .upload-warning {
@@ -993,8 +1006,26 @@ button:disabled {
     }
     
     .pack-grid {
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 1rem;
+        max-width: 100%;
+        margin: 1rem 0;
+    }
+    
+    .pack-item {
+        padding: 0.75rem;
+        gap: 0.75rem;
+    }
+    
+    .pack-thumbnail {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .pack-title {
+        font-size: 1rem;
+    }
+    
+    .pack-creator {
+        font-size: 0.9rem;
     }
     
     .emoticons-grid {
@@ -1134,11 +1165,6 @@ button:disabled {
 @media (max-width: 768px) {
     .container {
         padding: 0 0.5rem;
-    }
-    
-    .pack-grid {
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 1rem;
     }
     
     .emoticons-grid {
@@ -1553,8 +1579,10 @@ async function loadPackList(page = 1) {
             container.innerHTML = data.packs.map(pack => 
                 '<div class="pack-item" onclick="location.href=\\'/pack/' + pack.id + '\\'">\\n' +
                 '    <img src="' + pack.thumbnail + '" alt="' + pack.title + '" class="pack-thumbnail">\\n' +
-                '    <div class="pack-title">' + pack.title + '</div>\\n' +
-                '    <div class="pack-creator">' + pack.creator + '</div>\\n' +
+                '    <div class="pack-info">\\n' +
+                '        <div class="pack-title">' + pack.title + '</div>\\n' +
+                '        <div class="pack-creator">' + pack.creator + '</div>\\n' +
+                '    </div>\\n' +
                 '</div>'
             ).join('');
         } else {
