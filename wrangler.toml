@@ -17,3 +17,4 @@ bucket_name = "plakker-storage"
 
 [vars]
 ENVIRONMENT = "production"
+GEMINI_API_KEY = "AIzaSyAgLwJmesiDug0FOab3TRN8Dyv8AeTd8cA"

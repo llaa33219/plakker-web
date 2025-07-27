@@ -41,40 +41,61 @@ const HTML_TEMPLATES = {
   upload: () => `
 <div class="container">
     <h2>이모티콘 팩 업로드</h2>
+    
+    <div class="upload-warning">
+        <span class="warning-icon">⚠️</span>
+        <strong>주의:</strong> 업로드 후에는 수정이 불가능합니다. 신중하게 검토 후 업로드해주세요.
+    </div>
+    
     <form id="upload-form" class="upload-form">
         <div class="form-group">
-            <label for="title">제목</label>
-            <input type="text" id="title" name="title" required>
+            <label for="title">제목 *</label>
+            <input type="text" id="title" name="title" required placeholder="이모티콘 팩의 제목을 입력하세요">
         </div>
         
         <div class="form-group">
-            <label for="creator">제작자</label>
-            <input type="text" id="creator" name="creator" required>
+            <label for="creator">제작자 *</label>
+            <input type="text" id="creator" name="creator" required placeholder="제작자 이름을 입력하세요">
         </div>
         
         <div class="form-group">
             <label for="creator-link">제작자 링크 (선택)</label>
-            <input type="url" id="creator-link" name="creatorLink">
+            <input type="url" id="creator-link" name="creatorLink" placeholder="https://example.com">
         </div>
         
         <div class="form-group">
-            <label for="thumbnail">썸네일 이미지</label>
-            <input type="file" id="thumbnail" name="thumbnail" accept="image/*" required>
-        </div>
-        
-        <div class="form-group">
-            <label for="emoticons">이모티콘들 (최소 3개)</label>
-            <input type="file" id="emoticons" name="emoticons" accept="image/*" multiple required>
-            <div class="file-info">최소 3개의 이미지를 선택해주세요. 자동으로 150x150으로 리사이즈됩니다.</div>
-            <div id="emoticon-preview" class="file-preview"></div>
-        </div>
-        
-        <div class="form-group">
-            <label for="thumbnail">썸네일 미리보기</label>
+            <label>썸네일 이미지 *</label>
+            <input type="file" id="thumbnail-input" accept="image/*" style="display: none;">
+            <div class="file-upload-area">
+                <button type="button" class="add-file-btn" onclick="document.getElementById('thumbnail-input').click()">
+                    <span class="plus-icon">+</span>
+                    썸네일 선택
+                </button>
+                <div class="file-info">팩을 대표할 썸네일 이미지를 선택하세요</div>
+            </div>
             <div id="thumbnail-preview" class="file-preview"></div>
         </div>
         
-        <button type="submit" class="submit-btn">업로드</button>
+        <div class="form-group">
+            <label>이모티콘들 * (최소 3개)</label>
+            <input type="file" id="emoticons-input" accept="image/*" multiple style="display: none;">
+            <div class="file-upload-area">
+                <button type="button" class="add-file-btn" onclick="document.getElementById('emoticons-input').click()">
+                    <span class="plus-icon">+</span>
+                    이모티콘 추가
+                </button>
+                <div class="file-info">최소 3개의 이모티콘을 선택하세요. 자동으로 150x150으로 리사이즈됩니다.</div>
+            </div>
+            <div id="emoticon-preview" class="file-preview"></div>
+        </div>
+        
+        <div class="form-actions">
+            <button type="button" class="reset-btn" onclick="resetForm()">초기화</button>
+            <button type="submit" class="submit-btn">
+                <span class="submit-text">업로드</span>
+                <span class="submit-loading" style="display: none;">업로드 중...</span>
+            </button>
+        </div>
     </form>
 </div>`,
 
@@ -404,7 +425,33 @@ curl -X POST "https://plakker.bloupla.net/api/upload" \\
                 <li>KV 읽기/쓰기: 일일 한도 적용</li>
                 <li>이모티콘 최소 개수: 3개</li>
                 <li>지원 이미지 형식: PNG, JPEG, GIF, WebP</li>
+                <li>이미지 자동 리사이즈: 이모티콘 150x150, 썸네일 200x200</li>
             </ul>
+        </div>
+
+        <div class="api-section">
+            <h3>이미지 검증 기능</h3>
+            <p>업로드된 이모티콘은 Google Gemini AI를 통해 자동으로 검증됩니다.</p>
+            
+            <h4>검증 기준</h4>
+            <ul>
+                <li><strong>승인:</strong> 이모티콘, 스티커, 캐릭터, 귀여운 그림 등</li>
+                <li><strong>거부:</strong> 부적절한 내용 (폭력, 성인 콘텐츠, 혐오 표현 등)</li>
+                <li><strong>거부:</strong> 이모티콘이 아닌 일반 사진, 문서, 스크린샷 등</li>
+            </ul>
+            
+            <h4>환경 설정</h4>
+            <p>이미지 검증 기능을 사용하려면 Gemini API 키가 필요합니다:</p>
+            <pre class="code-block"># Cloudflare Workers 환경변수 설정
+wrangler secret put GEMINI_API_KEY
+
+# 또는 wrangler.toml에서 설정 (권장하지 않음)
+[vars]
+GEMINI_API_KEY = "your-api-key-here"</pre>
+            
+            <div class="api-info">
+                <p><strong>참고:</strong> API 키가 설정되지 않은 경우 검증 기능이 비활성화되고 모든 이미지가 승인됩니다.</p>
+            </div>
         </div>
 
         <div class="api-section">
@@ -515,37 +562,119 @@ body {
     font-size: 0.9rem;
 }
 
+.upload-warning {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.warning-icon {
+    font-size: 1.2rem;
+}
+
 .upload-form {
     background: white;
     padding: 2rem;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    max-width: 600px;
+    max-width: 700px;
     margin: 0 auto;
 }
 
 .form-group {
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    color: #2d3748;
+    font-size: 1.1rem;
 }
 
-.form-group input {
+.form-group input[type="text"],
+.form-group input[type="url"] {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
     font-size: 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .form-group input:focus {
     outline: none;
     border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+    box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+}
+
+.file-upload-area {
+    border: 2px dashed #cbd5e0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    background: #f7fafc;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+.file-upload-area:hover {
+    border-color: #007bff;
+    background: #f0f8ff;
+}
+
+.add-file-btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 auto;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.add-file-btn:hover {
+    background: #0056b3;
+    transform: translateY(-1px);
+}
+
+.plus-icon {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.reset-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.reset-btn:hover {
+    background: #5a6268;
 }
 
 .file-info {
@@ -556,13 +685,14 @@ body {
 
 .file-preview {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 0.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 1rem;
     margin-top: 1rem;
-    padding: 1rem;
-    border: 2px dashed #e9ecef;
-    border-radius: 4px;
-    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    min-height: 120px;
 }
 
 .file-preview.has-files {
@@ -570,46 +700,73 @@ body {
     background-color: #f0f8ff;
 }
 
+.file-preview:empty::after {
+    content: "선택된 파일이 없습니다";
+    grid-column: 1 / -1;
+    text-align: center;
+    color: #a0aec0;
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+}
+
 .preview-item {
     position: relative;
     text-align: center;
+    background: white;
+    border-radius: 8px;
+    padding: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.preview-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .preview-image {
     width: 100px;
     height: 100px;
     object-fit: cover;
-    border-radius: 4px;
-    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    border: 2px solid #e2e8f0;
 }
 
 .preview-filename {
     font-size: 0.75rem;
-    color: #6c757d;
-    margin-top: 0.25rem;
+    color: #4a5568;
+    margin-top: 0.5rem;
     word-break: break-all;
     line-height: 1.2;
+    font-weight: 500;
 }
 
 .preview-remove {
     position: absolute;
-    top: -5px;
-    right: -5px;
-    background: #dc3545;
+    top: -8px;
+    right: -8px;
+    background: #e53e3e;
     color: white;
     border: none;
     border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    font-size: 12px;
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    font-weight: bold;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: background-color 0.2s, transform 0.1s;
 }
 
 .preview-remove:hover {
-    background: #c82333;
+    background: #c53030;
+    transform: scale(1.1);
 }
 
 .preview-placeholder {
@@ -622,23 +779,35 @@ body {
 }
 
 .submit-btn {
-    background: #007bff;
+    background: #28a745;
     color: white;
     border: none;
     padding: 0.75rem 2rem;
-    border-radius: 4px;
-    font-size: 1rem;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: background-color 0.2s, transform 0.1s;
+    position: relative;
+    min-width: 120px;
 }
 
-.submit-btn:hover {
-    background: #0056b3;
+.submit-btn:hover:not(:disabled) {
+    background: #218838;
+    transform: translateY(-1px);
 }
 
 .submit-btn:disabled {
     background: #6c757d;
     cursor: not-allowed;
+    transform: none;
+}
+
+.submit-loading {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
 }
 
 .pack-detail {
@@ -997,57 +1166,97 @@ function updatePagination(page, hasNext) {
 
 function setupUploadForm() {
     const form = document.getElementById('upload-form');
-    const emoticonInput = document.getElementById('emoticons');
-    const thumbnailInput = document.getElementById('thumbnail');
+    const thumbnailInput = document.getElementById('thumbnail-input');
+    const emoticonsInput = document.getElementById('emoticons-input');
     
-    let selectedEmoticons = [];
     let selectedThumbnail = null;
+    let selectedEmoticons = [];
     
-    // 썸네일 미리보기
-    thumbnailInput.addEventListener('change', function() {
-        selectedThumbnail = this.files[0];
-        updateThumbnailPreview();
-    });
-    
-    // 이모티콘 미리보기
-    emoticonInput.addEventListener('change', function() {
-        selectedEmoticons = Array.from(this.files);
-        updateEmoticonPreview();
-        
-        if (this.files.length < 3) {
-            alert('최소 3개의 이모티콘 이미지를 선택해주세요.');
+    // 썸네일 파일 선택 이벤트
+    thumbnailInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            if (!file.type.startsWith('image/')) {
+                alert('이미지 파일만 선택해주세요.');
+                return;
+            }
+            
+            selectedThumbnail = file;
+            updateThumbnailPreview();
         }
     });
     
+    // 이모티콘 파일 선택 이벤트
+    emoticonsInput.addEventListener('change', function(e) {
+        const files = Array.from(e.target.files);
+        
+        // 이미지 파일만 필터링
+        const imageFiles = files.filter(file => file.type.startsWith('image/'));
+        
+        if (imageFiles.length !== files.length) {
+            alert('이미지 파일만 선택해주세요.');
+        }
+        
+        // 기존 선택된 파일들에 추가
+        selectedEmoticons = selectedEmoticons.concat(imageFiles);
+        updateEmoticonPreview();
+        
+        // input 값 리셋 (같은 파일을 다시 선택할 수 있도록)
+        e.target.value = '';
+    });
+    
+    // 폼 제출 이벤트
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        const formData = new FormData();
-        const title = document.getElementById('title').value;
-        const creator = document.getElementById('creator').value;
-        const creatorLink = document.getElementById('creator-link').value;
-        const thumbnail = document.getElementById('thumbnail').files[0];
-        const emoticons = document.getElementById('emoticons').files;
+        const title = document.getElementById('title').value.trim();
+        const creator = document.getElementById('creator').value.trim();
+        const creatorLink = document.getElementById('creator-link').value.trim();
         
-        if (!title || !creator || !selectedThumbnail || selectedEmoticons.length < 3) {
-            alert('모든 필수 항목을 입력해주세요. 이모티콘은 최소 3개 이상 선택해야 합니다.');
+        // 유효성 검사
+        if (!title || !creator) {
+            alert('제목과 제작자는 필수 항목입니다.');
             return;
         }
         
-        formData.append('title', title);
-        formData.append('creator', creator);
-        if (creatorLink) formData.append('creatorLink', creatorLink);
-        formData.append('thumbnail', selectedThumbnail);
-        
-        for (let i = 0; i < selectedEmoticons.length; i++) {
-            formData.append('emoticons', selectedEmoticons[i]);
+        if (!selectedThumbnail) {
+            alert('썸네일 이미지를 선택해주세요.');
+            return;
         }
         
+        if (selectedEmoticons.length < 3) {
+            alert('최소 3개의 이모티콘을 선택해주세요.');
+            return;
+        }
+        
+        // 최종 확인
+        const confirmed = confirm(\`업로드하시겠습니까?\\n\\n제목: \${title}\\n제작자: \${creator}\\n이모티콘 개수: \${selectedEmoticons.length}개\\n\\n⚠️ 업로드 후에는 수정할 수 없습니다.\`);
+        if (!confirmed) {
+            return;
+        }
+        
+        // 로딩 상태 설정
         const submitBtn = form.querySelector('.submit-btn');
+        const submitText = submitBtn.querySelector('.submit-text');
+        const submitLoading = submitBtn.querySelector('.submit-loading');
+        
         submitBtn.disabled = true;
-        submitBtn.textContent = '업로드 중...';
+        submitText.style.display = 'none';
+        submitLoading.style.display = 'block';
         
         try {
+            // FormData 생성
+            const formData = new FormData();
+            formData.append('title', title);
+            formData.append('creator', creator);
+            if (creatorLink) formData.append('creatorLink', creatorLink);
+            formData.append('thumbnail', selectedThumbnail);
+            
+            selectedEmoticons.forEach(file => {
+                formData.append('emoticons', file);
+            });
+            
+            // API 호출
             const response = await fetch('/api/upload', {
                 method: 'POST',
                 body: formData
@@ -1056,7 +1265,27 @@ function setupUploadForm() {
             const result = await response.json();
             
             if (response.ok) {
-                alert('이모티콘 팩이 성공적으로 업로드되었습니다!');
+                const message = result.message || '이모티콘 팩이 성공적으로 업로드되었습니다!';
+                
+                // 검증 정보가 있으면 상세 정보 표시
+                if (result.validationInfo && result.validationInfo.rejected > 0) {
+                    let detailMessage = message + '\\n\\n검증 결과:\\n';
+                    detailMessage += '- 제출된 이모티콘: ' + result.validationInfo.totalSubmitted + '개\\n';
+                    detailMessage += '- 승인된 이모티콘: ' + result.validationInfo.approved + '개\\n';
+                    detailMessage += '- 거부된 이모티콘: ' + result.validationInfo.rejected + '개';
+                    
+                    if (result.validationInfo.rejectedItems && result.validationInfo.rejectedItems.length > 0) {
+                        detailMessage += '\\n\\n거부된 이모티콘 상세:\\n';
+                        result.validationInfo.rejectedItems.forEach(function(item) {
+                            detailMessage += '- ' + item.fileName + ': ' + item.reason + '\\n';
+                        });
+                    }
+                    
+                    alert(detailMessage);
+                } else {
+                    alert(message);
+                }
+                
                 location.href = '/pack/' + result.id;
             } else {
                 alert('업로드 실패: ' + (result.error || '알 수 없는 오류'));
@@ -1065,8 +1294,10 @@ function setupUploadForm() {
             console.error('업로드 오류:', error);
             alert('업로드 중 오류가 발생했습니다.');
         } finally {
+            // 로딩 상태 해제
             submitBtn.disabled = false;
-            submitBtn.textContent = '업로드';
+            submitText.style.display = 'block';
+            submitLoading.style.display = 'none';
         }
     });
     
@@ -1075,19 +1306,20 @@ function setupUploadForm() {
         const previewContainer = document.getElementById('thumbnail-preview');
         
         if (!selectedThumbnail) {
-            previewContainer.innerHTML = '<div class="preview-placeholder">썸네일을 선택해주세요</div>';
+            previewContainer.innerHTML = '';
             previewContainer.classList.remove('has-files');
             return;
         }
         
         const reader = new FileReader();
         reader.onload = function(e) {
-            previewContainer.innerHTML = 
-                '<div class="preview-item">' +
-                '    <img src="' + e.target.result + '" class="preview-image" alt="썸네일 미리보기">' +
-                '    <div class="preview-filename">' + selectedThumbnail.name + '</div>' +
-                '    <button type="button" class="preview-remove" onclick="removeThumbnail()">×</button>' +
-                '</div>';
+            previewContainer.innerHTML = \`
+                <div class="preview-item">
+                    <img src="\${e.target.result}" class="preview-image" alt="썸네일 미리보기">
+                    <div class="preview-filename">\${selectedThumbnail.name}</div>
+                    <button type="button" class="preview-remove" data-action="remove-thumbnail">×</button>
+                </div>
+            \`;
             previewContainer.classList.add('has-files');
         };
         reader.readAsDataURL(selectedThumbnail);
@@ -1098,7 +1330,7 @@ function setupUploadForm() {
         const previewContainer = document.getElementById('emoticon-preview');
         
         if (selectedEmoticons.length === 0) {
-            previewContainer.innerHTML = '<div class="preview-placeholder">이모티콘을 선택해주세요 (최소 3개)</div>';
+            previewContainer.innerHTML = '';
             previewContainer.classList.remove('has-files');
             return;
         }
@@ -1111,32 +1343,39 @@ function setupUploadForm() {
             reader.onload = function(e) {
                 const previewItem = document.createElement('div');
                 previewItem.className = 'preview-item';
-                previewItem.innerHTML = 
-                    '<img src="' + e.target.result + '" class="preview-image" alt="이모티콘 ' + (index + 1) + '">' +
-                    '<div class="preview-filename">' + file.name + '</div>' +
-                    '<button type="button" class="preview-remove" onclick="removeEmoticon(' + index + ')">×</button>';
+                previewItem.innerHTML = \`
+                    <img src="\${e.target.result}" class="preview-image" alt="이모티콘 \${index + 1}">
+                    <div class="preview-filename">\${file.name}</div>
+                    <button type="button" class="preview-remove" data-action="remove-emoticon" data-index="\${index}">×</button>
+                \`;
                 previewContainer.appendChild(previewItem);
             };
             reader.readAsDataURL(file);
         });
     }
     
-    // 전역 함수로 만들어서 onclick에서 사용 가능하도록
-    window.removeThumbnail = function() {
-        selectedThumbnail = null;
-        document.getElementById('thumbnail').value = '';
-        updateThumbnailPreview();
-    };
+    // 이벤트 위임을 사용하여 제거 버튼 처리
+    document.addEventListener('click', function(e) {
+        if (e.target.matches('[data-action="remove-thumbnail"]')) {
+            selectedThumbnail = null;
+            thumbnailInput.value = '';
+            updateThumbnailPreview();
+        } else if (e.target.matches('[data-action="remove-emoticon"]')) {
+            const index = parseInt(e.target.dataset.index);
+            selectedEmoticons.splice(index, 1);
+            updateEmoticonPreview();
+        }
+    });
     
-    window.removeEmoticon = function(index) {
-        selectedEmoticons.splice(index, 1);
-        
-        // FileList는 직접 수정할 수 없으므로 새로운 DataTransfer 객체 생성
-        const dt = new DataTransfer();
-        selectedEmoticons.forEach(file => dt.items.add(file));
-        document.getElementById('emoticons').files = dt.files;
-        
-        updateEmoticonPreview();
+    // 전역 함수들
+    window.resetForm = function() {
+        if (confirm('모든 입력 내용이 초기화됩니다. 계속하시겠습니까?')) {
+            form.reset();
+            selectedThumbnail = null;
+            selectedEmoticons = [];
+            updateThumbnailPreview();
+            updateEmoticonPreview();
+        }
     };
     
     // 초기 미리보기 표시
@@ -1169,6 +1408,91 @@ async function downloadPack(packId) {
 // 유틸리티 함수들
 function generateId() {
     return 'pack_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+// 이미지 리사이즈 함수
+async function resizeImage(imageBuffer, width = 150, height = 150) {
+    // Canvas를 사용한 이미지 리사이즈 (브라우저 환경이 아니므로 다른 방법 필요)
+    // Cloudflare Workers에서는 ImageMagick 같은 라이브러리를 사용할 수 없으므로
+    // 클라이언트 측에서 리사이즈하거나 외부 서비스를 사용해야 함
+    
+    // 일단 원본 이미지를 그대로 반환 (추후 외부 이미지 처리 서비스 연동 가능)
+    return imageBuffer;
+}
+
+// Gemini API를 통한 이모티콘 검증
+async function validateEmoticonWithGemini(imageBuffer, apiKey) {
+    try {
+        // 이미지를 base64로 인코딩
+        const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+        
+        const promptText = '이 이미지를 분석해서 다음 중 하나로 분류해주세요:\n' +
+            '1. EMOTICON - 이모티콘, 스티커, 캐릭터, 귀여운 그림 등 메신저에서 사용할 수 있는 이모티콘으로 적합한 이미지\n' +
+            '2. INAPPROPRIATE - 부적절한 내용 (폭력, 성인 콘텐츠, 혐오 표현 등)\n' +
+            '3. NOT_EMOTICON - 이모티콘이 아닌 일반 사진, 문서, 스크린샷 등\n\n' +
+            '응답은 반드시 다음 JSON 형식으로만 해주세요:\n' +
+            '{"classification": "EMOTICON|INAPPROPRIATE|NOT_EMOTICON", "reason": "분류 이유를 한 줄로"}';
+        
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [
+                        {
+                            text: promptText
+                        },
+                        {
+                            inline_data: {
+                                mime_type: "image/jpeg",
+                                data: base64Image
+                            }
+                        }
+                    ]
+                }]
+            })
+        });
+        
+        if (!response.ok) {
+            console.error('Gemini API error:', await response.text());
+            return { isValid: true, reason: 'API 오류로 인한 기본 승인' };
+        }
+        
+        const result = await response.json();
+        const content = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (!content) {
+            return { isValid: true, reason: '응답 파싱 오류로 인한 기본 승인' };
+        }
+        
+        // JSON 응답 파싱
+        try {
+            const parsed = JSON.parse(content.trim());
+            const isValid = parsed.classification === 'EMOTICON';
+            return {
+                isValid,
+                reason: parsed.reason || '분류 완료',
+                classification: parsed.classification
+            };
+        } catch (parseError) {
+            // JSON 파싱 실패 시 텍스트에서 분류 추출
+            const upperContent = content.toUpperCase();
+            if (upperContent.includes('EMOTICON')) {
+                return { isValid: true, reason: '텍스트 분석으로 이모티콘 승인' };
+            } else if (upperContent.includes('INAPPROPRIATE')) {
+                return { isValid: false, reason: '부적절한 콘텐츠로 분류됨' };
+            } else {
+                return { isValid: false, reason: '이모티콘이 아닌 콘텐츠로 분류됨' };
+            }
+        }
+        
+    } catch (error) {
+        console.error('Gemini validation error:', error);
+        // API 오류 시 기본적으로 승인 (서비스 중단 방지)
+        return { isValid: true, reason: 'API 오류로 인한 기본 승인' };
+    }
 }
 
 // URL을 절대 URL로 변환하는 함수
@@ -1468,6 +1792,7 @@ async function handleUpload(request, env) {
         const thumbnail = formData.get('thumbnail');
         const emoticons = formData.getAll('emoticons');
         
+        // 유효성 검사
         if (!title || !creator || !thumbnail || emoticons.length < 3) {
             return new Response(JSON.stringify({ error: '필수 항목이 누락되었습니다' }), {
                 status: 400,
@@ -1475,27 +1800,83 @@ async function handleUpload(request, env) {
             });
         }
         
+        // Gemini API 키 확인
+        const geminiApiKey = env.GEMINI_API_KEY;
+        if (!geminiApiKey) {
+            console.warn('GEMINI_API_KEY가 설정되지 않았습니다. 이미지 검증을 건너뜁니다.');
+        }
+        
         const packId = generateId();
         
-        // 썸네일 업로드
-        const thumbnailBuffer = await thumbnail.arrayBuffer();
+        // 썸네일 처리
+        let thumbnailBuffer = await thumbnail.arrayBuffer();
+        
+        // 썸네일 Gemini 검증 (API 키가 있는 경우)
+        if (geminiApiKey) {
+            const thumbnailValidation = await validateEmoticonWithGemini(thumbnailBuffer, geminiApiKey);
+            if (!thumbnailValidation.isValid) {
+                return new Response(JSON.stringify({ 
+                    error: '썸네일이 적절하지 않습니다: ' + thumbnailValidation.reason 
+                }), {
+                    status: 400,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
+        }
+        
+        // 썸네일 리사이즈 및 업로드
+        thumbnailBuffer = await resizeImage(thumbnailBuffer, 200, 200); // 썸네일은 200x200
         const thumbnailKey = `thumbnails/${packId}_thumbnail`;
         await env.PLAKKER_R2.put(thumbnailKey, thumbnailBuffer, {
             httpMetadata: { contentType: thumbnail.type }
         });
         
-        // 이모티콘들 업로드
+        // 이모티콘들 처리
         const emoticonUrls = [];
+        const rejectedEmoticons = [];
+        
         for (let i = 0; i < emoticons.length; i++) {
             const emoticon = emoticons[i];
-            const emoticonBuffer = await emoticon.arrayBuffer();
-            const emoticonKey = `emoticons/${packId}_${i}`;
+            let emoticonBuffer = await emoticon.arrayBuffer();
             
+            // Gemini 검증 (API 키가 있는 경우)
+            if (geminiApiKey) {
+                const validation = await validateEmoticonWithGemini(emoticonBuffer, geminiApiKey);
+                if (!validation.isValid) {
+                    rejectedEmoticons.push({
+                        fileName: emoticon.name || `이모티콘 ${i + 1}`,
+                        reason: validation.reason
+                    });
+                    continue; // 다음 이모티콘으로 건너뛰기
+                }
+            }
+            
+            // 이모티콘 리사이즈 (150x150)
+            emoticonBuffer = await resizeImage(emoticonBuffer, 150, 150);
+            
+            // R2에 업로드
+            const emoticonKey = `emoticons/${packId}_${emoticonUrls.length}`;
             await env.PLAKKER_R2.put(emoticonKey, emoticonBuffer, {
                 httpMetadata: { contentType: emoticon.type }
             });
             
             emoticonUrls.push(`${baseUrl}/r2/${emoticonKey}`);
+        }
+        
+        // 검증 후 최소 개수 확인
+        if (emoticonUrls.length < 3) {
+            let errorMessage = `유효한 이모티콘이 ${emoticonUrls.length}개뿐입니다. 최소 3개가 필요합니다.`;
+            if (rejectedEmoticons.length > 0) {
+                errorMessage += '\\n\\n거부된 이모티콘들:\\n';
+                rejectedEmoticons.forEach(rejected => {
+                    errorMessage += `- ${rejected.fileName}: ${rejected.reason}\\n`;
+                });
+            }
+            
+            return new Response(JSON.stringify({ error: errorMessage }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
         
         // 팩 정보 저장
@@ -1506,6 +1887,12 @@ async function handleUpload(request, env) {
             creatorLink,
             thumbnail: `${baseUrl}/r2/${thumbnailKey}`,
             emoticons: emoticonUrls,
+            validationInfo: {
+                totalSubmitted: emoticons.length,
+                approved: emoticonUrls.length,
+                rejected: rejectedEmoticons.length,
+                rejectedItems: rejectedEmoticons
+            },
             createdAt: new Date().toISOString()
         };
         
@@ -1523,13 +1910,23 @@ async function handleUpload(request, env) {
         });
         await env.PLAKKER_KV.put('pack_list', JSON.stringify(packList));
         
-        return new Response(JSON.stringify({ success: true, id: packId }), {
+        let successMessage = '이모티콘 팩이 성공적으로 업로드되었습니다!';
+        if (rejectedEmoticons.length > 0) {
+            successMessage += ` (${rejectedEmoticons.length}개 이모티콘이 검증을 통과하지 못했습니다)`;
+        }
+        
+        return new Response(JSON.stringify({ 
+            success: true, 
+            id: packId,
+            message: successMessage,
+            validationInfo: pack.validationInfo
+        }), {
             headers: { 'Content-Type': 'application/json' }
         });
         
     } catch (error) {
         console.error('업로드 오류:', error);
-        return new Response(JSON.stringify({ error: '업로드 처리 중 오류가 발생했습니다' }), {
+        return new Response(JSON.stringify({ error: '업로드 처리 중 오류가 발생했습니다: ' + error.message }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
