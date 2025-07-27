@@ -2,10 +2,10 @@ name = "plakker"
 main = "src/index.js"
 compatibility_date = "2025-01-15"
 
-# Custom Domain 설정
-routes = [
-  { pattern = "plakker.bloupla.net", custom_domain = true, zone_name = "bloupla.net" }
-]
+# Custom Domain 설정(임시로 비활성화)
+# routes = [
+#  { pattern = "plakker.bloupla.net", custom_domain = true, zone_name = "bloupla.net" }
+# ]
 
 [[kv_namespaces]]
 binding = "PLAKKER_KV"
