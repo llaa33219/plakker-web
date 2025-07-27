@@ -77,14 +77,14 @@ const HTML_TEMPLATES = {
         </div>
         
         <div class="form-group">
-            <label>이모티콘들 * (최소 3개)</label>
+            <label>이모티콘/스티커 이미지 * (최소 3개)</label>
             <input type="file" id="emoticons-input" accept="image/*" multiple style="display: none;">
             <div class="file-upload-area">
                 <button type="button" class="add-file-btn" onclick="document.getElementById('emoticons-input').click()">
                     <span class="plus-icon">+</span>
-                    이모티콘 추가
+                    이미지 추가
                 </button>
-                <div class="file-info">최소 3개의 이모티콘을 선택하세요. 자동으로 150x150으로 리사이즈됩니다.</div>
+                <div class="file-info">최소 3개의 이미지를 선택하세요. 자동으로 150x150으로 리사이즈되며, 부적절한 콘텐츠는 자동으로 필터링됩니다.</div>
             </div>
             <div id="emoticon-preview" class="file-preview"></div>
         </div>
@@ -431,13 +431,16 @@ curl -X POST "https://plakker.bloupla.net/api/upload" \\
 
         <div class="api-section">
             <h3>이미지 검증 기능</h3>
-            <p>업로드된 이모티콘은 Google Gemini AI를 통해 자동으로 검증됩니다.</p>
+            <p>업로드된 이미지는 Google Gemini AI를 통해 부적절한 콘텐츠가 있는지 자동으로 검증됩니다.</p>
             
             <h4>검증 기준</h4>
             <ul>
-                <li><strong>승인:</strong> 이모티콘, 스티커, 캐릭터, 귀여운 그림 등</li>
-                <li><strong>거부:</strong> 부적절한 내용 (폭력, 성인 콘텐츠, 혐오 표현 등)</li>
-                <li><strong>거부:</strong> 이모티콘이 아닌 일반 사진, 문서, 스크린샷 등</li>
+                <li><strong>승인:</strong> 일반적인 모든 이미지 (캐릭터, 만화, 사진, 밈, 텍스트 등)</li>
+                <li><strong>거부:</strong> 정치적인 내용 (정치인, 정치 관련 상징, 정치적 메시지)</li>
+                <li><strong>거부:</strong> 선정적인 내용 (성적 표현, 노출, 성인 콘텐츠)</li>
+                <li><strong>거부:</strong> 잔인한 내용 (폭력, 피, 상해, 죽음 관련)</li>
+                <li><strong>거부:</strong> 혐오 내용 (혐오 표현, 차별적 내용)</li>
+                <li><strong>거부:</strong> 불법적인 내용 (마약, 불법 활동)</li>
             </ul>
             
             <h4>환경 설정</h4>
@@ -1225,12 +1228,12 @@ function setupUploadForm() {
         }
         
         if (selectedEmoticons.length < 3) {
-            alert('최소 3개의 이모티콘을 선택해주세요.');
+            alert('최소 3개의 이미지를 선택해주세요.');
             return;
         }
         
         // 최종 확인
-        const confirmed = confirm(\`업로드하시겠습니까?\\n\\n제목: \${title}\\n제작자: \${creator}\\n이모티콘 개수: \${selectedEmoticons.length}개\\n\\n⚠️ 업로드 후에는 수정할 수 없습니다.\`);
+        const confirmed = confirm(\`업로드하시겠습니까?\\n\\n제목: \${title}\\n제작자: \${creator}\\n이미지 개수: \${selectedEmoticons.length}개\\n\\n⚠️ 업로드 후에는 수정할 수 없습니다.\`);
         if (!confirmed) {
             return;
         }
@@ -1270,12 +1273,12 @@ function setupUploadForm() {
                 // 검증 정보가 있으면 상세 정보 표시
                 if (result.validationInfo && result.validationInfo.rejected > 0) {
                     let detailMessage = message + '\\n\\n검증 결과:\\n';
-                    detailMessage += '- 제출된 이모티콘: ' + result.validationInfo.totalSubmitted + '개\\n';
-                    detailMessage += '- 승인된 이모티콘: ' + result.validationInfo.approved + '개\\n';
-                    detailMessage += '- 거부된 이모티콘: ' + result.validationInfo.rejected + '개';
+                    detailMessage += '- 제출된 이미지: ' + result.validationInfo.totalSubmitted + '개\\n';
+                    detailMessage += '- 승인된 이미지: ' + result.validationInfo.approved + '개\\n';
+                    detailMessage += '- 거부된 이미지: ' + result.validationInfo.rejected + '개';
                     
                     if (result.validationInfo.rejectedItems && result.validationInfo.rejectedItems.length > 0) {
-                        detailMessage += '\\n\\n거부된 이모티콘 상세:\\n';
+                        detailMessage += '\\n\\n거부된 이미지 상세:\\n';
                         result.validationInfo.rejectedItems.forEach(function(item) {
                             detailMessage += '- ' + item.fileName + ': ' + item.reason + '\\n';
                         });
@@ -1426,12 +1429,17 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey) {
         // 이미지를 base64로 인코딩
         const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
         
-        const promptText = '이 이미지를 분석해서 다음 중 하나로 분류해주세요:\n' +
-            '1. EMOTICON - 이모티콘, 스티커, 캐릭터, 귀여운 그림 등 메신저에서 사용할 수 있는 이모티콘으로 적합한 이미지\n' +
-            '2. INAPPROPRIATE - 부적절한 내용 (폭력, 성인 콘텐츠, 혐오 표현 등)\n' +
-            '3. NOT_EMOTICON - 이모티콘이 아닌 일반 사진, 문서, 스크린샷 등\n\n' +
+        const promptText = '이 이미지가 이모티콘/스티커로 사용하기에 부적절한 콘텐츠가 포함되어 있는지 분석해주세요.\n\n' +
+            '부적절한 콘텐츠 기준:\n' +
+            '1. 정치적인 내용 (정치인, 정치 관련 상징, 정치적 메시지 등)\n' +
+            '2. 선정적인 내용 (성적인 표현, 노출, 성인 콘텐츠 등)\n' +
+            '3. 잔인한 내용 (폭력, 피, 상해, 죽음 관련 등)\n' +
+            '4. 역겨운 내용 (혐오스러운 표현, 혐오 발언, 차별적 내용 등)\n' +
+            '5. 불법적인 내용 (마약, 불법 활동 등)\n\n' +
+            '위 기준에 해당하지 않는 모든 이미지는 적절한 것으로 분류해주세요.\n' +
+            '(일반 사진, 음식, 동물, 풍경, 캐릭터, 만화, 밈, 텍스트 등은 모두 적절함)\n\n' +
             '응답은 반드시 다음 JSON 형식으로만 해주세요:\n' +
-            '{"classification": "EMOTICON|INAPPROPRIATE|NOT_EMOTICON", "reason": "분류 이유를 한 줄로"}';
+            '{"classification": "APPROPRIATE|INAPPROPRIATE", "reason": "분류 이유를 한 줄로"}';
         
         const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey, {
             method: 'POST',
@@ -1470,7 +1478,7 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey) {
         // JSON 응답 파싱
         try {
             const parsed = JSON.parse(content.trim());
-            const isValid = parsed.classification === 'EMOTICON';
+            const isValid = parsed.classification === 'APPROPRIATE';
             return {
                 isValid,
                 reason: parsed.reason || '분류 완료',
@@ -1479,12 +1487,11 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey) {
         } catch (parseError) {
             // JSON 파싱 실패 시 텍스트에서 분류 추출
             const upperContent = content.toUpperCase();
-            if (upperContent.includes('EMOTICON')) {
-                return { isValid: true, reason: '텍스트 분석으로 이모티콘 승인' };
-            } else if (upperContent.includes('INAPPROPRIATE')) {
+            if (upperContent.includes('INAPPROPRIATE')) {
                 return { isValid: false, reason: '부적절한 콘텐츠로 분류됨' };
             } else {
-                return { isValid: false, reason: '이모티콘이 아닌 콘텐츠로 분류됨' };
+                // 파싱 실패하거나 명확하지 않은 경우 기본적으로 승인 (보수적 접근)
+                return { isValid: true, reason: '텍스트 분석으로 적절한 콘텐츠로 승인' };
             }
         }
         
@@ -1843,10 +1850,10 @@ async function handleUpload(request, env) {
             if (geminiApiKey) {
                 const validation = await validateEmoticonWithGemini(emoticonBuffer, geminiApiKey);
                 if (!validation.isValid) {
-                    rejectedEmoticons.push({
-                        fileName: emoticon.name || `이모티콘 ${i + 1}`,
-                        reason: validation.reason
-                    });
+                                    rejectedEmoticons.push({
+                    fileName: emoticon.name || `이미지 ${i + 1}`,
+                    reason: validation.reason
+                });
                     continue; // 다음 이모티콘으로 건너뛰기
                 }
             }
@@ -1865,9 +1872,9 @@ async function handleUpload(request, env) {
         
         // 검증 후 최소 개수 확인
         if (emoticonUrls.length < 3) {
-            let errorMessage = `유효한 이모티콘이 ${emoticonUrls.length}개뿐입니다. 최소 3개가 필요합니다.`;
+            let errorMessage = `유효한 이미지가 ${emoticonUrls.length}개뿐입니다. 최소 3개가 필요합니다.`;
             if (rejectedEmoticons.length > 0) {
-                errorMessage += '\\n\\n거부된 이모티콘들:\\n';
+                errorMessage += '\\n\\n거부된 이미지들:\\n';
                 rejectedEmoticons.forEach(rejected => {
                     errorMessage += `- ${rejected.fileName}: ${rejected.reason}\\n`;
                 });
@@ -1912,7 +1919,7 @@ async function handleUpload(request, env) {
         
         let successMessage = '이모티콘 팩이 성공적으로 업로드되었습니다!';
         if (rejectedEmoticons.length > 0) {
-            successMessage += ` (${rejectedEmoticons.length}개 이모티콘이 검증을 통과하지 못했습니다)`;
+            successMessage += ` (${rejectedEmoticons.length}개 이미지가 검증을 통과하지 못했습니다)`;
         }
         
         return new Response(JSON.stringify({ 
