@@ -554,15 +554,14 @@ button:disabled {
     padding: 1rem;
     border-bottom: 1px solid #e9ecef;
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
     align-items: center;
+    position: relative;
 }
 
 .header-content {
     display: flex;
     align-items: center;
-    justify-content: center;
-    margin-bottom: 15px;
     font-size: 30px;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
@@ -585,6 +584,9 @@ button:disabled {
 }
 
 .header nav {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     justify-content: center;
     gap: 2rem;
