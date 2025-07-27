@@ -1162,6 +1162,7 @@ body {
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(2px);
+    z-index: 1;
 }
 
 .modal-content {
@@ -1174,6 +1175,7 @@ body {
     max-height: 80vh;
     overflow-y: auto;
     animation: modalSlideIn 0.3s ease-out;
+    z-index: 2;
 }
 
 @keyframes modalSlideIn {
@@ -1709,6 +1711,7 @@ function setupUploadForm() {
         const modal = document.createElement('div');
         modal.className = 'upload-result-modal';
         modal.innerHTML = \`
+            <div class="modal-backdrop" onclick="closeUploadModal()"></div>
             <div class="modal-content">
                 <div class="modal-header \${isSuccess ? 'success' : 'error'}">
                     <span class="modal-icon">\${isSuccess ? '✅' : '❌'}</span>
@@ -1759,7 +1762,6 @@ function setupUploadForm() {
                     \`}
                 </div>
             </div>
-            <div class="modal-backdrop" onclick="closeUploadModal()"></div>
         \`;
         
         document.body.appendChild(modal);
