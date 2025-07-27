@@ -48,6 +48,11 @@ const HTML_TEMPLATES = {
         <strong>주의:</strong> 업로드 후에는 수정이 불가능합니다. 신중하게 검토 후 업로드해주세요.
     </div>
     
+    <div class="upload-warning">
+        <span class="warning-icon">🤖</span>
+        <strong>AI 검열:</strong> 모든 이미지는 AI 검열을 거쳐야 하므로 업로드에 시간이 걸릴 수 있습니다. (부적절한 이미지는 자동 제외됩니다)
+    </div>
+    
     <form id="upload-form" class="upload-form">
         <div class="form-group">
             <label for="title">제목 *</label>
@@ -94,7 +99,7 @@ const HTML_TEMPLATES = {
             <button type="button" class="reset-btn" onclick="resetForm()">초기화</button>
             <button type="submit" class="submit-btn">
                 <span class="submit-text">업로드</span>
-                <span class="submit-loading" style="display: none;">업로드 중...</span>
+                <span class="submit-loading" style="display: none;">🤖 AI 검열 중... 잠시만 기다려주세요</span>
             </button>
         </div>
     </form>
@@ -1366,27 +1371,28 @@ function setupUploadForm() {
             const result = await response.json();
             
             if (response.ok) {
-                const message = result.message || '이모티콘 팩이 성공적으로 업로드되었습니다!';
+                let alertMessage = result.message || '이모티콘 팩이 성공적으로 업로드되었습니다!';
                 
-                // 검증 정보가 있으면 상세 정보 표시
-                if (result.validationInfo && result.validationInfo.rejected > 0) {
-                    let detailMessage = message + '\\n\\n검증 결과:\\n';
-                    detailMessage += '- 제출된 이미지: ' + result.validationInfo.totalSubmitted + '개\\n';
-                    detailMessage += '- 승인된 이미지: ' + result.validationInfo.approved + '개\\n';
-                    detailMessage += '- 거부된 이미지: ' + result.validationInfo.rejected + '개';
+                // 검열 결과 표시
+                if (result.validation) {
+                    const v = result.validation;
+                    alertMessage += '\\n\\n🤖 AI 검열 결과:';
+                    alertMessage += '\\n• 제출: ' + v.totalSubmitted + '개 이미지';
+                    alertMessage += '\\n• 승인: ' + v.totalAccepted + '개';
                     
-                    if (result.validationInfo.rejectedItems && result.validationInfo.rejectedItems.length > 0) {
-                        detailMessage += '\\n\\n거부된 이미지 상세:\\n';
-                        result.validationInfo.rejectedItems.forEach(function(item) {
-                            detailMessage += '- ' + item.fileName + ': ' + item.reason + '\\n';
-                        });
+                    if (v.hasRejections) {
+                        alertMessage += '\\n• 거부: ' + v.totalRejected + '개';
+                        if (v.rejectedReasons && v.rejectedReasons.length > 0) {
+                            alertMessage += '\\n\\n거부 사유:\\n';
+                            const uniqueReasons = [...new Set(v.rejectedReasons)];
+                            uniqueReasons.forEach(function(reason) {
+                                alertMessage += '- ' + reason + '\\n';
+                            });
+                        }
                     }
-                    
-                    alert(detailMessage);
-                } else {
-                    alert(message);
                 }
                 
+                alert(alertMessage);
                 location.href = '/pack/' + result.id;
             } else {
                 alert('업로드 실패: ' + (result.error || '알 수 없는 오류'));
@@ -1563,7 +1569,11 @@ async function testAIGateway(env) {
                         parts: [{
                             text: 'Hello, this is a test message. Please respond with "TEST_SUCCESS".'
                         }]
-                    }]
+                    }],
+                    generationConfig: {
+                        temperature: 0,
+                        maxOutputTokens: 50
+                    }
                 })
             });
             
@@ -1775,7 +1785,17 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
                             }
                         }
                     ]
-                }]
+                }],
+                generationConfig: {
+                    temperature: 0,
+                    maxOutputTokens: 150,
+                    responseMimeType: "application/json"
+                },
+                systemInstruction: {
+                    parts: [{
+                        text: "You are a fast content moderator. Respond only in the exact JSON format requested with no additional text or explanation."
+                    }]
+                }
             })
         });
         
@@ -2288,17 +2308,25 @@ async function handleUpload(request, env) {
         });
         await env.PLAKKER_KV.put('pack_list', JSON.stringify(packList));
         
-        let successMessage = '이모티콘 팩이 성공적으로 업로드되었습니다!';
-        if (rejectedEmoticons.length > 0) {
-            successMessage += ` (${rejectedEmoticons.length}개 이미지가 검증을 통과하지 못했습니다)`;
-        }
+        const totalSubmitted = (emoticons.length + 1); // 이모티콘들 + 썸네일
+        const totalRejected = rejectedEmoticons.length;
+        const totalAccepted = totalSubmitted - totalRejected;
         
-        return new Response(JSON.stringify({ 
+        const successResult = {
             success: true, 
             id: packId,
-            message: successMessage,
-            validationInfo: pack.validationInfo
-        }), {
+            message: '이모티콘 팩이 성공적으로 업로드되었습니다!',
+            validation: {
+                totalSubmitted,
+                totalAccepted,
+                totalRejected,
+                rejectedReasons: rejectedEmoticons.map(r => r.reason),
+                hasRejections: totalRejected > 0,
+                validationInfo: pack.validationInfo
+            }
+        };
+        
+        return new Response(JSON.stringify(successResult), {
             headers: { 'Content-Type': 'application/json' }
         });
         
