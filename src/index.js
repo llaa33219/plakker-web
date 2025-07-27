@@ -509,6 +509,45 @@ body {
     color: #333;
 }
 
+/* 기본 버튼 스타일 - 사용자 요청 디자인 */
+button {
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 15px 30px;
+    margin: 20px 0;
+    max-width: 600px;
+    min-height: 61px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease;
+    font-weight: bold;
+    font-size: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+button:hover {
+    background-color: #005BDD;
+    transform: translateY(2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+button:active {
+    background-color: #0026a3;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .header {
     background: white;
     padding: 1rem;
@@ -667,24 +706,16 @@ body {
     background: #f0f8ff;
 }
 
+/* 파일 업로드 버튼 - 조금 작게 */
 .add-file-btn {
-    background: #007bff;
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 6px;
     font-size: 1rem;
-    cursor: pointer;
+    padding: 12px 24px;
+    min-height: 48px;
+    width: auto;
+    max-width: 300px;
+    margin: 10px auto;
     display: flex;
-    align-items: center;
     gap: 0.5rem;
-    margin: 0 auto;
-    transition: background-color 0.2s, transform 0.1s;
-}
-
-.add-file-btn:hover {
-    background: #0056b3;
-    transform: translateY(-1px);
 }
 
 .plus-icon {
@@ -701,19 +732,40 @@ body {
     border-top: 1px solid #e2e8f0;
 }
 
+/* 폼 액션 버튼들 */
 .reset-btn {
     background: #6c757d;
-    color: white;
-    border: none;
-    padding: 0.75rem 2rem;
-    border-radius: 6px;
+    width: auto;
+    max-width: 200px;
+    padding: 12px 24px;
     font-size: 1rem;
-    cursor: pointer;
-    transition: background-color 0.2s;
+    min-height: 48px;
 }
 
 .reset-btn:hover {
     background: #5a6268;
+}
+
+.submit-btn {
+    background: #28a745;
+    width: auto;
+    max-width: 300px;
+    padding: 12px 24px;
+    font-size: 1.1rem;
+    min-height: 48px;
+    position: relative;
+    min-width: 120px;
+}
+
+.submit-btn:hover:not(:disabled) {
+    background: #218838;
+}
+
+.submit-loading {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
 }
 
 .file-info {
@@ -783,6 +835,7 @@ body {
     font-weight: 500;
 }
 
+/* 제거 버튼 - 빨간색으로 유지 */
 .preview-remove {
     position: absolute;
     top: -8px;
@@ -801,6 +854,9 @@ body {
     justify-content: center;
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     transition: background-color 0.2s, transform 0.1s;
+    margin: 0;
+    padding: 0;
+    min-height: 24px;
 }
 
 .preview-remove:hover {
@@ -815,38 +871,6 @@ body {
     min-height: 100px;
     color: #6c757d;
     font-size: 0.875rem;
-}
-
-.submit-btn {
-    background: #28a745;
-    color: white;
-    border: none;
-    padding: 0.75rem 2rem;
-    border-radius: 6px;
-    font-size: 1.1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s, transform 0.1s;
-    position: relative;
-    min-width: 120px;
-}
-
-.submit-btn:hover:not(:disabled) {
-    background: #218838;
-    transform: translateY(-1px);
-}
-
-.submit-btn:disabled {
-    background: #6c757d;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.submit-loading {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
 }
 
 .pack-detail {
@@ -882,21 +906,21 @@ body {
     text-align: center;
 }
 
+/* 다운로드 버튼 - 초록색으로 유지하지만 새로운 스타일 적용 */
 .download-btn {
     background: #28a745;
-    color: white;
-    border: none;
-    padding: 0.75rem 2rem;
-    border-radius: 4px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background 0.2s;
+    width: auto;
+    max-width: 300px;
+    font-size: 1.1rem;
+    padding: 15px 30px;
+    min-height: 61px;
 }
 
 .download-btn:hover {
     background: #218838;
 }
 
+/* 페이지네이션 버튼들 - 작게 유지 */
 .pagination {
     display: flex;
     justify-content: center;
@@ -906,17 +930,13 @@ body {
 }
 
 .pagination button {
-    background: #007bff;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.pagination button:hover:not(:disabled) {
-    background: #0056b3;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    border-radius: 12px;
+    min-height: 40px;
+    width: auto;
+    max-width: 120px;
+    margin: 5px;
 }
 
 .pagination button:disabled {
@@ -963,6 +983,24 @@ body {
     .header {
         flex-direction: column;
         gap: 1rem;
+    }
+    
+    /* 모바일에서 버튼 크기 조정 */
+    button {
+        max-width: 100%;
+        font-size: 14px;
+        padding: 12px 20px;
+        margin: 10px 0;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .form-actions button {
+        width: 100%;
+        max-width: 300px;
     }
 }
 
@@ -1017,6 +1055,117 @@ body {
     border: 1px solid #e9ecef;
     border-radius: 8px;
     overflow: hidden;
+}
+
+/* API 문서 스타일 */
+.api-docs {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    max-width: none;
+}
+
+.api-intro {
+    font-size: 1.1rem;
+    color: #6c757d;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+.api-section {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.api-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.api-section h3 {
+    color: #007bff;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.api-section h4 {
+    color: #495057;
+    font-size: 1.1rem;
+    margin: 1.5rem 0 0.5rem 0;
+}
+
+.api-info {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+    border-left: 4px solid #007bff;
+}
+
+.endpoint {
+    margin-bottom: 2rem;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 0 0.5rem;
+    }
+    
+    .pack-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+    
+    .emoticons-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+    
+    .header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .api-docs {
+        padding: 1rem;
+    }
+    
+    .endpoint-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .param-table {
+        font-size: 0.875rem;
+    }
+    
+    .param-table th,
+    .param-table td {
+        padding: 0.5rem;
+    }
+    
+    .code-block {
+        font-size: 0.75rem;
+        padding: 1rem;
+    }
+    
+    .modal-content {
+        margin: 20px;
+        width: calc(100% - 40px);
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+    }
+    
+    .modal-footer .btn {
+        width: 100%;
+        justify-content: center;
+    }
 }
 
 .endpoint-header {
