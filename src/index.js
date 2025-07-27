@@ -1175,8 +1175,45 @@ function setupUploadForm() {
     let selectedThumbnail = null;
     let selectedEmoticons = [];
     
+    // 이미지 리사이즈 함수
+    function resizeImage(file, maxWidth, maxHeight) {
+        return new Promise((resolve) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = function() {
+                // 비율을 유지하면서 리사이즈
+                let { width, height } = img;
+                
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = (height * maxWidth) / width;
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = (width * maxHeight) / height;
+                        height = maxHeight;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                // 이미지 그리기
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Blob으로 변환
+                canvas.toBlob(resolve, file.type, 0.8);
+            };
+            
+            img.src = URL.createObjectURL(file);
+        });
+    }
+    
     // 썸네일 파일 선택 이벤트
-    thumbnailInput.addEventListener('change', function(e) {
+    thumbnailInput.addEventListener('change', async function(e) {
         const file = e.target.files[0];
         if (file) {
             if (!file.type.startsWith('image/')) {
@@ -1184,13 +1221,23 @@ function setupUploadForm() {
                 return;
             }
             
-            selectedThumbnail = file;
-            updateThumbnailPreview();
+            try {
+                // 썸네일 리사이즈 (200x200)
+                const resizedFile = await resizeImage(file, 200, 200);
+                selectedThumbnail = new File([resizedFile], file.name, { 
+                    type: file.type, 
+                    lastModified: Date.now() 
+                });
+                updateThumbnailPreview();
+            } catch (error) {
+                console.error('이미지 리사이즈 오류:', error);
+                alert('이미지 처리 중 오류가 발생했습니다.');
+            }
         }
     });
     
     // 이모티콘 파일 선택 이벤트
-    emoticonsInput.addEventListener('change', function(e) {
+    emoticonsInput.addEventListener('change', async function(e) {
         const files = Array.from(e.target.files);
         
         // 이미지 파일만 필터링
@@ -1200,9 +1247,46 @@ function setupUploadForm() {
             alert('이미지 파일만 선택해주세요.');
         }
         
-        // 기존 선택된 파일들에 추가
-        selectedEmoticons = selectedEmoticons.concat(imageFiles);
-        updateEmoticonPreview();
+        if (imageFiles.length === 0) {
+            e.target.value = '';
+            return;
+        }
+        
+        try {
+            // 로딩 메시지 표시
+            const previewContainer = document.getElementById('emoticon-preview');
+            previewContainer.innerHTML = '<div class="loading">이미지 처리 중...</div>';
+            
+            // 진행률 표시를 위한 임시 메시지
+            const totalFiles = imageFiles.length;
+            let processedFiles = 0;
+            
+            // 각 이미지를 150x150으로 리사이즈
+            const resizedFiles = await Promise.all(
+                imageFiles.map(async function(file, index) {
+                    const resizedFile = await resizeImage(file, 150, 150);
+                    processedFiles++;
+                    
+                    // 진행률 표시 (선택적)
+                    if (totalFiles > 3) {
+                        console.log('이미지 처리 중... ' + processedFiles + '/' + totalFiles);
+                    }
+                    
+                    return new File([resizedFile], file.name, { 
+                        type: file.type, 
+                        lastModified: Date.now() 
+                    });
+                })
+            );
+            
+            // 기존 선택된 파일들에 추가
+            selectedEmoticons = selectedEmoticons.concat(resizedFiles);
+            updateEmoticonPreview();
+            
+        } catch (error) {
+            console.error('이미지 리사이즈 오류:', error);
+            alert('이미지 처리 중 오류가 발생했습니다.');
+        }
         
         // input 값 리셋 (같은 파일을 다시 선택할 수 있도록)
         e.target.value = '';
@@ -1413,21 +1497,45 @@ function generateId() {
     return 'pack_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
-// 이미지 리사이즈 함수
+// 서버 측에서는 리사이즈를 하지 않음 (클라이언트에서 처리됨)
 async function resizeImage(imageBuffer, width = 150, height = 150) {
-    // Canvas를 사용한 이미지 리사이즈 (브라우저 환경이 아니므로 다른 방법 필요)
-    // Cloudflare Workers에서는 ImageMagick 같은 라이브러리를 사용할 수 없으므로
-    // 클라이언트 측에서 리사이즈하거나 외부 서비스를 사용해야 함
-    
-    // 일단 원본 이미지를 그대로 반환 (추후 외부 이미지 처리 서비스 연동 가능)
+    // 클라이언트에서 이미 리사이즈된 이미지가 전송되므로 원본 반환
     return imageBuffer;
 }
 
 // Gemini API를 통한 이모티콘 검증
 async function validateEmoticonWithGemini(imageBuffer, apiKey) {
     try {
-        // 이미지를 base64로 인코딩
-        const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+        // 이미지 크기 제한 (20MB)
+        if (imageBuffer.byteLength > 20 * 1024 * 1024) {
+            return {
+                isValid: false,
+                reason: '이미지 파일이 너무 큽니다 (20MB 이하만 허용)',
+                error: 'File too large: ' + imageBuffer.byteLength + ' bytes'
+            };
+        }
+        
+        // 이미지를 base64로 인코딩 (큰 파일에 안전한 방식)
+        const uint8Array = new Uint8Array(imageBuffer);
+        let binary = '';
+        const chunkSize = 8192; // 8KB씩 처리
+        
+        for (let i = 0; i < uint8Array.length; i += chunkSize) {
+            const chunk = uint8Array.slice(i, i + chunkSize);
+            binary += String.fromCharCode.apply(null, chunk);
+        }
+        
+        const base64Image = btoa(binary);
+        
+        // 이미지 타입 감지 (간단한 매직 바이트 체크)
+        let mimeType = 'image/jpeg'; // 기본값
+        if (uint8Array[0] === 0x89 && uint8Array[1] === 0x50) {
+            mimeType = 'image/png';
+        } else if (uint8Array[0] === 0x47 && uint8Array[1] === 0x49) {
+            mimeType = 'image/gif';
+        } else if (uint8Array[0] === 0x52 && uint8Array[1] === 0x49) {
+            mimeType = 'image/webp';
+        }
         
         const promptText = '이 이미지가 이모티콘/스티커로 사용하기에 부적절한 콘텐츠가 포함되어 있는지 분석해주세요.\n\n' +
             '부적절한 콘텐츠 기준:\n' +
@@ -1454,7 +1562,7 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey) {
                         },
                         {
                             inline_data: {
-                                mime_type: "image/jpeg",
+                                mime_type: mimeType,
                                 data: base64Image
                             }
                         }
