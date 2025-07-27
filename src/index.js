@@ -11,7 +11,10 @@ const HTML_TEMPLATES = {
 </head>
 <body>
     <header class="header">
-        <h1><a href="/">Plakker</a></h1>
+        <div class="header-content">
+            <img src="https://i.imgur.com/2MkyDCh.png" alt="Logo" style="width: 120px; height: auto; cursor: pointer;" onclick="location.href='https://bloupla.net/';">
+            <h1 style="font-size: 2em;">Plakker</h1>
+        </div>
         <nav>
             <a href="/">홈</a>
             <a href="/upload">업로드</a>
@@ -553,6 +556,20 @@ button:disabled {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    font-size: 30px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.header-content img {
+    margin-right: 20px;
+    border-radius: 14px;
 }
 
 .header h1 a {
