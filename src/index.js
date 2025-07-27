@@ -12,14 +12,14 @@ const HTML_TEMPLATES = {
 <body>
     <header class="header">
         <div class="header-content">
-            <img src="https://i.imgur.com/2MkyDCh.png" alt="Logo" style="width: 100px; height: auto; cursor: pointer;" onclick="location.href='https://bloupla.net/';">
-            <h1 style="font-size: 1.5em;"><a href="/">Plakker</a></h1>
+            <img src="https://i.imgur.com/2MkyDCh.png" alt="Logo" style="width: 80px; height: auto; cursor: pointer;" onclick="location.href='https://bloupla.net/';">
+            <h1 style="font-size: 1.8em;"><a href="/">Plakker</a></h1>
         </div>
         <nav>
             <a href="/">홈</a>
             <a href="/upload">업로드</a>
-            <a href="/api-docs">API 문서</a>
-            <a href="/test-gateway">AI 테스트</a>
+            <a href="/api-docs" class="hidden-nav">API 문서</a>
+            <a href="/test-gateway" class="hidden-nav">AI 테스트</a>
         </nav>
     </header>
     <main class="main">
@@ -583,10 +583,16 @@ button:disabled {
     color: #6c757d;
     margin-left: 1rem;
     transition: color 0.2s;
+    font-size: 1.2rem;
+    font-weight: 500;
 }
 
 .header nav a:hover {
     color: #007bff;
+}
+
+.header nav a.hidden-nav {
+    display: none;
 }
 
 .main {
