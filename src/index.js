@@ -48,9 +48,11 @@ const HTML_TEMPLATES = {
         <strong>주의:</strong> 업로드 후에는 수정이 불가능합니다. 신중하게 검토 후 업로드해주세요.
     </div>
     
-    <div class="upload-warning">
-        <span class="warning-icon">🤖</span>
-        <strong>AI 검열:</strong> 모든 이미지는 AI 검열을 거쳐야 하므로 업로드에 시간이 걸릴 수 있습니다. (부적절한 이미지는 자동 제외됩니다)
+    <div class="ai-validation-notice">
+        <span class="info-icon">🤖</span>
+        <strong>AI 검열 안내:</strong> 모든 이미지는 Google Gemini AI를 통한 자동 검열을 거칩니다. 
+        부적절한 내용(정치적, 선정적, 잔인한, 혐오적 내용)이 포함된 이미지는 자동으로 제외됩니다. 
+        검열 과정으로 인해 업로드에 <strong>1-2분</strong> 소요될 수 있습니다.
     </div>
     
     <form id="upload-form" class="upload-form">
@@ -99,7 +101,7 @@ const HTML_TEMPLATES = {
             <button type="button" class="reset-btn" onclick="resetForm()">초기화</button>
             <button type="submit" class="submit-btn">
                 <span class="submit-text">업로드</span>
-                <span class="submit-loading" style="display: none;">🤖 AI 검열 중... 잠시만 기다려주세요</span>
+                <span class="submit-loading" style="display: none;">업로드 중...</span>
             </button>
         </div>
     </form>
@@ -595,8 +597,23 @@ body {
     gap: 0.5rem;
 }
 
-.warning-icon {
+.ai-validation-notice {
+    background: #e8f4fd;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.warning-icon, .info-icon {
     font-size: 1.2rem;
+    flex-shrink: 0;
 }
 
 .upload-form {
@@ -1122,7 +1139,222 @@ body {
         font-size: 0.75rem;
         padding: 1rem;
     }
-}`;
+}
+
+/* 업로드 결과 모달 스타일 */
+.upload-result-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+}
+
+.modal-content {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.modal-header.success {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    color: #155724;
+}
+
+.modal-header.error {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    color: #721c24;
+}
+
+.modal-icon {
+    font-size: 1.5rem;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.modal-body {
+    padding: 20px 24px;
+}
+
+.main-message {
+    font-size: 1rem;
+    margin: 0 0 20px 0;
+    line-height: 1.5;
+}
+
+.validation-summary {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.validation-summary h4 {
+    margin: 0 0 12px 0;
+    color: #333;
+    font-size: 1rem;
+}
+
+.validation-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.stat-label {
+    font-weight: 500;
+    color: #555;
+}
+
+.stat-value {
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #e9ecef;
+    color: #333;
+}
+
+.stat-value.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.stat-value.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.rejected-details {
+    border-top: 1px solid #e9ecef;
+    padding-top: 12px;
+}
+
+.rejected-details h5 {
+    margin: 0 0 8px 0;
+    color: #721c24;
+    font-size: 0.9rem;
+}
+
+.rejected-list {
+    margin: 0;
+    padding-left: 20px;
+    list-style-type: disc;
+}
+
+.rejected-list li {
+    margin: 4px 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.modal-footer {
+    padding: 16px 24px 20px;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.modal-footer .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.modal-footer .btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.modal-footer .btn-primary:hover {
+    background: #0056b3;
+}
+
+.modal-footer .btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.modal-footer .btn-secondary:hover {
+    background: #545b62;
+}
+
+@media (max-width: 600px) {
+    .modal-content {
+        margin: 20px;
+        width: calc(100% - 40px);
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+    }
+    
+    .modal-footer .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+`;
 
 // JavaScript 클라이언트 코드 (템플릿 리터럴을 일반 문자열로 변경)
 const JS_CLIENT = `
@@ -1336,7 +1568,7 @@ function setupUploadForm() {
         }
         
         // 최종 확인
-        const confirmed = confirm(\`업로드하시겠습니까?\\n\\n제목: \${title}\\n제작자: \${creator}\\n이미지 개수: \${selectedEmoticons.length}개\\n\\n⚠️ 업로드 후에는 수정할 수 없습니다.\`);
+        const confirmed = confirm(\`업로드하시겠습니까?\\n\\n제목: \${title}\\n제작자: \${creator}\\n이미지 개수: \${selectedEmoticons.length}개\\n\\n🤖 모든 이미지는 AI 검열을 거칩니다 (1-2분 소요)\\n⚠️ 업로드 후에는 수정할 수 없습니다.\`);
         if (!confirmed) {
             return;
         }
@@ -1349,6 +1581,7 @@ function setupUploadForm() {
         submitBtn.disabled = true;
         submitText.style.display = 'none';
         submitLoading.style.display = 'block';
+        submitLoading.textContent = '🤖 AI 검열 진행 중... (1-2분 소요)';
         
         try {
             // FormData 생성
@@ -1371,29 +1604,14 @@ function setupUploadForm() {
             const result = await response.json();
             
             if (response.ok) {
-                let alertMessage = result.message || '이모티콘 팩이 성공적으로 업로드되었습니다!';
+                const message = result.message || '이모티콘 팩이 성공적으로 업로드되었습니다!';
                 
-                // 검열 결과 표시
-                if (result.validation) {
-                    const v = result.validation;
-                    alertMessage += '\\n\\n🤖 AI 검열 결과:';
-                    alertMessage += '\\n• 제출: ' + v.totalSubmitted + '개 이미지';
-                    alertMessage += '\\n• 승인: ' + v.totalAccepted + '개';
-                    
-                    if (v.hasRejections) {
-                        alertMessage += '\\n• 거부: ' + v.totalRejected + '개';
-                        if (v.rejectedReasons && v.rejectedReasons.length > 0) {
-                            alertMessage += '\\n\\n거부 사유:\\n';
-                            const uniqueReasons = [...new Set(v.rejectedReasons)];
-                            uniqueReasons.forEach(function(reason) {
-                                alertMessage += '- ' + reason + '\\n';
-                            });
-                        }
-                    }
+                // 검증 정보가 있으면 상세 정보 표시
+                if (result.validationInfo && result.validationInfo.rejected > 0) {
+                    showUploadResult(true, message, result.validationInfo, result.id);
+                } else {
+                    showUploadResult(true, message, null, result.id);
                 }
-                
-                alert(alertMessage);
-                location.href = '/pack/' + result.id;
             } else {
                 alert('업로드 실패: ' + (result.error || '알 수 없는 오류'));
             }
@@ -1485,6 +1703,82 @@ function setupUploadForm() {
         }
     };
     
+    // 업로드 결과 표시 함수
+    window.showUploadResult = function(isSuccess, message, validationInfo, packId) {
+        // 모달 생성
+        const modal = document.createElement('div');
+        modal.className = 'upload-result-modal';
+        modal.innerHTML = \`
+            <div class="modal-content">
+                <div class="modal-header \${isSuccess ? 'success' : 'error'}">
+                    <span class="modal-icon">\${isSuccess ? '✅' : '❌'}</span>
+                    <h3>업로드 \${isSuccess ? '완료' : '실패'}</h3>
+                </div>
+                
+                <div class="modal-body">
+                    <p class="main-message">\${message}</p>
+                    
+                    \${validationInfo ? \`
+                        <div class="validation-summary">
+                            <h4>🤖 AI 검열 결과</h4>
+                            <div class="validation-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">제출된 이미지:</span>
+                                    <span class="stat-value">\${validationInfo.totalSubmitted}개</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">승인된 이미지:</span>
+                                    <span class="stat-value success">\${validationInfo.approved}개</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">거부된 이미지:</span>
+                                    <span class="stat-value error">\${validationInfo.rejected}개</span>
+                                </div>
+                            </div>
+                            
+                            \${validationInfo.rejected > 0 && validationInfo.rejectedItems ? \`
+                                <div class="rejected-details">
+                                    <h5>거부된 이미지 상세</h5>
+                                    <ul class="rejected-list">
+                                        \${validationInfo.rejectedItems.map(item => 
+                                            \`<li><strong>\${item.fileName}:</strong> \${item.reason}</li>\`
+                                        ).join('')}
+                                    </ul>
+                                </div>
+                            \` : ''}
+                        </div>
+                    \` : ''}
+                </div>
+                
+                <div class="modal-footer">
+                    \${isSuccess && packId ? \`
+                        <button class="btn btn-primary" onclick="location.href='/pack/\${packId}'">업로드된 팩 보기</button>
+                        <button class="btn btn-secondary" onclick="location.href='/'">홈으로 이동</button>
+                    \` : \`
+                        <button class="btn btn-primary" onclick="closeUploadModal()">확인</button>
+                    \`}
+                </div>
+            </div>
+            <div class="modal-backdrop" onclick="closeUploadModal()"></div>
+        \`;
+        
+        document.body.appendChild(modal);
+        
+        // 모달 닫기 함수를 전역으로 등록
+        window.closeUploadModal = function() {
+            document.body.removeChild(modal);
+        };
+        
+        // ESC 키로 닫기
+        function handleEscape(e) {
+            if (e.key === 'Escape') {
+                closeUploadModal();
+                document.removeEventListener('keydown', handleEscape);
+            }
+        }
+        document.addEventListener('keydown', handleEscape);
+    };
+    
     // 초기 미리보기 표시
     updateThumbnailPreview();
     updateEmoticonPreview();
@@ -1569,11 +1863,7 @@ async function testAIGateway(env) {
                         parts: [{
                             text: 'Hello, this is a test message. Please respond with "TEST_SUCCESS".'
                         }]
-                    }],
-                    generationConfig: {
-                        temperature: 0,
-                        maxOutputTokens: 50
-                    }
+                    }]
                 })
             });
             
@@ -1748,7 +2038,7 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
             '5. 불법적인 내용 (마약, 불법 활동 등)\n\n' +
             '위 기준에 해당하지 않는 모든 이미지는 적절한 것으로 분류해주세요.\n' +
             '(일반 사진, 음식, 동물, 풍경, 캐릭터, 만화, 밈, 텍스트 등은 모두 적절함)\n\n' +
-            'CRITICAL: 응답은 반드시 정확한 JSON 형식으로만 해주세요. 다른 텍스트 없이 JSON만 출력하세요:\n' +
+            '응답은 반드시 다음 JSON 형식으로만 해주세요:\n' +
             '{"classification": "APPROPRIATE|INAPPROPRIATE", "reason": "분류 이유를 한 줄로"}';
         
         // Cloudflare AI Gateway를 통한 요청 (지역 제한 우회)
@@ -1785,11 +2075,7 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
                             }
                         }
                     ]
-                }],
-                generationConfig: {
-                    temperature: 0,
-                    maxOutputTokens: 150
-                }
+                }]
             })
         });
         
@@ -1831,18 +2117,7 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
         
         // JSON 응답 파싱
         try {
-            // JSON만 추출 (앞뒤 추가 텍스트 제거)
-            let jsonContent = content.trim();
-            
-            // JSON 시작/끝 찾기
-            const jsonStart = jsonContent.indexOf('{');
-            const jsonEnd = jsonContent.lastIndexOf('}');
-            
-            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-                jsonContent = jsonContent.substring(jsonStart, jsonEnd + 1);
-            }
-            
-            const parsed = JSON.parse(jsonContent);
+            const parsed = JSON.parse(content.trim());
             const isValid = parsed.classification === 'APPROPRIATE';
             return {
                 isValid,
@@ -1850,20 +2125,18 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
                 classification: parsed.classification
             };
         } catch (parseError) {
-            console.error('Gemini JSON 파싱 오류:', parseError.message, 'Content:', content.substring(0, 200));
-            
-            // 백업: 텍스트 분석
+            // JSON 파싱 실패 시 텍스트에서 분류 추출
             const upperContent = content.toUpperCase();
             if (upperContent.includes('INAPPROPRIATE')) {
-                return { isValid: false, reason: '부적절한 콘텐츠로 분류됨 (텍스트 분석)' };
+                return { isValid: false, reason: '부적절한 콘텐츠로 분류됨' };
             } else if (upperContent.includes('APPROPRIATE')) {
-                return { isValid: true, reason: '적절한 콘텐츠로 승인 (텍스트 분석)' };
+                return { isValid: true, reason: '텍스트 분석으로 적절한 콘텐츠로 승인' };
             } else {
-                // 파싱 실패하고 명확하지 않은 경우 안전을 위해 검증 실패
+                // 파싱 실패하고 명확하지 않은 경우 검증 실패로 처리
                 return { 
                     isValid: false, 
-                    reason: 'AI 응답 분석 실패 - 안전을 위해 거부',
-                    error: 'JSON 파싱 및 텍스트 분석 실패: ' + parseError.message
+                    reason: 'AI 응답 형식 오류로 검증 실패',
+                    error: 'JSON parse failed: ' + parseError.message
                 };
             }
         }
@@ -2315,25 +2588,17 @@ async function handleUpload(request, env) {
         });
         await env.PLAKKER_KV.put('pack_list', JSON.stringify(packList));
         
-        const totalSubmitted = (emoticons.length + 1); // 이모티콘들 + 썸네일
-        const totalRejected = rejectedEmoticons.length;
-        const totalAccepted = totalSubmitted - totalRejected;
+        let successMessage = '이모티콘 팩이 성공적으로 업로드되었습니다!';
+        if (rejectedEmoticons.length > 0) {
+            successMessage += ` (${rejectedEmoticons.length}개 이미지가 검증을 통과하지 못했습니다)`;
+        }
         
-        const successResult = {
+        return new Response(JSON.stringify({ 
             success: true, 
             id: packId,
-            message: '이모티콘 팩이 성공적으로 업로드되었습니다!',
-            validation: {
-                totalSubmitted,
-                totalAccepted,
-                totalRejected,
-                rejectedReasons: rejectedEmoticons.map(r => r.reason),
-                hasRejections: totalRejected > 0,
-                validationInfo: pack.validationInfo
-            }
-        };
-        
-        return new Response(JSON.stringify(successResult), {
+            message: successMessage,
+            validationInfo: pack.validationInfo
+        }), {
             headers: { 'Content-Type': 'application/json' }
         });
         
