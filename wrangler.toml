@@ -20,6 +20,18 @@ ENVIRONMENT = "production"
 # Gemini 2.5 Flash API Key for image validation (REQUIRED for service operation)
 GEMINI_API_KEY = "AIzaSyAgLwJmesiDug0FOab3TRN8Dyv8AeTd8cA"
 
+# Cloudflare AI Gateway settings (REQUIRED for bypassing regional restrictions)
+CF_ACCOUNT_ID = "e22a8e392dcb1319fcb607ca77401014"
+CF_GATEWAY_ID = "plakker-gateway"
+
 # For production deployment, use secrets instead:
 # wrangler secret put GEMINI_API_KEY
-# and remove the GEMINI_API_KEY line above
+# wrangler secret put CF_ACCOUNT_ID
+# and remove the sensitive keys above
+
+# AI Gateway Setup Instructions:
+# 1. Go to https://dash.cloudflare.com/
+# 2. Navigate to AI > AI Gateway
+# 3. Create a new gateway named "plakker-gateway"
+# 4. Copy your Account ID from the dashboard
+# 5. Update CF_ACCOUNT_ID above with your actual Account ID

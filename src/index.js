@@ -444,16 +444,29 @@ curl -X POST "https://plakker.bloupla.net/api/upload" \\
             </ul>
             
             <h4>환경 설정 (필수)</h4>
-            <p><strong>서비스 운영을 위해 Gemini 2.5 Flash API 키 설정이 필수입니다:</strong></p>
-            <pre class="code-block"># Cloudflare Workers 환경변수 설정 (권장)
-wrangler secret put GEMINI_API_KEY
+            <p><strong>서비스 운영을 위해 다음 설정들이 필수입니다:</strong></p>
+            
+            <h5>1. Cloudflare AI Gateway 설정 (지역 제한 우회)</h5>
+            <pre class="code-block"># Cloudflare 대시보드에서 AI Gateway 생성
+1. https://dash.cloudflare.com/ 접속
+2. AI > AI Gateway 메뉴로 이동
+3. "Create Gateway" 클릭
+4. Gateway name: "plakker-gateway" 입력
+5. Account ID 복사
 
-# 또는 wrangler.toml에서 설정 (보안상 권장하지 않음)
+# wrangler.toml 설정
 [vars]
-GEMINI_API_KEY = "your-gemini-2.5-flash-api-key-here"</pre>
+CF_ACCOUNT_ID = "your-cloudflare-account-id"
+CF_GATEWAY_ID = "plakker-gateway"
+GEMINI_API_KEY = "your-gemini-api-key"</pre>
+
+            <h5>2. 보안 설정 (프로덕션 환경)</h5>
+            <pre class="code-block"># 환경변수로 민감한 정보 관리 (권장)
+wrangler secret put GEMINI_API_KEY
+wrangler secret put CF_ACCOUNT_ID</pre>
             
             <div class="api-info">
-                <p><strong>중요:</strong> API 키가 설정되지 않으면 모든 업로드가 차단됩니다. 검증 시스템 오류 시에도 업로드가 거부됩니다.</p>
+                <p><strong>중요:</strong> Cloudflare Workers에서 지역 제한으로 인해 직접 Gemini API 호출이 불가능한 경우, AI Gateway를 통해 우회합니다. 모든 설정이 올바르지 않으면 업로드가 차단됩니다.</p>
             </div>
         </div>
 
@@ -1549,10 +1562,18 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey) {
             '응답은 반드시 다음 JSON 형식으로만 해주세요:\n' +
             '{"classification": "APPROPRIATE|INAPPROPRIATE", "reason": "분류 이유를 한 줄로"}';
         
-        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey, {
+        // Cloudflare AI Gateway를 통한 요청 (지역 제한 우회)
+        // accountId는 이미 상위에서 체크됨
+        const accountId = env.CF_ACCOUNT_ID;
+        const gatewayId = env.CF_GATEWAY_ID || 'plakker-gateway';
+        
+        const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/google-ai-studio/v1/models/gemini-2.5-flash:generateContent`;
+        
+        const response = await fetch(gatewayUrl, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey
             },
             body: JSON.stringify({
                 contents: [{
@@ -1936,9 +1957,20 @@ async function handleUpload(request, env) {
         
         // Gemini API 키 확인 (필수)
         const geminiApiKey = env.GEMINI_API_KEY;
+        const accountId = env.CF_ACCOUNT_ID;
+        
         if (!geminiApiKey) {
             return new Response(JSON.stringify({ 
-                error: '이미지 검증 시스템이 활성화되어 있지 않습니다. 관리자에게 문의해주세요.' 
+                error: '이미지 검증 시스템이 활성화되어 있지 않습니다 (Gemini API 키 누락). 관리자에게 문의해주세요.' 
+            }), {
+                status: 503,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        if (!accountId) {
+            return new Response(JSON.stringify({ 
+                error: 'AI Gateway 설정이 완료되지 않았습니다 (Cloudflare Account ID 누락). 관리자에게 문의해주세요.' 
             }), {
                 status: 503,
                 headers: { 'Content-Type': 'application/json' }
