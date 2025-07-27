@@ -1517,7 +1517,7 @@ async function resizeImage(imageBuffer, width = 150, height = 150) {
 }
 
 // Gemini 2.5 Flash API를 통한 이모티콘 검증
-async function validateEmoticonWithGemini(imageBuffer, apiKey) {
+async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
     try {
         // 이미지 크기 제한 (20MB)
         if (imageBuffer.byteLength > 20 * 1024 * 1024) {
@@ -1983,7 +1983,7 @@ async function handleUpload(request, env) {
         let thumbnailBuffer = await thumbnail.arrayBuffer();
         
         // 썸네일 Gemini 검증 (필수)
-        const thumbnailValidation = await validateEmoticonWithGemini(thumbnailBuffer, geminiApiKey);
+        const thumbnailValidation = await validateEmoticonWithGemini(thumbnailBuffer, geminiApiKey, env);
         if (!thumbnailValidation.isValid) {
             const errorDetail = thumbnailValidation.error ? 
                 ' (상세: ' + thumbnailValidation.error + ')' : '';
@@ -2011,7 +2011,7 @@ async function handleUpload(request, env) {
             let emoticonBuffer = await emoticon.arrayBuffer();
             
                         // Gemini 검증 (필수)
-            const validation = await validateEmoticonWithGemini(emoticonBuffer, geminiApiKey);
+            const validation = await validateEmoticonWithGemini(emoticonBuffer, geminiApiKey, env);
             if (!validation.isValid) {
                 const errorDetail = validation.error ? 
                     ' (' + validation.error + ')' : '';
