@@ -554,7 +554,7 @@ button:disabled {
     padding: 1rem;
     border-bottom: 1px solid #e9ecef;
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: center;
 }
 
@@ -562,7 +562,7 @@ button:disabled {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     font-size: 30px;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
@@ -575,7 +575,6 @@ button:disabled {
 .header nav a {
     text-decoration: none;
     color: #6c757d;
-    margin-left: 1rem;
     transition: color 0.2s;
     font-size: 1.2rem;
     font-weight: 500;
@@ -583,6 +582,12 @@ button:disabled {
 
 .header nav a:hover {
     color: #007bff;
+}
+
+.header nav {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
 }
 
 .header nav a.hidden-nav {
