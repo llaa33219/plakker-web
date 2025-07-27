@@ -84,7 +84,7 @@ const HTML_TEMPLATES = {
                     <span class="plus-icon">+</span>
                     이미지 추가
                 </button>
-                <div class="file-info">최소 3개의 이미지를 선택하세요. 자동으로 150x150으로 리사이즈되며, 부적절한 콘텐츠는 자동으로 필터링됩니다.</div>
+                <div class="file-info">최소 3개의 이미지를 선택하세요. 자동으로 150x150으로 리사이즈되며, 모든 이미지는 AI 검증을 통과해야 업로드됩니다.</div>
             </div>
             <div id="emoticon-preview" class="file-preview"></div>
         </div>
@@ -430,8 +430,8 @@ curl -X POST "https://plakker.bloupla.net/api/upload" \\
         </div>
 
         <div class="api-section">
-            <h3>이미지 검증 기능</h3>
-            <p>업로드된 이미지는 Google Gemini AI를 통해 부적절한 콘텐츠가 있는지 자동으로 검증됩니다.</p>
+            <h3>이미지 검증 기능 (필수)</h3>
+            <p><strong>모든 업로드 이미지는 Google Gemini AI를 통한 검증을 반드시 통과해야 합니다.</strong> 검증에 실패하거나 오류가 발생하면 업로드가 차단됩니다.</p>
             
             <h4>검증 기준</h4>
             <ul>
@@ -443,17 +443,17 @@ curl -X POST "https://plakker.bloupla.net/api/upload" \\
                 <li><strong>거부:</strong> 불법적인 내용 (마약, 불법 활동)</li>
             </ul>
             
-            <h4>환경 설정</h4>
-            <p>이미지 검증 기능을 사용하려면 Gemini API 키가 필요합니다:</p>
-            <pre class="code-block"># Cloudflare Workers 환경변수 설정
+            <h4>환경 설정 (필수)</h4>
+            <p><strong>서비스 운영을 위해 Gemini API 키 설정이 필수입니다:</strong></p>
+            <pre class="code-block"># Cloudflare Workers 환경변수 설정 (권장)
 wrangler secret put GEMINI_API_KEY
 
-# 또는 wrangler.toml에서 설정 (권장하지 않음)
+# 또는 wrangler.toml에서 설정 (보안상 권장하지 않음)
 [vars]
 GEMINI_API_KEY = "your-api-key-here"</pre>
             
             <div class="api-info">
-                <p><strong>참고:</strong> API 키가 설정되지 않은 경우 검증 기능이 비활성화되고 모든 이미지가 승인됩니다.</p>
+                <p><strong>중요:</strong> API 키가 설정되지 않으면 모든 업로드가 차단됩니다. 검증 시스템 오류 시에도 업로드가 거부됩니다.</p>
             </div>
         </div>
 
@@ -1464,15 +1464,24 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey) {
         });
         
         if (!response.ok) {
-            console.error('Gemini API error:', await response.text());
-            return { isValid: true, reason: 'API 오류로 인한 기본 승인' };
+            const errorText = await response.text();
+            console.error('Gemini API error:', errorText);
+            return { 
+                isValid: false, 
+                reason: 'AI 검증 시스템 오류 (HTTP ' + response.status + ')',
+                error: errorText
+            };
         }
         
         const result = await response.json();
         const content = result.candidates?.[0]?.content?.parts?.[0]?.text;
         
         if (!content) {
-            return { isValid: true, reason: '응답 파싱 오류로 인한 기본 승인' };
+            return { 
+                isValid: false, 
+                reason: 'AI 응답을 해석할 수 없습니다',
+                error: 'Empty response content'
+            };
         }
         
         // JSON 응답 파싱
@@ -1489,16 +1498,26 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey) {
             const upperContent = content.toUpperCase();
             if (upperContent.includes('INAPPROPRIATE')) {
                 return { isValid: false, reason: '부적절한 콘텐츠로 분류됨' };
-            } else {
-                // 파싱 실패하거나 명확하지 않은 경우 기본적으로 승인 (보수적 접근)
+            } else if (upperContent.includes('APPROPRIATE')) {
                 return { isValid: true, reason: '텍스트 분석으로 적절한 콘텐츠로 승인' };
+            } else {
+                // 파싱 실패하고 명확하지 않은 경우 검증 실패로 처리
+                return { 
+                    isValid: false, 
+                    reason: 'AI 응답 형식 오류로 검증 실패',
+                    error: 'JSON parse failed: ' + parseError.message
+                };
             }
         }
         
     } catch (error) {
         console.error('Gemini validation error:', error);
-        // API 오류 시 기본적으로 승인 (서비스 중단 방지)
-        return { isValid: true, reason: 'API 오류로 인한 기본 승인' };
+        // API 오류 시 검증 실패로 처리 (보안 우선)
+        return { 
+            isValid: false, 
+            reason: 'AI 검증 시스템 연결 오류',
+            error: error.message || 'Unknown error'
+        };
     }
 }
 
@@ -1807,10 +1826,15 @@ async function handleUpload(request, env) {
             });
         }
         
-        // Gemini API 키 확인
+        // Gemini API 키 확인 (필수)
         const geminiApiKey = env.GEMINI_API_KEY;
         if (!geminiApiKey) {
-            console.warn('GEMINI_API_KEY가 설정되지 않았습니다. 이미지 검증을 건너뜁니다.');
+            return new Response(JSON.stringify({ 
+                error: '이미지 검증 시스템이 활성화되어 있지 않습니다. 관리자에게 문의해주세요.' 
+            }), {
+                status: 503,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
         
         const packId = generateId();
@@ -1818,17 +1842,17 @@ async function handleUpload(request, env) {
         // 썸네일 처리
         let thumbnailBuffer = await thumbnail.arrayBuffer();
         
-        // 썸네일 Gemini 검증 (API 키가 있는 경우)
-        if (geminiApiKey) {
-            const thumbnailValidation = await validateEmoticonWithGemini(thumbnailBuffer, geminiApiKey);
-            if (!thumbnailValidation.isValid) {
-                return new Response(JSON.stringify({ 
-                    error: '썸네일이 적절하지 않습니다: ' + thumbnailValidation.reason 
-                }), {
-                    status: 400,
-                    headers: { 'Content-Type': 'application/json' }
-                });
-            }
+        // 썸네일 Gemini 검증 (필수)
+        const thumbnailValidation = await validateEmoticonWithGemini(thumbnailBuffer, geminiApiKey);
+        if (!thumbnailValidation.isValid) {
+            const errorDetail = thumbnailValidation.error ? 
+                ' (상세: ' + thumbnailValidation.error + ')' : '';
+            return new Response(JSON.stringify({ 
+                error: '썸네일 검증 실패: ' + thumbnailValidation.reason + errorDetail
+            }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
         
         // 썸네일 리사이즈 및 업로드
@@ -1846,16 +1870,16 @@ async function handleUpload(request, env) {
             const emoticon = emoticons[i];
             let emoticonBuffer = await emoticon.arrayBuffer();
             
-            // Gemini 검증 (API 키가 있는 경우)
-            if (geminiApiKey) {
-                const validation = await validateEmoticonWithGemini(emoticonBuffer, geminiApiKey);
-                if (!validation.isValid) {
-                                    rejectedEmoticons.push({
+                        // Gemini 검증 (필수)
+            const validation = await validateEmoticonWithGemini(emoticonBuffer, geminiApiKey);
+            if (!validation.isValid) {
+                const errorDetail = validation.error ? 
+                    ' (' + validation.error + ')' : '';
+                rejectedEmoticons.push({
                     fileName: emoticon.name || `이미지 ${i + 1}`,
-                    reason: validation.reason
+                    reason: validation.reason + errorDetail
                 });
-                    continue; // 다음 이모티콘으로 건너뛰기
-                }
+                continue; // 다음 이모티콘으로 건너뛰기
             }
             
             // 이모티콘 리사이즈 (150x150)
