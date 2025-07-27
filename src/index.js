@@ -31,7 +31,7 @@ const HTML_TEMPLATES = {
 
   home: () => `
 <div class="container">
-    <h2>이모티콘 팩 목록</h2>
+    <h2 class="page-title">이모티콘 목록</h2>
     <div id="pack-list" class="pack-grid">
         <div class="loading">로딩 중...</div>
     </div>
@@ -44,7 +44,7 @@ const HTML_TEMPLATES = {
 
   upload: () => `
 <div class="container">
-    <h2>이모티콘 팩 업로드</h2>
+    <h2 class="page-title">이모티콘 업로드</h2>
     
     <div class="upload-warning">
         <span class="warning-icon"></span>
@@ -58,13 +58,13 @@ const HTML_TEMPLATES = {
     
     <form id="upload-form" class="upload-form">
         <div class="form-group">
-            <label for="title">제목 *</label>
-            <input type="text" id="title" name="title" required placeholder="이모티콘 팩의 제목을 입력하세요">
+            <label for="title">제목</label>
+            <input type="text" id="title" name="title" required placeholder="이모티콘의 제목을 입력하세요">
         </div>
         
         <div class="form-group">
-            <label for="creator">제작자 *</label>
-            <input type="text" id="creator" name="creator" required placeholder="제작자 이름을 입력하세요">
+            <label for="creator">제작자</label>
+            <input type="text" id="creator" name="creator" required placeholder="제작자 닉네임을 입력하세요">
         </div>
         
         <div class="form-group">
@@ -73,20 +73,20 @@ const HTML_TEMPLATES = {
         </div>
         
         <div class="form-group">
-            <label>썸네일 이미지 *</label>
+            <label>썸네일 이미지</label>
             <input type="file" id="thumbnail-input" accept="image/*" style="display: none;">
             <div class="file-upload-area">
                 <button type="button" class="add-file-btn" onclick="document.getElementById('thumbnail-input').click()">
                     <span class="plus-icon">+</span>
                     썸네일 선택
                 </button>
-                <div class="file-info">팩을 대표할 썸네일 이미지를 선택하세요</div>
+                <div class="file-info">이모티콘을 대표할 썸네일 이미지를 선택하세요</div>
             </div>
             <div id="thumbnail-preview" class="file-preview"></div>
         </div>
         
         <div class="form-group">
-            <label>이모티콘/스티커 이미지 * (최소 3개)</label>
+            <label>이모티콘(최소 3개)</label>
             <input type="file" id="emoticons-input" accept="image/*" multiple style="display: none;">
             <div class="file-upload-area">
                 <button type="button" class="add-file-btn" onclick="document.getElementById('emoticons-input').click()">
@@ -127,7 +127,7 @@ const HTML_TEMPLATES = {
             `).join('')}
         </div>
         <div class="pack-actions">
-            <button onclick="downloadPack('${pack.id}')" class="download-btn">팩 다운로드</button>
+            <button onclick="downloadPack('${pack.id}')" class="download-btn">이모티콘 다운로드</button>
         </div>
     </div>
 </div>`,
@@ -157,7 +157,7 @@ const HTML_TEMPLATES = {
                     <span class="path">/api/packs</span>
                 </div>
                 <div class="endpoint-content">
-                    <p class="description">이모티콘 팩 목록을 페이지네이션으로 조회합니다.</p>
+                    <p class="description">이모티콘 목록을 페이지네이션으로 조회합니다.</p>
                     
                     <h4>Query Parameters</h4>
                     <table class="param-table">
@@ -605,6 +605,14 @@ button:disabled {
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 1rem;
+}
+
+.page-title {
+    text-align: center;
+    margin-bottom: 2rem;
+    color: #333;
+    font-size: 2rem;
+    font-weight: 600;
 }
 
 .pack-grid {
@@ -1586,14 +1594,14 @@ async function loadPackList(page = 1) {
                 '</div>'
             ).join('');
         } else {
-            container.innerHTML = '<div class="loading">등록된 이모티콘 팩이 없습니다.</div>';
+            container.innerHTML = '<div class="loading">등록된 이모티콘이 없습니다.</div>';
         }
         
         updatePagination(data.currentPage, data.hasNext);
         
     } catch (error) {
-        console.error('팩 리스트 로드 실패:', error);
-        document.getElementById('pack-list').innerHTML = '<div class="error">팩 리스트를 불러오는데 실패했습니다.</div>';
+        console.error('이모티콘 목록 로드 실패:', error);
+        document.getElementById('pack-list').innerHTML = '<div class="error">이모티콘 목록을 불러오는데 실패했습니다.</div>';
     }
 }
 
@@ -1804,7 +1812,7 @@ function setupUploadForm() {
             const result = await response.json();
             
             if (response.ok) {
-                const message = result.message || '이모티콘 팩이 성공적으로 업로드되었습니다!';
+                const message = result.message || '이모티콘이 성공적으로 업로드되었습니다!';
                 
                 // 검증 정보가 있으면 상세 정보 표시
                 if (result.validationInfo && result.validationInfo.rejected > 0) {
@@ -1953,7 +1961,7 @@ function setupUploadForm() {
                 
                 <div class="modal-footer">
                     \${isSuccess && packId ? \`
-                        <button class="btn btn-primary" onclick="location.href='/pack/\${packId}'">업로드된 팩 보기</button>
+                        <button class="btn btn-primary" onclick="location.href='/pack/\${packId}'">업로드된 이모티콘 보기</button>
                         <button class="btn btn-secondary" onclick="location.href='/'">홈으로 이동</button>
                     \` : \`
                         <button class="btn btn-primary" onclick="closeUploadModal()">확인</button>
@@ -2588,7 +2596,7 @@ async function handleGetPacks(request, env) {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
-        return new Response(JSON.stringify({ error: '팩 리스트 조회 실패' }), {
+        return new Response(JSON.stringify({ error: '이모티콘 목록 조회 실패' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
@@ -2603,7 +2611,7 @@ async function handleGetPack(packId, env, request) {
         const pack = await env.PLAKKER_KV.get(`pack_${packId}`, 'json');
         
         if (!pack) {
-            return new Response(JSON.stringify({ error: '팩을 찾을 수 없습니다' }), {
+            return new Response(JSON.stringify({ error: '이모티콘을 찾을 수 없습니다' }), {
                 status: 404,
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -2615,7 +2623,7 @@ async function handleGetPack(packId, env, request) {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
-        return new Response(JSON.stringify({ error: '팩 조회 실패' }), {
+        return new Response(JSON.stringify({ error: '이모티콘 조회 실패' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
@@ -2630,7 +2638,7 @@ async function handlePackDetail(packId, env, request) {
         const pack = await env.PLAKKER_KV.get(`pack_${packId}`, 'json');
         
         if (!pack) {
-            return createHtmlResponse('팩을 찾을 수 없습니다', 404);
+            return createHtmlResponse('이모티콘을 찾을 수 없습니다', 404);
         }
         
         const convertedPack = convertPackToAbsoluteUrls(pack, baseUrl);
@@ -2788,7 +2796,7 @@ async function handleUpload(request, env) {
         });
         await env.PLAKKER_KV.put('pack_list', JSON.stringify(packList));
         
-        let successMessage = '이모티콘 팩이 성공적으로 업로드되었습니다!';
+        let successMessage = '이모티콘이 성공적으로 업로드되었습니다!';
         if (rejectedEmoticons.length > 0) {
             successMessage += ` (${rejectedEmoticons.length}개 이미지가 검증을 통과하지 못했습니다)`;
         }
