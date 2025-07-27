@@ -44,12 +44,12 @@ const HTML_TEMPLATES = {
     <h2>이모티콘 팩 업로드</h2>
     
     <div class="upload-warning">
-        <span class="warning-icon">⚠️</span>
+        <span class="warning-icon"></span>
         <strong>주의:</strong> 업로드 후에는 수정이 불가능합니다. 신중하게 검토 후 업로드해주세요.
     </div>
     
     <div class="ai-validation-notice">
-        <span class="info-icon">🤖</span>
+        <span class="info-icon"></span>
         <strong>AI 검열 안내:</strong> 모든 이미지는 Google Gemini AI를 통한 자동 검열을 거칩니다. 
         부적절한 내용(정치적, 선정적, 잔인한, 혐오적 내용)이 포함된 이미지는 자동으로 제외됩니다. 
         검열 과정으로 인해 업로드에 <strong>1-2분</strong> 소요될 수 있습니다.
@@ -651,8 +651,7 @@ button:disabled {
 }
 
 .warning-icon, .info-icon {
-    font-size: 1.2rem;
-    flex-shrink: 0;
+    display: none;
 }
 
 .upload-form {
@@ -1357,7 +1356,7 @@ button:disabled {
 }
 
 .modal-icon {
-    font-size: 1.5rem;
+    display: none;
 }
 
 .modal-header h3 {
@@ -1719,7 +1718,7 @@ function setupUploadForm() {
         }
         
         // 최종 확인
-        const confirmed = confirm(\`업로드하시겠습니까?\\n\\n제목: \${title}\\n제작자: \${creator}\\n이미지 개수: \${selectedEmoticons.length}개\\n\\n🤖 모든 이미지는 AI 검열을 거칩니다 (1-2분 소요)\\n⚠️ 업로드 후에는 수정할 수 없습니다.\`);
+        const confirmed = confirm(\`업로드하시겠습니까?\\n\\n제목: \${title}\\n제작자: \${creator}\\n이미지 개수: \${selectedEmoticons.length}개\\n\\n모든 이미지는 AI 검열을 거칩니다 (1-2분 소요)\\n업로드 후에는 수정할 수 없습니다.\`);
         if (!confirmed) {
             return;
         }
@@ -1732,7 +1731,7 @@ function setupUploadForm() {
         submitBtn.disabled = true;
         submitText.style.display = 'none';
         submitLoading.style.display = 'block';
-        submitLoading.textContent = '🤖 AI 검열 진행 중... (1-2분 소요)';
+        submitLoading.textContent = '업로드 중...';
         
         try {
             // FormData 생성
@@ -1863,7 +1862,7 @@ function setupUploadForm() {
             <div class="modal-backdrop" onclick="closeUploadModal()"></div>
             <div class="modal-content">
                 <div class="modal-header \${isSuccess ? 'success' : 'error'}">
-                    <span class="modal-icon">\${isSuccess ? '✅' : '❌'}</span>
+                    <span class="modal-icon"></span>
                     <h3>업로드 \${isSuccess ? '완료' : '실패'}</h3>
                 </div>
                 
@@ -1872,7 +1871,7 @@ function setupUploadForm() {
                     
                     \${validationInfo ? \`
                         <div class="validation-summary">
-                            <h4>🤖 AI 검열 결과</h4>
+                            <h4>AI 검열 결과</h4>
                             <div class="validation-stats">
                                 <div class="stat-item">
                                     <span class="stat-label">제출된 이미지:</span>
@@ -2070,18 +2069,18 @@ async function testAIGateway(env) {
     </head>
     <body>
         <div class="container">
-            <h1>🚀 AI Gateway 설정 테스트</h1>
+            <h1>AI Gateway 설정 테스트</h1>
             
             <div class="section">
-                <h2>📊 설정 현황</h2>
+                <h2>설정 현황</h2>
                 <div class="status ${result.settings.hasGeminiApiKey && result.settings.hasAccountId ? 'success' : 'error'}">
-                    <strong>전체 설정 상태:</strong> ${result.settings.hasGeminiApiKey && result.settings.hasAccountId ? '✅ 설정 완료' : '❌ 설정 미완료'}
+                    <strong>전체 설정 상태:</strong> ${result.settings.hasGeminiApiKey && result.settings.hasAccountId ? '설정 완료' : '설정 미완료'}
                 </div>
                 
                 <h3>환경 변수</h3>
                 <ul>
-                    <li><strong>GEMINI_API_KEY:</strong> ${result.settings.hasGeminiApiKey ? `✅ 설정됨 (${result.settings.geminiApiKeyLength}자)` : '❌ 미설정'}</li>
-                    <li><strong>CF_ACCOUNT_ID:</strong> ${result.settings.hasAccountId ? `✅ ${result.settings.accountId}` : '❌ 미설정'}</li>
+                    <li><strong>GEMINI_API_KEY:</strong> ${result.settings.hasGeminiApiKey ? `설정됨 (${result.settings.geminiApiKeyLength}자)` : '미설정'}</li>
+                    <li><strong>CF_ACCOUNT_ID:</strong> ${result.settings.hasAccountId ? `${result.settings.accountId}` : '미설정'}</li>
                     <li><strong>CF_GATEWAY_ID:</strong> ${result.settings.gatewayId}</li>
                     <li><strong>ENVIRONMENT:</strong> ${result.environment}</li>
                 </ul>
@@ -2089,7 +2088,7 @@ async function testAIGateway(env) {
             
             ${result.error ? `
                 <div class="section">
-                    <h2>❌ 설정 오류</h2>
+                    <h2>설정 오류</h2>
                     <div class="status error">
                         ${result.error}
                     </div>
@@ -2107,7 +2106,7 @@ async function testAIGateway(env) {
             
             ${result.test ? `
                 <div class="section">
-                    <h2>🧪 API 연결 테스트</h2>
+                    <h2>API 연결 테스트</h2>
                     <div class="status ${result.test.success ? 'success' : 'error'}">
                         <strong>테스트 결과:</strong> ${result.test.message}
                     </div>
@@ -2129,7 +2128,7 @@ async function testAIGateway(env) {
             ` : ''}
             
             <div class="section">
-                <h2>📋 전체 결과 (JSON)</h2>
+                <h2>전체 결과 (JSON)</h2>
                 <pre>${JSON.stringify(result, null, 2)}</pre>
             </div>
             
