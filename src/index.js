@@ -2053,7 +2053,7 @@ async function testAIGateway(env) {
     } else {
         // 간단한 API 테스트
         try {
-            const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/google-ai-studio/v1/models/gemini-2.5-flash:generateContent`;
+            const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/google-ai-studio/v1beta/models/gemini-2.5-flash:generateContent`;
             
             result.test = {
                 gatewayUrl,
@@ -2254,8 +2254,8 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
         const accountId = env.CF_ACCOUNT_ID;
         const gatewayId = env.CF_GATEWAY_ID || 'plakker-gateway';
         
-        // Cloudflare AI Gateway 공식 URL 구조 (v1이 맞음)
-        const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/google-ai-studio/v1/models/gemini-2.5-flash:generateContent`;
+        // Cloudflare AI Gateway + Google AI Studio 올바른 URL 구조 (v1beta 필수!)
+        const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/google-ai-studio/v1beta/models/gemini-2.5-flash:generateContent`;
         
         // 디버깅 로그
         console.log('AI Gateway 설정:', {
