@@ -1511,10 +1511,9 @@ button:disabled {
 .modal-footer .btn {
     padding: 8px 16px;
     border: none;
-    border-radius: 6px;
+    border-radius: 16px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
     text-decoration: none;
     display: inline-block;
 }
