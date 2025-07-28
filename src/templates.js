@@ -126,9 +126,7 @@ export const HTML_TEMPLATES = {
                 </div>
             `).join('')}
         </div>
-        <div class="pack-actions">
-            <button onclick="downloadPack('${pack.id}')" class="download-btn">팩 다운로드</button>
-        </div>
+
     </div>
 </div>`,
 
@@ -290,18 +288,7 @@ export const HTML_TEMPLATES = {
                 </div>
             </div>
 
-            <div class="endpoint">
-                <div class="endpoint-header">
-                    <span class="method get">GET</span>
-                    <span class="path">/api/pack/{pack_id}/download</span>
-                </div>
-                <div class="endpoint-content">
-                    <p class="description">이모티콘 팩을 ZIP 파일로 다운로드합니다. (추후 구현 예정)</p>
-                    
-                    <h4>Response</h4>
-                    <p>현재는 501 상태 코드와 함께 구현 예정 메시지를 반환합니다.</p>
-                </div>
-            </div>
+
         </div>
 
         <div class="api-section">
@@ -327,10 +314,7 @@ export const HTML_TEMPLATES = {
                     <td><code>500</code></td>
                     <td>서버 내부 오류</td>
                 </tr>
-                <tr>
-                    <td><code>501</code></td>
-                    <td>구현되지 않은 기능</td>
-                </tr>
+
             </table>
         </div>
 

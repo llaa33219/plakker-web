@@ -450,24 +450,4 @@ function setupUploadForm() {
     updateEmoticonPreview();
 }
 
-async function downloadPack(packId) {
-    try {
-        const response = await fetch('/api/pack/' + packId + '/download');
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'emoticon-pack-' + packId + '.zip';
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        } else {
-            alert('다운로드에 실패했습니다.');
-        }
-    } catch (error) {
-        console.error('다운로드 오류:', error);
-        alert('다운로드 중 오류가 발생했습니다.');
-    }
-}`; 
+`; 

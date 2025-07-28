@@ -452,19 +452,7 @@ button:disabled {
     text-align: center;
 }
 
-/* 다운로드 버튼 - 초록색으로 유지하지만 새로운 스타일 적용 */
-.download-btn {
-    background: #28a745;
-    width: auto;
-    max-width: 300px;
-    font-size: 1.1rem;
-    padding: 15px 30px;
-    min-height: 61px;
-}
 
-.download-btn:hover {
-    background: #218838;
-}
 
 /* 페이지네이션 버튼들 - 작게 유지 */
 .pagination {

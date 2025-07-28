@@ -22,9 +22,6 @@ export async function handleAPI(request, env, path) {
         response = await handleGetPacks(request, env);
     } else if (path === '/api/upload' && request.method === 'POST') {
         response = await handleUpload(request, env);
-    } else if (path.startsWith('/api/pack/') && path.endsWith('/download')) {
-        const packId = path.split('/')[3];
-        response = await handleDownload(packId, env);
     } else if (path.startsWith('/api/pack/')) {
         const packId = path.split('/')[3];
         response = await handleGetPack(packId, env, request);
@@ -270,13 +267,7 @@ export async function handleUpload(request, env) {
     }
 }
 
-// 다운로드 처리 (추후 구현)
-export async function handleDownload(packId, env) {
-    return new Response(JSON.stringify({ error: '다운로드 기능은 추후 구현 예정입니다' }), {
-        status: 501,
-        headers: { 'Content-Type': 'application/json' }
-    });
-}
+
 
 // 팩 상세 페이지
 export async function handlePackDetail(packId, env, request) {
