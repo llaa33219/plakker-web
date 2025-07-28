@@ -403,9 +403,27 @@ export async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
 // URL을 절대 URL로 변환하는 함수
 export function toAbsoluteUrl(url, baseUrl) {
     if (!url) return url;
+    
+    // 이미 절대 URL인 경우
     if (url.startsWith('http://') || url.startsWith('https://')) {
-        return url; // 이미 절대 URL
+        // 다른 도메인의 URL이면 현재 도메인으로 변환
+        try {
+            const urlObj = new URL(url);
+            const baseUrlObj = new URL(baseUrl);
+            
+            // 같은 도메인이면 그대로 반환
+            if (urlObj.host === baseUrlObj.host) {
+                return url;
+            }
+            
+            // 다른 도메인이면 현재 도메인으로 변환 (경로는 유지)
+            return baseUrl + urlObj.pathname;
+        } catch (e) {
+            // URL 파싱 실패시 원본 반환
+            return url;
+        }
     }
+    
     return baseUrl + url; // 상대 URL을 절대 URL로 변환
 }
 

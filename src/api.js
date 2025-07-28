@@ -194,7 +194,7 @@ export async function handleUpload(request, env) {
                 httpMetadata: { contentType: emoticon.type }
             });
             
-            emoticonUrls.push(`${baseUrl}/r2/${emoticonKey}`);
+            emoticonUrls.push(`/r2/${emoticonKey}`);
         }
         
         // 검증 후 최소 개수 확인
@@ -219,7 +219,7 @@ export async function handleUpload(request, env) {
             title,
             creator,
             creatorLink,
-            thumbnail: `${baseUrl}/r2/${thumbnailKey}`,
+            thumbnail: `/r2/${thumbnailKey}`,
             emoticons: emoticonUrls,
             validationInfo: {
                 totalSubmitted: emoticons.length,
@@ -239,7 +239,7 @@ export async function handleUpload(request, env) {
             id: packId,
             title,
             creator,
-            thumbnail: pack.thumbnail,
+            thumbnail: `/r2/${thumbnailKey}`,
             createdAt: pack.createdAt
         });
         await env.PLAKKER_KV.put('pack_list', JSON.stringify(packList));
