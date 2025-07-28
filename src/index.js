@@ -1576,15 +1576,34 @@ async function loadPackList(page = 1) {
         
         const container = document.getElementById('pack-list');
         if (data.packs && data.packs.length > 0) {
-            container.innerHTML = data.packs.map(pack => 
-                '<div class="pack-item" onclick="location.href=\'/pack/' + pack.id + '\'">\\n' +
-                '    <img src="' + pack.thumbnail + '" alt="' + pack.title + '" class="pack-thumbnail">\\n' +
-                '    <div class="pack-info">\\n' +
-                '        <div class="pack-title">' + pack.title + '</div>\\n' +
-                '        <div class="pack-creator">' + pack.creator + '</div>\\n' +
-                '    </div>\\n' +
-                '</div>'
-            ).join('');
+            container.innerHTML = data.packs.map(pack => {
+                const packDiv = document.createElement('div');
+                packDiv.className = 'pack-item';
+                packDiv.onclick = () => location.href = '/pack/' + pack.id;
+                
+                const img = document.createElement('img');
+                img.src = pack.thumbnail;
+                img.alt = pack.title;
+                img.className = 'pack-thumbnail';
+                
+                const info = document.createElement('div');
+                info.className = 'pack-info';
+                
+                const title = document.createElement('div');
+                title.className = 'pack-title';
+                title.textContent = pack.title;
+                
+                const creator = document.createElement('div');
+                creator.className = 'pack-creator';
+                creator.textContent = pack.creator;
+                
+                info.appendChild(title);
+                info.appendChild(creator);
+                packDiv.appendChild(img);
+                packDiv.appendChild(info);
+                
+                return packDiv.outerHTML;
+            }).join('');
         } else {
             container.innerHTML = '<div class="loading">등록된 이모티콘 팩이 없습니다.</div>';
         }
@@ -2499,13 +2518,10 @@ export default {
 // Permissions-Policy 헤더 문자열 생성
 function getPermissionsPolicyHeader() {
     return [
-        'attribution-reporting=()',
-        'private-aggregation=()',
-        'private-state-token-issuance=()',
-        'private-state-token-redemption=()',
-        'join-ad-interest-group=()',
-        'run-ad-auction=()',
-        'browsing-topics=()'
+        'camera=()',
+        'microphone=()',
+        'geolocation=()',
+        'fullscreen=(self)'
     ].join(', ');
 }
 
