@@ -375,7 +375,7 @@ function setupUploadForm() {
         const modal = document.createElement('div');
         modal.className = 'upload-result-modal';
         modal.innerHTML = \`
-            <div class="modal-backdrop" onclick="closeUploadModal()"></div>
+            <div class="modal-backdrop" \${isSuccess && packId ? '' : 'onclick="closeUploadModal()"'}></div>
             <div class="modal-content">
                 <div class="modal-header \${isSuccess ? 'success' : 'error'}">
                     <span class="modal-icon"></span>
@@ -419,7 +419,7 @@ function setupUploadForm() {
                 
                 <div class="modal-footer">
                     \${isSuccess && packId ? \`
-                        <button class="btn btn-primary" onclick="location.href='/pack/\${packId}'">업로드된 팩 보기</button>
+                        <button class="btn btn-primary" onclick="location.href='/pack/\${packId}'">업로드된 이모티콘 보기</button>
                         <button class="btn btn-secondary" onclick="location.href='/'">홈으로 이동</button>
                     \` : \`
                         <button class="btn btn-primary" onclick="closeUploadModal()">확인</button>
@@ -435,9 +435,9 @@ function setupUploadForm() {
             document.body.removeChild(modal);
         };
         
-        // ESC 키로 닫기
+        // ESC 키로 닫기 (성공시에는 막음)
         function handleEscape(e) {
-            if (e.key === 'Escape') {
+            if (e.key === 'Escape' && !(isSuccess && packId)) {
                 closeUploadModal();
                 document.removeEventListener('keydown', handleEscape);
             }
