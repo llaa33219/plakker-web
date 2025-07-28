@@ -1602,37 +1602,15 @@ async function loadPackList(page = 1) {
         
         const container = document.getElementById('pack-list');
         if (data.packs && data.packs.length > 0) {
-            container.innerHTML = '';
-            data.packs.forEach(pack => {
-                const packDiv = document.createElement('div');
-                packDiv.className = 'pack-item';
-                packDiv.style.cursor = 'pointer';
-                packDiv.addEventListener('click', () => {
-                    location.href = '/pack/' + pack.id;
-                });
-                
-                const img = document.createElement('img');
-                img.src = pack.thumbnail;
-                img.alt = pack.title;
-                img.className = 'pack-thumbnail';
-                
-                const info = document.createElement('div');
-                info.className = 'pack-info';
-                
-                const title = document.createElement('div');
-                title.className = 'pack-title';
-                title.textContent = pack.title;
-                
-                const creator = document.createElement('div');
-                creator.className = 'pack-creator';
-                creator.textContent = pack.creator;
-                
-                info.appendChild(title);
-                info.appendChild(creator);
-                packDiv.appendChild(img);
-                packDiv.appendChild(info);
-                container.appendChild(packDiv);
-            });
+            container.innerHTML = data.packs.map(function(pack) {
+                return '<div class="pack-item" style="cursor: pointer;" onclick="location.href=\\'/pack/' + pack.id + '\\'">\\n' +
+                       '    <img src="' + pack.thumbnail + '" alt="' + pack.title + '" class="pack-thumbnail">\\n' +
+                       '    <div class="pack-info">\\n' +
+                       '        <div class="pack-title">' + pack.title + '</div>\\n' +
+                       '        <div class="pack-creator">' + pack.creator + '</div>\\n' +
+                       '    </div>\\n' +
+                       '</div>';
+            }).join('');
         } else {
             container.innerHTML = '<div class="loading">등록된 이모티콘 팩이 없습니다.</div>';
         }
@@ -1646,14 +1624,14 @@ async function loadPackList(page = 1) {
 }
 
 function setupPagination() {
-    document.getElementById('prev-page').addEventListener('click', () => {
+    document.getElementById('prev-page').addEventListener('click', function() {
         if (currentPage > 1) {
             currentPage--;
             loadPackList(currentPage);
         }
     });
     
-    document.getElementById('next-page').addEventListener('click', () => {
+    document.getElementById('next-page').addEventListener('click', function() {
         currentPage++;
         loadPackList(currentPage);
     });
@@ -1676,7 +1654,7 @@ function setupUploadForm() {
     
     // 이미지 리사이즈 함수
     function resizeImage(file, maxWidth, maxHeight) {
-        return new Promise((resolve) => {
+        return new Promise(function(resolve) {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             const img = new Image();
@@ -1825,9 +1803,9 @@ function setupUploadForm() {
             if (creatorLink) formData.append('creatorLink', creatorLink);
             formData.append('thumbnail', selectedThumbnail);
             
-            selectedEmoticons.forEach(file => {
-                formData.append('emoticons', file);
-            });
+                    selectedEmoticons.forEach(function(file) {
+            formData.append('emoticons', file);
+        });
             
             // API 호출
             const response = await fetch('/api/upload', {
@@ -1897,16 +1875,15 @@ function setupUploadForm() {
         previewContainer.innerHTML = '';
         previewContainer.classList.add('has-files');
         
-        selectedEmoticons.forEach((file, index) => {
+        selectedEmoticons.forEach(function(file, index) {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const previewItem = document.createElement('div');
                 previewItem.className = 'preview-item';
-                previewItem.innerHTML = \`
-                    <img src="\${e.target.result}" class="preview-image" alt="이모티콘 \${index + 1}">
-                    <div class="preview-filename">\${file.name}</div>
-                    <button type="button" class="preview-remove" data-action="remove-emoticon" data-index="\${index}">×</button>
-                \`;
+                previewItem.innerHTML = 
+                    '<img src="' + e.target.result + '" class="preview-image" alt="이모티콘 ' + (index + 1) + '">' +
+                    '<div class="preview-filename">' + file.name + '</div>' +
+                    '<button type="button" class="preview-remove" data-action="remove-emoticon" data-index="' + index + '">×</button>';
                 previewContainer.appendChild(previewItem);
             };
             reader.readAsDataURL(file);
