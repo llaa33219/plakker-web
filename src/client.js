@@ -92,6 +92,14 @@ function setupUploadForm() {
     let selectedThumbnail = null;
     let selectedEmoticons = [];
     
+    // 허용된 이미지 형식
+    const allowedImageTypes = ['image/png', 'image/jpg', 'image/jpeg', 'image/webp', 'image/gif'];
+    
+    // 파일 형식 검증 함수
+    function isValidImageType(file) {
+        return allowedImageTypes.includes(file.type.toLowerCase());
+    }
+    
     // 이미지 리사이즈 함수
     function resizeImage(file, maxWidth, maxHeight) {
         return new Promise((resolve) => {
@@ -133,8 +141,9 @@ function setupUploadForm() {
     thumbnailInput.addEventListener('change', async function(e) {
         const file = e.target.files[0];
         if (file) {
-            if (!file.type.startsWith('image/')) {
-                alert('이미지 파일만 선택해주세요.');
+            if (!isValidImageType(file)) {
+                alert('지원되는 이미지 형식만 선택해주세요. (PNG, JPG, JPEG, WebP, GIF)');
+                e.target.value = '';
                 return;
             }
             
@@ -157,14 +166,19 @@ function setupUploadForm() {
     emoticonsInput.addEventListener('change', async function(e) {
         const files = Array.from(e.target.files);
         
-        // 이미지 파일만 필터링
-        const imageFiles = files.filter(file => file.type.startsWith('image/'));
+        // 허용된 이미지 파일만 필터링
+        const validImageFiles = files.filter(file => isValidImageType(file));
         
-        if (imageFiles.length !== files.length) {
-            alert('이미지 파일만 선택해주세요.');
+        if (validImageFiles.length !== files.length) {
+            const invalidFiles = files.filter(file => !isValidImageType(file));
+            if (invalidFiles.length > 0) {
+                alert('지원되지 않는 파일 형식이 포함되어 있습니다.\\n지원되는 형식: PNG, JPG, JPEG, WebP, GIF');
+                e.target.value = '';
+                return;
+            }
         }
         
-        if (imageFiles.length === 0) {
+        if (validImageFiles.length === 0) {
             e.target.value = '';
             return;
         }
@@ -175,12 +189,12 @@ function setupUploadForm() {
             previewContainer.innerHTML = '<div class="loading">이미지 처리 중...</div>';
             
             // 진행률 표시를 위한 임시 메시지
-            const totalFiles = imageFiles.length;
+            const totalFiles = validImageFiles.length;
             let processedFiles = 0;
             
             // 각 이미지를 150x150으로 리사이즈
             const resizedFiles = await Promise.all(
-                imageFiles.map(async function(file, index) {
+                validImageFiles.map(async function(file, index) {
                     const resizedFile = await resizeImage(file, 150, 150);
                     processedFiles++;
                     

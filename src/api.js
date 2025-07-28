@@ -118,6 +118,36 @@ export async function handleUpload(request, env) {
             });
         }
         
+        // 허용된 이미지 형식
+        const allowedImageTypes = ['image/png', 'image/jpg', 'image/jpeg', 'image/webp', 'image/gif'];
+        
+        // 파일 형식 검증 함수
+        function isValidImageType(file) {
+            return file && file.type && allowedImageTypes.includes(file.type.toLowerCase());
+        }
+        
+        // 썸네일 파일 형식 검증
+        if (!isValidImageType(thumbnail)) {
+            return new Response(JSON.stringify({ 
+                error: '썸네일은 지원되는 이미지 형식이어야 합니다. (PNG, JPG, JPEG, WebP, GIF)' 
+            }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        // 이모티콘 파일 형식 검증
+        for (let i = 0; i < emoticons.length; i++) {
+            if (!isValidImageType(emoticons[i])) {
+                return new Response(JSON.stringify({ 
+                    error: `이모티콘 ${i + 1}번이 지원되지 않는 파일 형식입니다. 지원되는 형식: PNG, JPG, JPEG, WebP, GIF` 
+                }), {
+                    status: 400,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
+        }
+        
         // Gemini API 키 확인 (필수)
         const geminiApiKey = env.GEMINI_API_KEY;
         const accountId = env.CF_ACCOUNT_ID;

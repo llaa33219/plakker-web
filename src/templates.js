@@ -74,26 +74,26 @@ export const HTML_TEMPLATES = {
         
         <div class="form-group">
             <label>썸네일 이미지</label>
-            <input type="file" id="thumbnail-input" accept="image/*" style="display: none;">
+            <input type="file" id="thumbnail-input" accept=".png,.jpg,.jpeg,.webp,.gif" style="display: none;">
             <div class="file-upload-area">
                 <button type="button" class="add-file-btn" onclick="document.getElementById('thumbnail-input').click()">
                     <span class="plus-icon">+</span>
                     썸네일 선택
                 </button>
-                <div class="file-info">이모티콘을 대표할 썸네일 이미지를 선택하세요</div>
+                <div class="file-info">이모티콘을 대표할 썸네일 이미지를 선택하세요 (PNG, JPG, JPEG, WebP, GIF)</div>
             </div>
             <div id="thumbnail-preview" class="file-preview"></div>
         </div>
         
         <div class="form-group">
             <label>이모티콘(최소 3개)</label>
-            <input type="file" id="emoticons-input" accept="image/*" multiple style="display: none;">
+            <input type="file" id="emoticons-input" accept=".png,.jpg,.jpeg,.webp,.gif" multiple style="display: none;">
             <div class="file-upload-area">
                 <button type="button" class="add-file-btn" onclick="document.getElementById('emoticons-input').click()">
                     <span class="plus-icon">+</span>
                     이미지 추가
                 </button>
-                <div class="file-info">최소 3개의 이미지를 선택하세요. 자동으로 150x150으로 리사이즈되며, 모든 이미지는 검증을 통과해야 업로드됩니다.</div>
+                <div class="file-info">최소 3개의 이미지를 선택하세요 (PNG, JPG, JPEG, WebP, GIF). 자동으로 150x150으로 리사이즈되며, 모든 이미지는 검증을 통과해야 업로드됩니다.</div>
             </div>
             <div id="emoticon-preview" class="file-preview"></div>
         </div>
