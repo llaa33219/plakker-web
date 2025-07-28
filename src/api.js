@@ -6,7 +6,11 @@ import {
     convertPackToAbsoluteUrls,
     generateId,
     resizeImage,
-    validateEmoticonWithGemini
+    validateEmoticonWithGemini,
+    getClientIP,
+    checkUploadLimit,
+    incrementUploadCount,
+    maskIP
 } from './utils.js';
 
 // API 핸들러
@@ -22,6 +26,8 @@ export async function handleAPI(request, env, path) {
         response = await handleGetPacks(request, env);
     } else if (path === '/api/upload' && request.method === 'POST') {
         response = await handleUpload(request, env);
+    } else if (path === '/api/upload-limit' && request.method === 'GET') {
+        response = await handleUploadLimitStatus(request, env);
     } else if (path.startsWith('/api/pack/')) {
         const packId = path.split('/')[3];
         response = await handleGetPack(packId, env, request);
@@ -102,6 +108,20 @@ export async function handleUpload(request, env) {
     try {
         const url = new URL(request.url);
         const baseUrl = `${url.protocol}//${url.host}`;
+        
+        // IP 기반 업로드 제한 확인
+        const clientIP = await getClientIP(request);
+        const uploadLimitCheck = await checkUploadLimit(env, clientIP, 5);
+        
+        if (!uploadLimitCheck.allowed) {
+            return new Response(JSON.stringify({ 
+                error: `일일 업로드 제한에 도달했습니다. (${uploadLimitCheck.currentCount}/${uploadLimitCheck.limit}) 내일 다시 시도해주세요.` 
+            }), {
+                status: 429, // Too Many Requests
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
         const formData = await request.formData();
         
         const title = formData.get('title');
@@ -274,6 +294,9 @@ export async function handleUpload(request, env) {
         });
         await env.PLAKKER_KV.put('pack_list', JSON.stringify(packList));
         
+        // 업로드 성공 시 IP별 카운트 증가
+        await incrementUploadCount(env, clientIP);
+        
         let successMessage = '이모티콘 팩이 성공적으로 업로드되었습니다!';
         if (rejectedEmoticons.length > 0) {
             successMessage += ` (${rejectedEmoticons.length}개 이미지가 검증을 통과하지 못했습니다)`;
@@ -289,7 +312,7 @@ export async function handleUpload(request, env) {
         });
         
     } catch (error) {
-        console.error('업로드 오류:', error);
+        console.error('업로드 오류 (IP:', maskIP(clientIP), '):', error.message);
         return new Response(JSON.stringify({ error: '업로드 처리 중 오류가 발생했습니다: ' + error.message }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
@@ -297,6 +320,31 @@ export async function handleUpload(request, env) {
     }
 }
 
+// 업로드 제한 상태 확인 API
+export async function handleUploadLimitStatus(request, env) {
+    try {
+        const clientIP = await getClientIP(request);
+        const uploadLimitCheck = await checkUploadLimit(env, clientIP, 5);
+        
+        return new Response(JSON.stringify({
+            currentCount: uploadLimitCheck.currentCount,
+            limit: uploadLimitCheck.limit,
+            remaining: uploadLimitCheck.remaining,
+            allowed: uploadLimitCheck.allowed
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        const clientIP = await getClientIP(request);
+        console.error('업로드 제한 상태 확인 오류 (IP:', maskIP(clientIP), '):', error.message);
+        return new Response(JSON.stringify({ 
+            error: '제한 상태를 확인할 수 없습니다' 
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
 
 
 // 팩 상세 페이지

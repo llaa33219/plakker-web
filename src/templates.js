@@ -56,6 +56,11 @@ export const HTML_TEMPLATES = {
         <strong>검열 안내:</strong> 검열로 인해 업로드에 시간이 걸릴 수 있습니다.
     </div>
     
+    <div id="upload-limit-status" class="upload-limit-notice" style="display: none;">
+        <span class="info-icon"></span>
+        <strong>업로드 제한:</strong> <span id="limit-text"></span>
+    </div>
+    
     <form id="upload-form" class="upload-form">
         <div class="form-group">
             <label for="title">제목</label>

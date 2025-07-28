@@ -497,3 +497,152 @@ export function addCorsHeaders(response) {
 export function handleOptions() {
     return addCorsHeaders(new Response(null, { status: 204 }));
 } 
+
+// IP 기반 업로드 제한 관련 함수들
+
+/**
+ * 클라이언트의 실제 IP 주소를 가져옵니다.
+ * Cloudflare를 통한 요청의 경우 적절한 헤더에서 IP를 추출합니다.
+ */
+export async function getClientIP(request) {
+    // Cloudflare에서 제공하는 실제 클라이언트 IP 헤더들을 확인
+    return request.headers.get('CF-Connecting-IP') || 
+           request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
+           request.headers.get('X-Real-IP') || 
+           '127.0.0.1'; // 기본값
+}
+
+/**
+ * IP 주소를 안전하게 해시화하는 함수
+ * 
+ * 보안 조치:
+ * - SHA-256 해시 알고리즘 사용
+ * - Salt 추가로 레인보우 테이블 공격 방지
+ * - 원본 IP 복구 불가능
+ * - 동일한 IP는 항상 동일한 해시값 생성 (추적 가능)
+ */
+export async function hashIP(ip) {
+    // Salt를 추가하여 레인보우 테이블 공격 방지
+    const salt = 'plakker_ip_salt_2025_secure_hash';
+    const dataToHash = salt + ip + salt; // 양쪽에 salt 추가
+    
+    // TextEncoder를 사용하여 문자열을 Uint8Array로 변환
+    const encoder = new TextEncoder();
+    const data = encoder.encode(dataToHash);
+    
+    // SHA-256 해시 생성
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    
+    // 해시를 16진수 문자열로 변환
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    return hashHex;
+}
+
+/**
+ * 로깅용 IP 마스킹 함수
+ * 
+ * 보안 조치:
+ * - 원본 IP 주소를 부분적으로 마스킹하여 개인정보 보호
+ * - IPv4: 뒤 2옥텟 마스킹 (예: 192.168.*.*)
+ * - IPv6: 뒤 4그룹 마스킹 (예: 2001:db8:85a3:8d3::****)
+ * - 디버깅 시에도 완전한 IP 노출 방지
+ */
+export function maskIP(ip) {
+    if (!ip || ip === '127.0.0.1') {
+        return 'localhost';
+    }
+    
+    // IPv4 마스킹 (예: 192.168.1.100 -> 192.168.*.*)
+    if (ip.includes('.')) {
+        const parts = ip.split('.');
+        if (parts.length === 4) {
+            return `${parts[0]}.${parts[1]}.*.*`;
+        }
+    }
+    
+    // IPv6 마스킹 (첫 4그룹만 표시)
+    if (ip.includes(':')) {
+        const parts = ip.split(':');
+        if (parts.length >= 4) {
+            return `${parts[0]}:${parts[1]}:${parts[2]}:${parts[3]}::****`;
+        }
+    }
+    
+    // 알 수 없는 형식의 경우 앞 4자리만 표시
+    return ip.substring(0, 4) + '****';
+}
+
+export function getTodayDateString() {
+    // UTC 기준으로 오늘 날짜 문자열 생성 (YYYY-MM-DD)
+    const today = new Date();
+    return today.getUTCFullYear() + '-' + 
+           String(today.getUTCMonth() + 1).padStart(2, '0') + '-' + 
+           String(today.getUTCDate()).padStart(2, '0');
+}
+
+/**
+ * IP별 업로드 제한 확인
+ * 
+ * 보안 조치:
+ * - IP 주소는 해시화되어 저장됨 (원본 IP 복구 불가능)
+ * - KV 스토리지에 해시값만 저장되므로 외부 유출 시에도 안전
+ * - 오류 발생 시 IP 마스킹 처리된 로그만 기록
+ */
+export async function checkUploadLimit(env, ip, limit = 5) {
+    try {
+        const hashedIP = await hashIP(ip);
+        const dateKey = getTodayDateString();
+        const uploadKey = `uploads:${hashedIP}:${dateKey}`;
+        
+        const currentCount = await env.PLAKKER_KV.get(uploadKey);
+        const count = currentCount ? parseInt(currentCount) : 0;
+        
+        return {
+            allowed: count < limit,
+            currentCount: count,
+            limit: limit,
+            remaining: Math.max(0, limit - count)
+        };
+    } catch (error) {
+        console.error('업로드 제한 확인 오류:', maskIP(ip), error.message);
+        // 오류 시에는 업로드를 허용 (fail-open)
+        return {
+            allowed: true,
+            currentCount: 0,
+            limit: limit,
+            remaining: limit
+        };
+    }
+}
+
+/**
+ * IP별 업로드 카운트 증가
+ * 
+ * 보안 조치:
+ * - IP 주소는 해시화되어 저장됨
+ * - TTL 설정으로 24시간 후 자동 삭제 (데이터 최소화)
+ * - 오류 발생 시 IP 마스킹 처리된 로그만 기록
+ */
+export async function incrementUploadCount(env, ip) {
+    try {
+        const hashedIP = await hashIP(ip);
+        const dateKey = getTodayDateString();
+        const uploadKey = `uploads:${hashedIP}:${dateKey}`;
+        
+        const currentCount = await env.PLAKKER_KV.get(uploadKey);
+        const count = currentCount ? parseInt(currentCount) : 0;
+        const newCount = count + 1;
+        
+        // 24시간 후 자동 삭제되도록 TTL 설정 (86400초 = 24시간)
+        await env.PLAKKER_KV.put(uploadKey, newCount.toString(), {
+            expirationTtl: 86400
+        });
+        
+        return newCount;
+    } catch (error) {
+        console.error('업로드 카운트 증가 오류:', maskIP(ip), error.message);
+        return 0;
+    }
+} 

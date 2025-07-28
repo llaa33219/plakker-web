@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setupPagination();
     } else if (path === '/upload') {
         setupUploadForm();
+        loadUploadLimitStatus();
     }
 });
 
@@ -286,6 +287,9 @@ function setupUploadForm() {
             if (response.ok) {
                 const message = result.message || '이모티콘 팩이 성공적으로 업로드되었습니다!';
                 
+                // 업로드 성공 후 제한 상태 업데이트
+                loadUploadLimitStatus();
+                
                 // 검증 정보가 있으면 상세 정보 표시
                 if (result.validationInfo && result.validationInfo.rejected > 0) {
                     showUploadResult(true, message, result.validationInfo, result.id);
@@ -462,6 +466,40 @@ function setupUploadForm() {
     // 초기 미리보기 표시
     updateThumbnailPreview();
     updateEmoticonPreview();
+}
+
+// 업로드 제한 상태 로드 및 표시
+async function loadUploadLimitStatus() {
+    try {
+        const response = await fetch('/api/upload-limit');
+        const data = await response.json();
+        
+        if (response.ok) {
+            const statusElement = document.getElementById('upload-limit-status');
+            const limitTextElement = document.getElementById('limit-text');
+            
+                         if (statusElement && limitTextElement) {
+                 if (data.allowed) {
+                     limitTextElement.textContent = '오늘 ' + data.currentCount + '/' + data.limit + '개 업로드함 (남은 횟수: ' + data.remaining + '개)';
+                     statusElement.className = 'upload-limit-notice info';
+                 } else {
+                     limitTextElement.textContent = '일일 업로드 제한에 도달했습니다. (' + data.currentCount + '/' + data.limit + '개) 내일 다시 시도해주세요.';
+                     statusElement.className = 'upload-limit-notice warning';
+                     
+                     // 제한 도달 시 업로드 버튼 비활성화
+                     const submitBtn = document.querySelector('.submit-btn');
+                     if (submitBtn) {
+                         submitBtn.disabled = true;
+                         submitBtn.style.opacity = '0.6';
+                         submitBtn.style.cursor = 'not-allowed';
+                     }
+                 }
+                 statusElement.style.display = 'block';
+             }
+        }
+    } catch (error) {
+        console.error('업로드 제한 상태 로드 실패:', error);
+    }
 }
 
 `; 
