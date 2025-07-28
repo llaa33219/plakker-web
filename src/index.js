@@ -31,7 +31,7 @@ const HTML_TEMPLATES = {
 
   home: () => `
 <div class="container">
-    <h2 class="page-title">이모티콘 목록</h2>
+    <h2 style="text-align: center;">이모티콘 목록</h2>
     <div id="pack-list" class="pack-grid">
         <div class="loading">로딩 중...</div>
     </div>
@@ -44,7 +44,7 @@ const HTML_TEMPLATES = {
 
   upload: () => `
 <div class="container">
-    <h2 class="page-title">이모티콘 업로드</h2>
+    <h2 style="text-align: center;">이모티콘 업로드</h2>
     
     <div class="upload-warning">
         <span class="warning-icon"></span>
@@ -127,7 +127,7 @@ const HTML_TEMPLATES = {
             `).join('')}
         </div>
         <div class="pack-actions">
-            <button onclick="downloadPack('${pack.id}')" class="download-btn">이모티콘 다운로드</button>
+            <button onclick="downloadPack('${pack.id}')" class="download-btn">팩 다운로드</button>
         </div>
     </div>
 </div>`,
@@ -157,7 +157,7 @@ const HTML_TEMPLATES = {
                     <span class="path">/api/packs</span>
                 </div>
                 <div class="endpoint-content">
-                    <p class="description">이모티콘 목록을 페이지네이션으로 조회합니다.</p>
+                    <p class="description">이모티콘 팩 목록을 페이지네이션으로 조회합니다.</p>
                     
                     <h4>Query Parameters</h4>
                     <table class="param-table">
@@ -605,14 +605,6 @@ button:disabled {
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 1rem;
-}
-
-.page-title {
-    text-align: center;
-    margin-bottom: 2rem;
-    color: #333;
-    font-size: 2rem;
-    font-weight: 600;
 }
 
 .pack-grid {
@@ -1594,14 +1586,14 @@ async function loadPackList(page = 1) {
                 '</div>'
             ).join('');
         } else {
-            container.innerHTML = '<div class="loading">등록된 이모티콘이 없습니다.</div>';
+            container.innerHTML = '<div class="loading">등록된 이모티콘 팩이 없습니다.</div>';
         }
         
         updatePagination(data.currentPage, data.hasNext);
         
     } catch (error) {
-        console.error('이모티콘 목록 로드 실패:', error);
-        document.getElementById('pack-list').innerHTML = '<div class="error">이모티콘 목록을 불러오는데 실패했습니다.</div>';
+        console.error('팩 리스트 로드 실패:', error);
+        document.getElementById('pack-list').innerHTML = '<div class="error">팩 리스트를 불러오는데 실패했습니다.</div>';
     }
 }
 
@@ -1812,7 +1804,7 @@ function setupUploadForm() {
             const result = await response.json();
             
             if (response.ok) {
-                const message = result.message || '이모티콘이 성공적으로 업로드되었습니다!';
+                const message = result.message || '이모티콘 팩이 성공적으로 업로드되었습니다!';
                 
                 // 검증 정보가 있으면 상세 정보 표시
                 if (result.validationInfo && result.validationInfo.rejected > 0) {
@@ -1961,7 +1953,7 @@ function setupUploadForm() {
                 
                 <div class="modal-footer">
                     \${isSuccess && packId ? \`
-                        <button class="btn btn-primary" onclick="location.href='/pack/\${packId}'">업로드된 이모티콘 보기</button>
+                        <button class="btn btn-primary" onclick="location.href='/pack/\${packId}'">업로드된 팩 보기</button>
                         <button class="btn btn-secondary" onclick="location.href='/'">홈으로 이동</button>
                     \` : \`
                         <button class="btn btn-primary" onclick="closeUploadModal()">확인</button>
@@ -2130,24 +2122,6 @@ async function testAIGateway(env) {
             <h1>AI Gateway 설정 테스트</h1>
             
             <div class="section">
-                <h2>현재 위치 정보</h2>
-                <div class="status info">
-                    <strong>국가:</strong> ${request.cf?.country || '알 수 없음'}<br>
-                    <strong>지역:</strong> ${request.cf?.region || '알 수 없음'}<br>
-                    <strong>도시:</strong> ${request.cf?.city || '알 수 없음'}<br>
-                    <strong>Workers 실행 위치:</strong> ${request.cf?.colo || '알 수 없음'} 데이터센터
-                </div>
-                ${request.cf?.country && ['CN', 'HK', 'MO', 'KP', 'IR', 'SY', 'CU'].includes(request.cf.country) ? `
-                    <div class="status warning">
-                        <strong>⚠️ 지역 제한 알림:</strong><br>
-                        현재 접속 지역(${request.cf.country})은 Google AI Studio API가 지원하지 않는 지역입니다.<br>
-                        이 지역에서는 이모티콘 업로드가 제한됩니다.<br>
-                        <strong>지원되는 지역:</strong> 한국, 일본, 미국, 유럽 등
-                    </div>
-                ` : ''}
-            </div>
-
-            <div class="section">
                 <h2>설정 현황</h2>
                 <div class="status ${result.settings.hasGeminiApiKey && result.settings.hasAccountId ? 'success' : 'error'}">
                     <strong>전체 설정 상태:</strong> ${result.settings.hasGeminiApiKey && result.settings.hasAccountId ? '설정 완료' : '설정 미완료'}
@@ -2272,7 +2246,6 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
         const accountId = env.CF_ACCOUNT_ID;
         const gatewayId = env.CF_GATEWAY_ID || 'plakker-gateway';
         
-        // Cloudflare AI Gateway + Google AI Studio 올바른 URL 구조 (공식 문서 기준)
         const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/google-ai-studio/v1/models/gemini-2.5-flash:generateContent`;
         
         // 디버깅 로그
@@ -2615,7 +2588,7 @@ async function handleGetPacks(request, env) {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
-        return new Response(JSON.stringify({ error: '이모티콘 목록 조회 실패' }), {
+        return new Response(JSON.stringify({ error: '팩 리스트 조회 실패' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
@@ -2630,7 +2603,7 @@ async function handleGetPack(packId, env, request) {
         const pack = await env.PLAKKER_KV.get(`pack_${packId}`, 'json');
         
         if (!pack) {
-            return new Response(JSON.stringify({ error: '이모티콘을 찾을 수 없습니다' }), {
+            return new Response(JSON.stringify({ error: '팩을 찾을 수 없습니다' }), {
                 status: 404,
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -2642,7 +2615,7 @@ async function handleGetPack(packId, env, request) {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
-        return new Response(JSON.stringify({ error: '이모티콘 조회 실패' }), {
+        return new Response(JSON.stringify({ error: '팩 조회 실패' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
@@ -2657,7 +2630,7 @@ async function handlePackDetail(packId, env, request) {
         const pack = await env.PLAKKER_KV.get(`pack_${packId}`, 'json');
         
         if (!pack) {
-            return createHtmlResponse('이모티콘을 찾을 수 없습니다', 404);
+            return createHtmlResponse('팩을 찾을 수 없습니다', 404);
         }
         
         const convertedPack = convertPackToAbsoluteUrls(pack, baseUrl);
@@ -2815,7 +2788,7 @@ async function handleUpload(request, env) {
         });
         await env.PLAKKER_KV.put('pack_list', JSON.stringify(packList));
         
-        let successMessage = '이모티콘이 성공적으로 업로드되었습니다!';
+        let successMessage = '이모티콘 팩이 성공적으로 업로드되었습니다!';
         if (rejectedEmoticons.length > 0) {
             successMessage += ` (${rejectedEmoticons.length}개 이미지가 검증을 통과하지 못했습니다)`;
         }
