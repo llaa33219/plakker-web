@@ -914,6 +914,14 @@ button:disabled {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
+.pack-detail h2 {
+    font-size: 2.2rem;
+    font-weight: bold;
+    color: #333;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
 .pack-info {
     margin: 1rem 0 2rem 0;
     padding-bottom: 1rem;
@@ -922,17 +930,18 @@ button:disabled {
 
 .emoticons-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1.5rem;
     margin: 2rem 0;
 }
 
 .emoticon-item img {
     width: 100%;
-    height: 150px;
-    object-fit: cover;
-    border-radius: 4px;
+    height: 180px;
+    object-fit: contain;
+    border-radius: 8px;
     border: 1px solid #e9ecef;
+    background-color: #f8f9fa;
 }
 
 .pack-actions {
@@ -1029,7 +1038,16 @@ button:disabled {
     }
     
     .emoticons-grid {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 1rem;
+    }
+    
+    .emoticon-item img {
+        height: 140px;
+    }
+    
+    .pack-detail h2 {
+        font-size: 1.8rem;
     }
     
     .header {
@@ -1168,7 +1186,16 @@ button:disabled {
     }
     
     .emoticons-grid {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 1rem;
+    }
+    
+    .emoticon-item img {
+        height: 140px;
+    }
+    
+    .pack-detail h2 {
+        font-size: 1.8rem;
     }
     
     .header {
@@ -1575,10 +1602,14 @@ async function loadPackList(page = 1) {
         
         const container = document.getElementById('pack-list');
         if (data.packs && data.packs.length > 0) {
-            container.innerHTML = data.packs.map(pack => {
+            container.innerHTML = '';
+            data.packs.forEach(pack => {
                 const packDiv = document.createElement('div');
                 packDiv.className = 'pack-item';
-                packDiv.onclick = () => location.href = '/pack/' + pack.id;
+                packDiv.style.cursor = 'pointer';
+                packDiv.addEventListener('click', () => {
+                    location.href = '/pack/' + pack.id;
+                });
                 
                 const img = document.createElement('img');
                 img.src = pack.thumbnail;
@@ -1600,9 +1631,8 @@ async function loadPackList(page = 1) {
                 info.appendChild(creator);
                 packDiv.appendChild(img);
                 packDiv.appendChild(info);
-                
-                return packDiv.outerHTML;
-            }).join('');
+                container.appendChild(packDiv);
+            });
         } else {
             container.innerHTML = '<div class="loading">등록된 이모티콘 팩이 없습니다.</div>';
         }
