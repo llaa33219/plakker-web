@@ -13,38 +13,54 @@ export async function resizeImage(imageBuffer, width = 150, height = 150) {
 
 // AI Gateway 설정 테스트 함수
 export async function testAIGateway(env) {
-    const geminiApiKey = env.GEMINI_API_KEY;
-    const accountId = env.CF_ACCOUNT_ID;
-    const gatewayId = env.CF_GATEWAY_ID || 'plakker-gateway';
-    
     const result = {
         timestamp: new Date().toISOString(),
-        environment: env.ENVIRONMENT,
+        environment: env.ENVIRONMENT || 'unknown',
         settings: {
-            hasGeminiApiKey: !!geminiApiKey,
-            geminiApiKeyLength: geminiApiKey ? geminiApiKey.length : 0,
-            hasAccountId: !!accountId,
-            accountId: accountId || 'NOT_SET',
-            gatewayId: gatewayId
-        },
-        test: null,
-        error: null
+            hasGeminiApiKey: !!env.GEMINI_API_KEY,
+            geminiApiKeyLength: env.GEMINI_API_KEY ? env.GEMINI_API_KEY.length : 0,
+            hasAccountId: !!env.CF_ACCOUNT_ID,
+            accountId: env.CF_ACCOUNT_ID || 'not_set',
+            gatewayId: env.CF_GATEWAY_ID || 'plakker-gateway'
+        }
     };
-    
-    // 기본 설정 체크
-    if (!geminiApiKey) {
-        result.error = 'GEMINI_API_KEY가 설정되지 않았습니다';
-    } else if (!accountId) {
-        result.error = 'CF_ACCOUNT_ID가 설정되지 않았습니다';
+
+    // 필수 설정 확인
+    if (!env.GEMINI_API_KEY) {
+        result.test = {
+            success: false,
+            message: 'GEMINI_API_KEY가 설정되지 않았습니다. wrangler.toml에 API 키를 추가하거나 wrangler secret put을 사용하세요.',
+            error: 'Missing GEMINI_API_KEY'
+        };
+    } else if (!env.CF_ACCOUNT_ID) {
+        result.test = {
+            success: false,
+            message: 'CF_ACCOUNT_ID가 설정되지 않았습니다. Cloudflare 대시보드에서 Account ID를 확인하고 설정하세요.',
+            error: 'Missing CF_ACCOUNT_ID'
+        };
     } else {
-        // 간단한 API 테스트
+        // 실제 API 테스트
         try {
+            const accountId = env.CF_ACCOUNT_ID;
+            const gatewayId = env.CF_GATEWAY_ID || 'plakker-gateway';
+            const geminiApiKey = env.GEMINI_API_KEY;
+            
+            // Gateway URL 구성 (공식 문서에 따른 올바른 형식)
             const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/google-ai-studio/v1/models/gemini-2.5-flash:generateContent`;
             
             result.test = {
                 gatewayUrl,
-                request: 'Sending simple text test...'
+                accountId,
+                gatewayId,
+                timestamp: new Date().toISOString()
             };
+            
+            console.log('AI Gateway 테스트 시작:', {
+                accountId,
+                gatewayId,
+                gatewayUrl,
+                apiKeyLength: geminiApiKey.length
+            });
             
             const response = await fetch(gatewayUrl, {
                 method: 'POST',
@@ -70,22 +86,60 @@ export async function testAIGateway(env) {
                 body: responseText
             };
             
+            console.log('AI Gateway 응답:', {
+                status: response.status,
+                statusText: response.statusText,
+                bodyPreview: responseText.substring(0, 200)
+            });
+            
             if (response.ok) {
                 result.test.success = true;
-                result.test.message = 'AI Gateway 연결 성공! 지역 제한이 우회되었습니다.';
+                result.test.message = '✅ AI Gateway 연결 성공! 지역 제한이 우회되었습니다.';
             } else {
                 result.test.success = false;
-                if (responseText.includes('User location is not supported')) {
-                    result.test.message = 'AI Gateway가 지역 제한을 우회하지 못했습니다. Gateway 설정을 확인하세요.';
+                
+                if (response.status === 404) {
+                    result.test.message = `❌ AI Gateway를 찾을 수 없습니다. 
+                    
+**해결 방법:**
+1. Cloudflare 대시보드 (https://dash.cloudflare.com/) 접속
+2. AI > AI Gateway 메뉴로 이동  
+3. '${gatewayId}' 이름으로 Gateway 생성
+4. Account ID가 '${accountId}'와 일치하는지 확인`;
+                } else if (responseText.includes('User location is not supported')) {
+                    result.test.message = `❌ AI Gateway가 지역 제한을 우회하지 못했습니다.
+
+**가능한 원인:**
+1. Gateway가 제대로 생성되지 않음
+2. Account ID가 올바르지 않음 (현재: ${accountId})
+3. Gateway 이름이 올바르지 않음 (현재: ${gatewayId})
+
+**해결 방법:**
+1. Cloudflare 대시보드에서 실제 Account ID 확인
+2. AI Gateway가 실제로 생성되었는지 확인
+3. wrangler.toml의 CF_ACCOUNT_ID 수정`;
+                } else if (response.status === 401 || response.status === 403) {
+                    result.test.message = `❌ API 키 인증 실패 (HTTP ${response.status})
+                    
+**해결 방법:**
+1. Google AI Studio에서 새 API 키 생성
+2. API 키가 Gemini API 사용 권한을 가지고 있는지 확인
+3. wrangler.toml 또는 wrangler secret의 GEMINI_API_KEY 업데이트`;
                 } else {
-                    result.test.message = 'API 호출 실패: ' + responseText;
+                    result.test.message = `❌ API 호출 실패 (HTTP ${response.status}): ${responseText}`;
                 }
             }
             
         } catch (error) {
+            console.error('AI Gateway 테스트 오류:', error);
             result.test = {
                 success: false,
-                message: 'API 호출 중 오류 발생: ' + error.message,
+                message: `❌ API 호출 중 네트워크 오류 발생: ${error.message}
+                
+**해결 방법:**
+1. 인터넷 연결 확인
+2. Cloudflare AI Gateway 서비스 상태 확인
+3. 방화벽이나 프록시 설정 확인`,
                 error: error.toString()
             };
         }
