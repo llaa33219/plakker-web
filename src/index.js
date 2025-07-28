@@ -1682,26 +1682,12 @@ function setupUploadForm() {
             const img = new Image();
             
             img.onload = function() {
-                // 비율을 유지하면서 리사이즈
-                let { width, height } = img;
+                // 비율 무시하고 강제로 지정된 크기로 리사이즈
+                canvas.width = maxWidth;
+                canvas.height = maxHeight;
                 
-                if (width > height) {
-                    if (width > maxWidth) {
-                        height = (height * maxWidth) / width;
-                        width = maxWidth;
-                    }
-                } else {
-                    if (height > maxHeight) {
-                        width = (width * maxHeight) / height;
-                        height = maxHeight;
-                    }
-                }
-                
-                canvas.width = width;
-                canvas.height = height;
-                
-                // 이미지 그리기
-                ctx.drawImage(img, 0, 0, width, height);
+                // 이미지를 강제로 지정된 크기에 맞춰 그리기
+                ctx.drawImage(img, 0, 0, maxWidth, maxHeight);
                 
                 // Blob으로 변환
                 canvas.toBlob(resolve, file.type, 0.8);
