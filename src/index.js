@@ -2053,7 +2053,7 @@ async function testAIGateway(env) {
     } else {
         // 간단한 API 테스트
         try {
-            const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/google-ai-studio/v1beta/models/gemini-2.5-flash:generateContent`;
+            const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/google-ai-studio/v1/models/gemini-2.5-flash:generateContent`;
             
             result.test = {
                 gatewayUrl,
@@ -2129,6 +2129,24 @@ async function testAIGateway(env) {
         <div class="container">
             <h1>AI Gateway 설정 테스트</h1>
             
+            <div class="section">
+                <h2>현재 위치 정보</h2>
+                <div class="status info">
+                    <strong>국가:</strong> ${request.cf?.country || '알 수 없음'}<br>
+                    <strong>지역:</strong> ${request.cf?.region || '알 수 없음'}<br>
+                    <strong>도시:</strong> ${request.cf?.city || '알 수 없음'}<br>
+                    <strong>Workers 실행 위치:</strong> ${request.cf?.colo || '알 수 없음'} 데이터센터
+                </div>
+                ${request.cf?.country && ['CN', 'HK', 'MO', 'KP', 'IR', 'SY', 'CU'].includes(request.cf.country) ? `
+                    <div class="status warning">
+                        <strong>⚠️ 지역 제한 알림:</strong><br>
+                        현재 접속 지역(${request.cf.country})은 Google AI Studio API가 지원하지 않는 지역입니다.<br>
+                        이 지역에서는 이모티콘 업로드가 제한됩니다.<br>
+                        <strong>지원되는 지역:</strong> 한국, 일본, 미국, 유럽 등
+                    </div>
+                ` : ''}
+            </div>
+
             <div class="section">
                 <h2>설정 현황</h2>
                 <div class="status ${result.settings.hasGeminiApiKey && result.settings.hasAccountId ? 'success' : 'error'}">
@@ -2254,8 +2272,8 @@ async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
         const accountId = env.CF_ACCOUNT_ID;
         const gatewayId = env.CF_GATEWAY_ID || 'plakker-gateway';
         
-        // Cloudflare AI Gateway + Google AI Studio 올바른 URL 구조 (v1beta 필수!)
-        const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/google-ai-studio/v1beta/models/gemini-2.5-flash:generateContent`;
+        // Cloudflare AI Gateway + Google AI Studio 올바른 URL 구조 (공식 문서 기준)
+        const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/google-ai-studio/v1/models/gemini-2.5-flash:generateContent`;
         
         // 디버깅 로그
         console.log('AI Gateway 설정:', {

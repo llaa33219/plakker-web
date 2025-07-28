@@ -64,6 +64,41 @@ AI Gateway 경유 (성공):
 플래커 서버 → Cloudflare AI Gateway → Gemini API ✅
 ```
 
+## ⚠️ 지역 제한 정책
+
+### 📍 문제 상황
+**"User location is not supported for the API use"** 오류가 발생하는 이유:
+
+1. **Cloudflare Workers는 사용자와 가까운 edge에서 실행됩니다**
+2. **중국/홍콩/마카오 등 지역에서 접속 시, 해당 지역의 edge에서 Workers 실행**
+3. **그 지역 IP에서 Google AI Studio로 요청이 전송됨**
+4. **Google AI Studio가 해당 지역을 지원하지 않아 오류 발생**
+
+### 🛡️ 해결 방법
+플래커는 다음과 같은 지역 제한 정책을 적용합니다:
+
+**지원되지 않는 지역:**
+- 🇨🇳 중국 (CN)
+- 🇭🇰 홍콩 (HK) 
+- 🇲🇴 마카오 (MO)
+- 🇰🇵 북한 (KP)
+- 🇮🇷 이란 (IR)
+- 🇸🇾 시리아 (SY)
+- 🇨🇺 쿠바 (CU)
+
+**지원되는 지역:**
+- 🇰🇷 한국
+- 🇯🇵 일본  
+- 🇺🇸 미국
+- 🇪🇺 유럽 전체
+- 🌏 기타 대부분 지역
+
+### 🔍 테스트 방법
+현재 지역 확인: `/test-gateway` 접속
+```
+https://your-domain.com/test-gateway
+```
+
 ## 📊 AI Gateway 장점
 
 - ✅ **지역 제한 우회**: 전 세계 어디서나 API 호출 가능
