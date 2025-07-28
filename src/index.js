@@ -1577,7 +1577,7 @@ async function loadPackList(page = 1) {
         const container = document.getElementById('pack-list');
         if (data.packs && data.packs.length > 0) {
             container.innerHTML = data.packs.map(pack => 
-                '<div class="pack-item" onclick="location.href=\\'/pack/' + pack.id + '\\'">\\n' +
+                '<div class="pack-item" onclick="location.href=\'/pack/' + pack.id + '\'">\\n' +
                 '    <img src="' + pack.thumbnail + '" alt="' + pack.title + '" class="pack-thumbnail">\\n' +
                 '    <div class="pack-info">\\n' +
                 '        <div class="pack-title">' + pack.title + '</div>\\n' +
