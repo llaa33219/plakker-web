@@ -130,19 +130,43 @@ button:disabled {
 .search-input-group input {
     flex: 1;
     min-width: 250px;
-    padding: 12px 16px;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
+    padding: 16px 20px;
+    border: 2px solid #e1e8ed;
+    border-radius: 25px;
     font-size: 16px;
-    background-color: #f8f9fa;
-    transition: border-color 0.3s ease, background-color 0.3s ease;
+    font-weight: 400;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    color: #333;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    position: relative;
+}
+
+.search-input-group input::placeholder {
+    color: #8e9aaf;
+    font-weight: 400;
+    opacity: 0.8;
+}
+
+.search-input-group input:hover {
+    border-color: #c8d6e5;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
 }
 
 .search-input-group input:focus {
     outline: none;
     border-color: #007bff;
-    background-color: white;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    background: linear-gradient(135deg, #ffffff 0%, #f0f8ff 100%);
+    box-shadow: 
+        0 0 0 4px rgba(0, 123, 255, 0.15),
+        0 8px 24px rgba(0, 123, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.search-input-group input:focus::placeholder {
+    color: #007bff;
+    opacity: 0.6;
 }
 
 .search-input-group button {

@@ -5,12 +5,18 @@ let isSearchMode = false;
 let currentSearchQuery = '';
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded');
     const path = window.location.pathname;
+    console.log('Current path:', path);
     
     if (path === '/') {
         loadPackList(1);
         setupPagination();
-        setupSearch();
+        
+        // 검색 기능 설정을 조금 늦게 실행
+        setTimeout(() => {
+            setupSearch();
+        }, 100);
     } else if (path === '/upload') {
         setupUploadForm();
         loadUploadLimitStatus();
@@ -90,58 +96,107 @@ function setupPagination() {
 }
 
 function setupSearch() {
-    const searchInput = document.getElementById('search-input');
-    const searchBtn = document.getElementById('search-btn');
-    const clearSearchBtn = document.getElementById('clear-search-btn');
+    console.log('Setting up search functionality...');
+    
+    // 요소들이 존재할 때까지 기다리는 함수
+    function waitForElements() {
+        const searchInput = document.getElementById('search-input');
+        const searchBtn = document.getElementById('search-btn');
+        const clearSearchBtn = document.getElementById('clear-search-btn');
+        
+        if (!searchInput || !searchBtn || !clearSearchBtn) {
+            console.log('Waiting for search elements to be available...');
+            setTimeout(waitForElements, 50);
+            return;
+        }
+        
+        console.log('All search elements found successfully');
+        setupSearchEventListeners(searchInput, searchBtn, clearSearchBtn);
+    }
+    
+    waitForElements();
+}
+
+function setupSearchEventListeners(searchInput, searchBtn, clearSearchBtn) {
+    console.log('Setting up search event listeners...');
     
     // 검색 버튼 클릭
     searchBtn.addEventListener('click', () => {
+        console.log('Search button clicked');
         const query = searchInput.value.trim();
+        console.log('Search query:', query);
         if (query) {
             performSearch(query);
+        } else {
+            alert('검색어를 입력해주세요.');
         }
     });
     
     // Enter 키로 검색
     searchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
+            console.log('Enter key pressed in search input');
             const query = searchInput.value.trim();
+            console.log('Search query:', query);
             if (query) {
                 performSearch(query);
+            } else {
+                alert('검색어를 입력해주세요.');
             }
         }
     });
     
     // 전체보기 버튼
-    clearSearchBtn.addEventListener('click', clearSearch);
+    clearSearchBtn.addEventListener('click', () => {
+        console.log('Clear search button clicked');
+        clearSearch();
+    });
+    
+    console.log('Search event listeners set up successfully');
 }
 
 function performSearch(query) {
+    console.log('performSearch called with query:', query);
     currentSearchQuery = query;
     currentPage = 1;
     isSearchMode = true;
     
-    document.getElementById('clear-search-btn').style.display = 'inline-block';
+    const clearBtn = document.getElementById('clear-search-btn');
+    if (clearBtn) {
+        clearBtn.style.display = 'inline-block';
+    }
     
     searchPacks(query, 1);
 }
 
 function clearSearch() {
+    console.log('clearSearch called');
     currentSearchQuery = '';
     currentPage = 1;
     isSearchMode = false;
     
-    document.getElementById('search-input').value = '';
-    document.getElementById('clear-search-btn').style.display = 'none';
-    document.getElementById('search-status').style.display = 'none';
+    const searchInput = document.getElementById('search-input');
+    const clearBtn = document.getElementById('clear-search-btn');
+    const searchStatus = document.getElementById('search-status');
+    
+    if (searchInput) searchInput.value = '';
+    if (clearBtn) clearBtn.style.display = 'none';
+    if (searchStatus) searchStatus.style.display = 'none';
     
     loadPackList(1);
 }
 
 async function searchPacks(query, page = 1) {
+    console.log('searchPacks called with query:', query, 'page:', page);
     try {
-        const response = await fetch('/api/search?q=' + encodeURIComponent(query) + '&page=' + page);
+        const url = '/api/search?q=' + encodeURIComponent(query) + '&page=' + page;
+        console.log('Making API request to:', url);
+        
+        const response = await fetch(url);
+        console.log('API response status:', response.status);
+        
         const data = await response.json();
+        console.log('API response data:', data);
         
         const container = document.getElementById('pack-list');
         const searchStatus = document.getElementById('search-status');
@@ -197,8 +252,17 @@ async function searchPacks(query, page = 1) {
         
     } catch (error) {
         console.error('검색 실패:', error);
-        document.getElementById('pack-list').innerHTML = '<div class="error">검색 중 오류가 발생했습니다.</div>';
-        document.getElementById('search-status').style.display = 'none';
+        console.error('Error details:', error.message, error.stack);
+        
+        const container = document.getElementById('pack-list');
+        const searchStatus = document.getElementById('search-status');
+        
+        if (container) {
+            container.innerHTML = '<div class="error">검색 중 오류가 발생했습니다: ' + error.message + '</div>';
+        }
+        if (searchStatus) {
+            searchStatus.style.display = 'none';
+        }
     }
 }
 
