@@ -6,7 +6,7 @@ import {
     convertPackToAbsoluteUrls,
     generateId,
     resizeImage,
-    validateEmoticonWithGemini,
+    validateEmoticonWithLlama,
     getClientIP,
     checkUploadLimit,
     incrementUploadCount,
@@ -233,12 +233,12 @@ export async function handleUpload(request, env) {
             }
         }
         
-        // Gemini API 키 확인 (필수)
-        const geminiApiKey = env.GEMINI_API_KEY;
+        // Hugging Face 토큰 확인 (필수)
+        const hfToken = env.HF_TOKEN;
         
-        if (!geminiApiKey) {
+        if (!hfToken) {
             return new Response(JSON.stringify({ 
-                error: '이미지 검증 시스템이 활성화되어 있지 않습니다 (Gemini API 키 누락). 관리자에게 문의해주세요.' 
+                error: '이미지 검증 시스템이 활성화되어 있지 않습니다 (Hugging Face 토큰 누락). 관리자에게 문의해주세요.' 
             }), {
                 status: 503,
                 headers: { 'Content-Type': 'application/json' }
@@ -250,8 +250,8 @@ export async function handleUpload(request, env) {
         // 썸네일 처리
         let thumbnailBuffer = await thumbnail.arrayBuffer();
         
-        // 썸네일 Gemini 검증 (필수)
-        const thumbnailValidation = await validateEmoticonWithGemini(thumbnailBuffer, geminiApiKey, env);
+        // 썸네일 Llama 4 검증 (필수)
+        const thumbnailValidation = await validateEmoticonWithLlama(thumbnailBuffer, hfToken, env);
         if (!thumbnailValidation.isValid) {
             const errorDetail = thumbnailValidation.error ? 
                 ' (상세: ' + thumbnailValidation.error + ')' : '';
@@ -278,8 +278,8 @@ export async function handleUpload(request, env) {
             const emoticon = emoticons[i];
             let emoticonBuffer = await emoticon.arrayBuffer();
             
-            // Gemini 검증 (필수)
-            const validation = await validateEmoticonWithGemini(emoticonBuffer, geminiApiKey, env);
+            // Llama 4 검증 (필수)
+            const validation = await validateEmoticonWithLlama(emoticonBuffer, hfToken, env);
             if (!validation.isValid) {
                 const errorDetail = validation.error ? 
                     ' (' + validation.error + ')' : '';

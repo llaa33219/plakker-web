@@ -1,5 +1,5 @@
-import { testGeminiAPI } from '../src/utils.js';
+import { testLlamaAPI } from '../src/utils.js';
 
 export async function onRequest(context) {
-    return await testGeminiAPI(context.env);
+    return await testLlamaAPI(context.env);
 } 

@@ -431,7 +431,7 @@ curl -X POST "https://plakker.bloupla.net/api/upload" \\
 
         <div class="api-section">
             <h3>이미지 검증 기능 (필수)</h3>
-            <p><strong>모든 업로드 이미지는 Google Gemini 2.5 Flash AI를 통한 검증을 반드시 통과해야 합니다.</strong> 검증에 실패하거나 오류가 발생하면 업로드가 차단됩니다.</p>
+            <p><strong>모든 업로드 이미지는 Hugging Face Llama 4 AI를 통한 검증을 반드시 통과해야 합니다.</strong> 검증에 실패하거나 오류가 발생하면 업로드가 차단됩니다.</p>
             
             <h4>검증 기준</h4>
             <ul>
@@ -446,23 +446,23 @@ curl -X POST "https://plakker.bloupla.net/api/upload" \\
             <h4>환경 설정 (필수)</h4>
             <p><strong>서비스 운영을 위해 다음 설정들이 필수입니다:</strong></p>
             
-            <h5>1. Google AI Studio API 키 설정</h5>
-            <pre class="code-block"># Google AI Studio에서 API 키 생성
-1. https://ai.google.dev/ 접속
-2. "Get API key" 클릭
-3. "Create API key" 선택
-4. API 키 복사
+            <h5>1. Hugging Face 토큰 설정</h5>
+            <pre class="code-block"># Hugging Face에서 토큰 생성
+1. https://huggingface.co/settings/tokens 접속
+2. "New token" 클릭
+3. "Read" 권한으로 토큰 생성
+4. 토큰 복사
 
-# wrangler.toml 설정
-[vars]
-GEMINI_API_KEY = "your-gemini-api-key"</pre>
+# Cloudflare 대시보드 설정
+환경변수 이름: HF_TOKEN
+값: your-hugging-face-token</pre>
 
             <h5>2. 보안 설정 (프로덕션 환경)</h5>
             <pre class="code-block"># 환경변수로 민감한 정보 관리 (권장)
-wrangler secret put GEMINI_API_KEY</pre>
+wrangler secret put HF_TOKEN</pre>
             
             <div class="api-info">
-                <p><strong>중요:</strong> Gemini API를 사용하여 업로드된 이미지의 부적절한 콘텐츠를 검증합니다. API 키가 올바르지 않으면 업로드가 차단됩니다.</p>
+                <p><strong>중요:</strong> Hugging Face Llama 4 API를 사용하여 업로드된 이미지의 부적절한 콘텐츠를 검증합니다. 토큰이 올바르지 않으면 업로드가 차단됩니다.</p>
             </div>
         </div>
 
