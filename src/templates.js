@@ -9,6 +9,7 @@ export const HTML_TEMPLATES = {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${escapeHtml(convertToSafeUnicode(title || ''))} - Plakker</title>
+    <link rel="icon" type="image/png" href="https://i.imgur.com/2MkyDCh.png">
     <link rel="stylesheet" href="/static/style.css?v=2025012901">
 </head>
 <body>
