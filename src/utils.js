@@ -437,19 +437,32 @@ export function getPermissionsPolicyHeader() {
     ].join(', ');
 }
 
-// CORS 및 보안 헤더 추가 함수
+// CORS 및 보안 헤더 추가 함수 (크롬 확장 프로그램 지원 개선)
 export function addCorsHeaders(response) {
     const corsHeaders = {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, HEAD',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, User-Agent, DNT, Cache-Control, X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since',
+        'Access-Control-Expose-Headers': 'Content-Length, Content-Type, Date, Server, X-RateLimit-Limit, X-RateLimit-Remaining',
         'Access-Control-Max-Age': '86400', // 24시간
-        'Permissions-Policy': getPermissionsPolicyHeader()
+        'Access-Control-Allow-Credentials': 'false',
+        'Permissions-Policy': getPermissionsPolicyHeader(),
+        'Vary': 'Origin'
     };
     
     Object.entries(corsHeaders).forEach(([key, value]) => {
         response.headers.set(key, value);
     });
+    
+    // Content-Type이 설정되지 않았다면 JSON으로 설정
+    if (!response.headers.get('Content-Type') && response.body) {
+        try {
+            JSON.parse(response.body);
+            response.headers.set('Content-Type', 'application/json; charset=utf-8');
+        } catch (e) {
+            // JSON이 아니면 그대로 둠
+        }
+    }
     
     return response;
 }

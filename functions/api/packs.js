@@ -13,7 +13,10 @@ export async function onRequest(context) {
     if (request.method === 'GET') {
         response = await handleGetPacks(request, env);
     } else {
-        response = new Response('Method Not Allowed', { status: 405 });
+        response = new Response(JSON.stringify({ error: 'Method Not Allowed' }), { 
+            status: 405,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
     
     // 모든 API 응답에 CORS 헤더 추가

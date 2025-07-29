@@ -12,9 +12,19 @@ export async function onRequest(context) {
     let response;
     if (request.method === 'GET') {
         const packId = params.id;
-        response = await handleGetPack(packId, env, request);
+        if (!packId) {
+            response = new Response(JSON.stringify({ error: 'Pack ID is required' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        } else {
+            response = await handleGetPack(packId, env, request);
+        }
     } else {
-        response = new Response('Method Not Allowed', { status: 405 });
+        response = new Response(JSON.stringify({ error: 'Method Not Allowed' }), { 
+            status: 405,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
     
     // 모든 API 응답에 CORS 헤더 추가
