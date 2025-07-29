@@ -14,7 +14,7 @@ export async function onRequest(context) {
         return new Response(null, { status: 204, headers });
     }
     
-    const key = params.path.join('/'); // [...path]에서 전체 경로 조합
+    const key = params.path || ''; // [[path]]에서 경로 가져오기
     try {
         const object = await env.PLAKKER_R2.get(key);
         if (object === null) {
