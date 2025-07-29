@@ -170,20 +170,10 @@ export async function handleUpload(request, env) {
         
         // Gemini API 키 확인 (필수)
         const geminiApiKey = env.GEMINI_API_KEY;
-        const accountId = env.CF_ACCOUNT_ID;
         
         if (!geminiApiKey) {
             return new Response(JSON.stringify({ 
                 error: '이미지 검증 시스템이 활성화되어 있지 않습니다 (Gemini API 키 누락). 관리자에게 문의해주세요.' 
-            }), {
-                status: 503,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-        
-        if (!accountId) {
-            return new Response(JSON.stringify({ 
-                error: 'AI Gateway 설정이 완료되지 않았습니다 (Cloudflare Account ID 누락). 관리자에게 문의해주세요.' 
             }), {
                 status: 503,
                 headers: { 'Content-Type': 'application/json' }

@@ -444,27 +444,23 @@ curl -X POST "https://plakker.bloupla.net/api/upload" \\
             <h4>환경 설정 (필수)</h4>
             <p><strong>서비스 운영을 위해 다음 설정들이 필수입니다:</strong></p>
             
-            <h5>1. Cloudflare AI Gateway 설정 (지역 제한 우회)</h5>
-            <pre class="code-block"># Cloudflare 대시보드에서 AI Gateway 생성
-1. https://dash.cloudflare.com/ 접속
-2. AI > AI Gateway 메뉴로 이동
-3. "Create Gateway" 클릭
-4. Gateway name: "plakker-gateway" 입력
-5. Account ID 복사
+            <h5>1. Google AI Studio API 키 설정</h5>
+            <pre class="code-block"># Google AI Studio에서 API 키 생성
+1. https://ai.google.dev/ 접속
+2. "Get API key" 클릭
+3. "Create API key" 선택
+4. API 키 복사
 
 # wrangler.toml 설정
 [vars]
-CF_ACCOUNT_ID = "your-cloudflare-account-id"
-CF_GATEWAY_ID = "plakker-gateway"
 GEMINI_API_KEY = "your-gemini-api-key"</pre>
 
             <h5>2. 보안 설정 (프로덕션 환경)</h5>
             <pre class="code-block"># 환경변수로 민감한 정보 관리 (권장)
-wrangler secret put GEMINI_API_KEY
-wrangler secret put CF_ACCOUNT_ID</pre>
+wrangler secret put GEMINI_API_KEY</pre>
             
             <div class="api-info">
-                <p><strong>중요:</strong> Cloudflare Workers에서 지역 제한으로 인해 직접 Gemini API 호출이 불가능한 경우, AI Gateway를 통해 우회합니다. 모든 설정이 올바르지 않으면 업로드가 차단됩니다.</p>
+                <p><strong>중요:</strong> Gemini API를 사용하여 업로드된 이미지의 부적절한 콘텐츠를 검증합니다. API 키가 올바르지 않으면 업로드가 차단됩니다.</p>
             </div>
         </div>
 

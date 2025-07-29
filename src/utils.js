@@ -11,17 +11,14 @@ export async function resizeImage(imageBuffer, width = 150, height = 150) {
     return imageBuffer;
 }
 
-// AI Gateway 설정 테스트 함수
-export async function testAIGateway(env) {
+// Gemini API 테스트 함수
+export async function testGeminiAPI(env) {
     const result = {
         timestamp: new Date().toISOString(),
         environment: env.ENVIRONMENT || 'unknown',
         settings: {
             hasGeminiApiKey: !!env.GEMINI_API_KEY,
-            geminiApiKeyLength: env.GEMINI_API_KEY ? env.GEMINI_API_KEY.length : 0,
-            hasAccountId: !!env.CF_ACCOUNT_ID,
-            accountId: env.CF_ACCOUNT_ID || 'not_set',
-            gatewayId: env.CF_GATEWAY_ID || 'plakker-gateway'
+            geminiApiKeyLength: env.GEMINI_API_KEY ? env.GEMINI_API_KEY.length : 0
         }
     };
 
@@ -32,37 +29,25 @@ export async function testAIGateway(env) {
             message: 'GEMINI_API_KEY가 설정되지 않았습니다. wrangler.toml에 API 키를 추가하거나 wrangler secret put을 사용하세요.',
             error: 'Missing GEMINI_API_KEY'
         };
-    } else if (!env.CF_ACCOUNT_ID) {
-        result.test = {
-            success: false,
-            message: 'CF_ACCOUNT_ID가 설정되지 않았습니다. Cloudflare 대시보드에서 Account ID를 확인하고 설정하세요.',
-            error: 'Missing CF_ACCOUNT_ID'
-        };
     } else {
         // 실제 API 테스트
         try {
-            const accountId = env.CF_ACCOUNT_ID;
-            const gatewayId = env.CF_GATEWAY_ID || 'plakker-gateway';
             const geminiApiKey = env.GEMINI_API_KEY;
             
-            // Gateway URL 구성 (Google AI Studio v1 API 형식)
-            const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/google-ai-studio/v1/models/gemini-2.5-flash:generateContent`;
+            // Google AI Studio API 직접 호출
+            const apiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent';
             
             result.test = {
-                gatewayUrl,
-                accountId,
-                gatewayId,
+                apiUrl,
                 timestamp: new Date().toISOString()
             };
             
-            console.log('AI Gateway 테스트 시작:', {
-                accountId,
-                gatewayId,
-                gatewayUrl,
+            console.log('Gemini API 테스트 시작:', {
+                apiUrl,
                 apiKeyLength: geminiApiKey.length
             });
             
-            const response = await fetch(gatewayUrl, {
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -86,7 +71,7 @@ export async function testAIGateway(env) {
                 body: responseText
             };
             
-            console.log('AI Gateway 응답:', {
+            console.log('Gemini API 응답:', {
                 status: response.status,
                 statusText: response.statusText,
                 bodyPreview: responseText.substring(0, 200)
@@ -94,30 +79,16 @@ export async function testAIGateway(env) {
             
             if (response.ok) {
                 result.test.success = true;
-                result.test.message = '✅ AI Gateway 연결 성공! 지역 제한이 우회되었습니다.';
+                result.test.message = '✅ Gemini API 연결 성공!';
             } else {
                 result.test.success = false;
                 
-                if (response.status === 404) {
-                    result.test.message = `❌ AI Gateway를 찾을 수 없습니다. 
-                    
-**해결 방법:**
-1. Cloudflare 대시보드 (https://dash.cloudflare.com/) 접속
-2. AI > AI Gateway 메뉴로 이동  
-3. '${gatewayId}' 이름으로 Gateway 생성
-4. Account ID가 '${accountId}'와 일치하는지 확인`;
-                } else if (responseText.includes('User location is not supported')) {
-                    result.test.message = `❌ AI Gateway가 지역 제한을 우회하지 못했습니다.
-
-**가능한 원인:**
-1. Gateway가 제대로 생성되지 않음
-2. Account ID가 올바르지 않음 (현재: ${accountId})
-3. Gateway 이름이 올바르지 않음 (현재: ${gatewayId})
+                if (responseText.includes('User location is not supported')) {
+                    result.test.message = `❌ 현재 지역에서는 Gemini API를 사용할 수 없습니다.
 
 **해결 방법:**
-1. Cloudflare 대시보드에서 실제 Account ID 확인
-2. AI Gateway가 실제로 생성되었는지 확인
-3. wrangler.toml의 CF_ACCOUNT_ID 수정`;
+1. VPN을 사용하여 지원되는 지역으로 접속
+2. 지원되는 지역에서 서비스 이용`;
                 } else if (response.status === 401 || response.status === 403) {
                     result.test.message = `❌ API 키 인증 실패 (HTTP ${response.status})
                     
@@ -131,14 +102,14 @@ export async function testAIGateway(env) {
             }
             
         } catch (error) {
-            console.error('AI Gateway 테스트 오류:', error);
+            console.error('Gemini API 테스트 오류:', error);
             result.test = {
                 success: false,
                 message: `❌ API 호출 중 네트워크 오류 발생: ${error.message}
                 
 **해결 방법:**
 1. 인터넷 연결 확인
-2. Cloudflare AI Gateway 서비스 상태 확인
+2. Google AI Studio 서비스 상태 확인
 3. 방화벽이나 프록시 설정 확인`,
                 error: error.toString()
             };
@@ -167,19 +138,17 @@ export async function testAIGateway(env) {
     </head>
     <body>
         <div class="container">
-            <h1>AI Gateway 설정 테스트</h1>
+            <h1>Gemini API 연결 테스트</h1>
             
             <div class="section">
                 <h2>설정 현황</h2>
-                <div class="status ${result.settings.hasGeminiApiKey && result.settings.hasAccountId ? 'success' : 'error'}">
-                    <strong>전체 설정 상태:</strong> ${result.settings.hasGeminiApiKey && result.settings.hasAccountId ? '설정 완료' : '설정 미완료'}
+                <div class="status ${result.settings.hasGeminiApiKey ? 'success' : 'error'}">
+                    <strong>전체 설정 상태:</strong> ${result.settings.hasGeminiApiKey ? '설정 완료' : '설정 미완료'}
                 </div>
                 
                 <h3>환경 변수</h3>
                 <ul>
                     <li><strong>GEMINI_API_KEY:</strong> ${result.settings.hasGeminiApiKey ? `설정됨 (${result.settings.geminiApiKeyLength}자)` : '미설정'}</li>
-                    <li><strong>CF_ACCOUNT_ID:</strong> ${result.settings.hasAccountId ? `${result.settings.accountId}` : '미설정'}</li>
-                    <li><strong>CF_GATEWAY_ID:</strong> ${result.settings.gatewayId}</li>
                     <li><strong>ENVIRONMENT:</strong> ${result.environment}</li>
                 </ul>
             </div>
@@ -193,10 +162,8 @@ export async function testAIGateway(env) {
                     <div class="info">
                         <h3>해결 방법:</h3>
                         <ol>
-                            <li><a href="https://dash.cloudflare.com/" target="_blank">Cloudflare 대시보드</a>에서 AI Gateway 생성</li>
-                            <li>AI > AI Gateway > "Create Gateway" > Gateway name: "plakker-gateway"</li>
-                            <li>Account ID 복사 후 wrangler.toml에 설정</li>
-                            <li>Gemini API 키 설정 확인</li>
+                            <li><a href="https://ai.google.dev/" target="_blank">Google AI Studio</a>에서 API 키 생성</li>
+                            <li>wrangler.toml에 GEMINI_API_KEY 설정</li>
                         </ol>
                     </div>
                 </div>
@@ -210,7 +177,7 @@ export async function testAIGateway(env) {
                     </div>
                     
                     <h3>요청 정보</h3>
-                    <p><strong>Gateway URL:</strong> ${result.test.gatewayUrl || 'N/A'}</p>
+                    <p><strong>API URL:</strong> ${result.test.apiUrl || 'N/A'}</p>
                     
                     ${result.test.response ? `
                         <h3>응답 정보</h3>
@@ -289,22 +256,16 @@ export async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
             '응답은 반드시 다음 JSON 형식으로만 해주세요:\n' +
             '{"classification": "APPROPRIATE|INAPPROPRIATE", "reason": "분류 이유를 한 줄로"}';
         
-        // Cloudflare AI Gateway를 통한 요청 (지역 제한 우회)
-        // accountId는 이미 상위에서 체크됨
-        const accountId = env.CF_ACCOUNT_ID;
-        const gatewayId = env.CF_GATEWAY_ID || 'plakker-gateway';
-        
-        const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/google-ai-studio/v1/models/gemini-2.5-flash:generateContent`;
+        // Google AI Studio API 직접 호출
+        const apiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent';
         
         // 디버깅 로그
-        console.log('AI Gateway 설정:', {
-            accountId,
-            gatewayId,
-            gatewayUrl,
+        console.log('Gemini API 직접 호출:', {
+            apiUrl,
             apiKeyLength: apiKey ? apiKey.length : 0
         });
         
-        const response = await fetch(gatewayUrl, {
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -329,7 +290,7 @@ export async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('AI Gateway 응답 오류:', {
+            console.error('Gemini API 응답 오류:', {
                 status: response.status,
                 statusText: response.statusText,
                 headers: Object.fromEntries(response.headers.entries()),
@@ -340,8 +301,8 @@ export async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
             if (errorText.includes('User location is not supported')) {
                 return { 
                     isValid: false, 
-                    reason: 'AI Gateway가 올바르게 설정되지 않아 지역 제한이 우회되지 않았습니다. 관리자에게 문의하세요.',
-                    error: 'AI Gateway 우회 실패: ' + errorText
+                    reason: '현재 지역에서는 AI 검증 서비스를 사용할 수 없습니다. 다른 지역에서 접속해 주세요.',
+                    error: '지역 제한: ' + errorText
                 };
             }
             

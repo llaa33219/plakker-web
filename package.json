@@ -2,10 +2,10 @@
   "name": "plakker",
   "version": "1.0.0",
   "description": "이모티콘 공유 사이트",
-  "main": "src/index.js",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "dev": "wrangler pages dev .",
+    "deploy": "wrangler pages deploy .",
+    "publish": "wrangler pages deploy ."
   },
   "devDependencies": {
     "wrangler": "^3.0.0"
