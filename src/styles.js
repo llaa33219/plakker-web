@@ -110,6 +110,115 @@ button:disabled {
     padding: 0 1rem;
 }
 
+/* 검색 영역 스타일 */
+.search-section {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 2rem auto;
+    max-width: 800px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.search-input-group {
+    display: flex;
+    gap: 0.75rem;
+    align-items: stretch;
+    flex-wrap: wrap;
+}
+
+.search-input-group input {
+    flex: 1;
+    min-width: 250px;
+    padding: 12px 16px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 16px;
+    background-color: #f8f9fa;
+    transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+.search-input-group input:focus {
+    outline: none;
+    border-color: #007bff;
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.search-input-group button {
+    min-width: 80px;
+    padding: 12px 20px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    white-space: nowrap;
+    height: auto;
+    min-height: auto;
+    margin: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#search-btn {
+    background-color: #007bff;
+    color: white;
+}
+
+#search-btn:hover {
+    background-color: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+#clear-search-btn {
+    background-color: #6c757d;
+    color: white;
+}
+
+#clear-search-btn:hover {
+    background-color: #545b62;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.search-status {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    background-color: #e8f4fd;
+    border: 1px solid #bee5eb;
+    border-radius: 6px;
+    color: #0c5460;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.no-results {
+    text-align: center;
+    padding: 3rem 1rem;
+    background: white;
+    border-radius: 8px;
+    color: #6c757d;
+    font-size: 1.1rem;
+    margin: 2rem 0;
+}
+
+/* 반응형 스타일 */
+@media (max-width: 768px) {
+    .search-input-group {
+        flex-direction: column;
+    }
+    
+    .search-input-group input {
+        min-width: 100%;
+    }
+    
+    .search-input-group button {
+        width: 100%;
+    }
+}
+
 .pack-grid {
     display: flex;
     flex-direction: column;

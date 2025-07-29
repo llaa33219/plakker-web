@@ -1,6 +1,8 @@
 // JavaScript 클라이언트 코드 (템플릿 리터럴을 일반 문자열로 변경)
 export const JS_CLIENT = `
 let currentPage = 1;
+let isSearchMode = false;
+let currentSearchQuery = '';
 
 document.addEventListener('DOMContentLoaded', function() {
     const path = window.location.pathname;
@@ -8,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (path === '/') {
         loadPackList(1);
         setupPagination();
+        setupSearch();
     } else if (path === '/upload') {
         setupUploadForm();
         loadUploadLimitStatus();
@@ -68,14 +71,142 @@ function setupPagination() {
     document.getElementById('prev-page').addEventListener('click', () => {
         if (currentPage > 1) {
             currentPage--;
-            loadPackList(currentPage);
+            if (isSearchMode) {
+                searchPacks(currentSearchQuery, currentPage);
+            } else {
+                loadPackList(currentPage);
+            }
         }
     });
     
     document.getElementById('next-page').addEventListener('click', () => {
         currentPage++;
-        loadPackList(currentPage);
+        if (isSearchMode) {
+            searchPacks(currentSearchQuery, currentPage);
+        } else {
+            loadPackList(currentPage);
+        }
     });
+}
+
+function setupSearch() {
+    const searchInput = document.getElementById('search-input');
+    const searchBtn = document.getElementById('search-btn');
+    const clearSearchBtn = document.getElementById('clear-search-btn');
+    
+    // 검색 버튼 클릭
+    searchBtn.addEventListener('click', () => {
+        const query = searchInput.value.trim();
+        if (query) {
+            performSearch(query);
+        }
+    });
+    
+    // Enter 키로 검색
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            const query = searchInput.value.trim();
+            if (query) {
+                performSearch(query);
+            }
+        }
+    });
+    
+    // 전체보기 버튼
+    clearSearchBtn.addEventListener('click', clearSearch);
+}
+
+function performSearch(query) {
+    currentSearchQuery = query;
+    currentPage = 1;
+    isSearchMode = true;
+    
+    document.getElementById('clear-search-btn').style.display = 'inline-block';
+    
+    searchPacks(query, 1);
+}
+
+function clearSearch() {
+    currentSearchQuery = '';
+    currentPage = 1;
+    isSearchMode = false;
+    
+    document.getElementById('search-input').value = '';
+    document.getElementById('clear-search-btn').style.display = 'none';
+    document.getElementById('search-status').style.display = 'none';
+    
+    loadPackList(1);
+}
+
+async function searchPacks(query, page = 1) {
+    try {
+        const response = await fetch('/api/search?q=' + encodeURIComponent(query) + '&page=' + page);
+        const data = await response.json();
+        
+        const container = document.getElementById('pack-list');
+        const searchStatus = document.getElementById('search-status');
+        
+        if (response.ok) {
+            if (data.packs && data.packs.length > 0) {
+                container.innerHTML = '';
+                data.packs.forEach(pack => {
+                    const packDiv = document.createElement('div');
+                    packDiv.className = 'pack-item';
+                    packDiv.style.cursor = 'pointer';
+                    packDiv.addEventListener('click', () => {
+                        location.href = '/pack/' + pack.id;
+                    });
+                    
+                    const img = document.createElement('img');
+                    img.src = pack.thumbnail;
+                    img.alt = pack.title;
+                    img.className = 'pack-thumbnail';
+                    
+                    const info = document.createElement('div');
+                    info.className = 'pack-info';
+                    
+                    const title = document.createElement('div');
+                    title.className = 'pack-title';
+                    title.textContent = pack.title;
+                    
+                    const creator = document.createElement('div');
+                    creator.className = 'pack-creator';
+                    creator.textContent = pack.creator;
+                    
+                    info.appendChild(title);
+                    info.appendChild(creator);
+                    packDiv.appendChild(img);
+                    packDiv.appendChild(info);
+                    container.appendChild(packDiv);
+                });
+                
+                searchStatus.innerHTML = '"' + escapeHtml(query) + '" 검색 결과: 총 ' + data.total + '개';
+                searchStatus.style.display = 'block';
+            } else {
+                container.innerHTML = '<div class="no-results">검색 결과가 없습니다.</div>';
+                searchStatus.innerHTML = '"' + escapeHtml(query) + '" 검색 결과: 0개';
+                searchStatus.style.display = 'block';
+            }
+            
+            updatePagination(data.currentPage, data.hasNext);
+            
+        } else {
+            container.innerHTML = '<div class="error">검색 중 오류가 발생했습니다: ' + (data.error || '알 수 없는 오류') + '</div>';
+            searchStatus.style.display = 'none';
+        }
+        
+    } catch (error) {
+        console.error('검색 실패:', error);
+        document.getElementById('pack-list').innerHTML = '<div class="error">검색 중 오류가 발생했습니다.</div>';
+        document.getElementById('search-status').style.display = 'none';
+    }
+}
+
+// HTML 이스케이프 함수
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function updatePagination(page, hasNext) {
