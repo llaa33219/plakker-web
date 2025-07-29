@@ -70,6 +70,7 @@ export async function testAIGateway(env) {
                 },
                 body: JSON.stringify({
                     contents: [{
+                        role: "user",
                         parts: [{
                             text: 'Hello, this is a test message. Please respond with "TEST_SUCCESS".'
                         }]
@@ -312,6 +313,7 @@ export async function validateEmoticonWithGemini(imageBuffer, apiKey, env) {
             },
             body: JSON.stringify({
                 contents: [{
+                    role: "user",
                     parts: [
                         {
                             text: promptText
