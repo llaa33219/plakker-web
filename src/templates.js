@@ -35,17 +35,6 @@ export const HTML_TEMPLATES = {
   home: () => `
 <div class="container">
     <h2 style="text-align: center;">이모티콘 목록</h2>
-    
-    <!-- 검색 영역 -->
-    <div class="search-section">
-        <div class="search-input-group">
-            <input type="text" id="search-input" placeholder="이모티콘 제목 또는 제작자로 검색..." maxlength="50">
-            <button type="button" id="search-btn">검색</button>
-            <button type="button" id="clear-search-btn" style="display: none;">전체보기</button>
-        </div>
-        <div id="search-status" class="search-status" style="display: none;"></div>
-    </div>
-    
     <div id="pack-list" class="pack-grid">
         <div class="loading">로딩 중...</div>
     </div>

@@ -1,22 +1,13 @@
 // JavaScript 클라이언트 코드 (템플릿 리터럴을 일반 문자열로 변경)
 export const JS_CLIENT = `
 let currentPage = 1;
-let isSearchMode = false;
-let currentSearchQuery = '';
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM Content Loaded');
     const path = window.location.pathname;
-    console.log('Current path:', path);
     
     if (path === '/') {
         loadPackList(1);
         setupPagination();
-        
-        // 검색 기능 설정을 조금 늦게 실행
-        setTimeout(() => {
-            setupSearch();
-        }, 100);
     } else if (path === '/upload') {
         setupUploadForm();
         loadUploadLimitStatus();
@@ -77,200 +68,14 @@ function setupPagination() {
     document.getElementById('prev-page').addEventListener('click', () => {
         if (currentPage > 1) {
             currentPage--;
-            if (isSearchMode) {
-                searchPacks(currentSearchQuery, currentPage);
-            } else {
-                loadPackList(currentPage);
-            }
+            loadPackList(currentPage);
         }
     });
     
     document.getElementById('next-page').addEventListener('click', () => {
         currentPage++;
-        if (isSearchMode) {
-            searchPacks(currentSearchQuery, currentPage);
-        } else {
-            loadPackList(currentPage);
-        }
+        loadPackList(currentPage);
     });
-}
-
-function setupSearch() {
-    console.log('Setting up search functionality...');
-    
-    // 요소들이 존재할 때까지 기다리는 함수
-    function waitForElements() {
-        const searchInput = document.getElementById('search-input');
-        const searchBtn = document.getElementById('search-btn');
-        const clearSearchBtn = document.getElementById('clear-search-btn');
-        
-        if (!searchInput || !searchBtn || !clearSearchBtn) {
-            console.log('Waiting for search elements to be available...');
-            setTimeout(waitForElements, 50);
-            return;
-        }
-        
-        console.log('All search elements found successfully');
-        setupSearchEventListeners(searchInput, searchBtn, clearSearchBtn);
-    }
-    
-    waitForElements();
-}
-
-function setupSearchEventListeners(searchInput, searchBtn, clearSearchBtn) {
-    console.log('Setting up search event listeners...');
-    
-    // 검색 버튼 클릭
-    searchBtn.addEventListener('click', () => {
-        console.log('Search button clicked');
-        const query = searchInput.value.trim();
-        console.log('Search query:', query);
-        if (query) {
-            performSearch(query);
-        } else {
-            alert('검색어를 입력해주세요.');
-        }
-    });
-    
-    // Enter 키로 검색
-    searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            console.log('Enter key pressed in search input');
-            const query = searchInput.value.trim();
-            console.log('Search query:', query);
-            if (query) {
-                performSearch(query);
-            } else {
-                alert('검색어를 입력해주세요.');
-            }
-        }
-    });
-    
-    // 전체보기 버튼
-    clearSearchBtn.addEventListener('click', () => {
-        console.log('Clear search button clicked');
-        clearSearch();
-    });
-    
-    console.log('Search event listeners set up successfully');
-}
-
-function performSearch(query) {
-    console.log('performSearch called with query:', query);
-    currentSearchQuery = query;
-    currentPage = 1;
-    isSearchMode = true;
-    
-    const clearBtn = document.getElementById('clear-search-btn');
-    if (clearBtn) {
-        clearBtn.style.display = 'inline-block';
-    }
-    
-    searchPacks(query, 1);
-}
-
-function clearSearch() {
-    console.log('clearSearch called');
-    currentSearchQuery = '';
-    currentPage = 1;
-    isSearchMode = false;
-    
-    const searchInput = document.getElementById('search-input');
-    const clearBtn = document.getElementById('clear-search-btn');
-    const searchStatus = document.getElementById('search-status');
-    
-    if (searchInput) searchInput.value = '';
-    if (clearBtn) clearBtn.style.display = 'none';
-    if (searchStatus) searchStatus.style.display = 'none';
-    
-    loadPackList(1);
-}
-
-async function searchPacks(query, page = 1) {
-    console.log('searchPacks called with query:', query, 'page:', page);
-    try {
-        const url = '/api/search?q=' + encodeURIComponent(query) + '&page=' + page;
-        console.log('Making API request to:', url);
-        
-        const response = await fetch(url);
-        console.log('API response status:', response.status);
-        
-        const data = await response.json();
-        console.log('API response data:', data);
-        
-        const container = document.getElementById('pack-list');
-        const searchStatus = document.getElementById('search-status');
-        
-        if (response.ok) {
-            if (data.packs && data.packs.length > 0) {
-                container.innerHTML = '';
-                data.packs.forEach(pack => {
-                    const packDiv = document.createElement('div');
-                    packDiv.className = 'pack-item';
-                    packDiv.style.cursor = 'pointer';
-                    packDiv.addEventListener('click', () => {
-                        location.href = '/pack/' + pack.id;
-                    });
-                    
-                    const img = document.createElement('img');
-                    img.src = pack.thumbnail;
-                    img.alt = pack.title;
-                    img.className = 'pack-thumbnail';
-                    
-                    const info = document.createElement('div');
-                    info.className = 'pack-info';
-                    
-                    const title = document.createElement('div');
-                    title.className = 'pack-title';
-                    title.textContent = pack.title;
-                    
-                    const creator = document.createElement('div');
-                    creator.className = 'pack-creator';
-                    creator.textContent = pack.creator;
-                    
-                    info.appendChild(title);
-                    info.appendChild(creator);
-                    packDiv.appendChild(img);
-                    packDiv.appendChild(info);
-                    container.appendChild(packDiv);
-                });
-                
-                searchStatus.innerHTML = '"' + escapeHtml(query) + '" 검색 결과: 총 ' + data.total + '개';
-                searchStatus.style.display = 'block';
-            } else {
-                container.innerHTML = '<div class="no-results">검색 결과가 없습니다.</div>';
-                searchStatus.innerHTML = '"' + escapeHtml(query) + '" 검색 결과: 0개';
-                searchStatus.style.display = 'block';
-            }
-            
-            updatePagination(data.currentPage, data.hasNext);
-            
-        } else {
-            container.innerHTML = '<div class="error">검색 중 오류가 발생했습니다: ' + (data.error || '알 수 없는 오류') + '</div>';
-            searchStatus.style.display = 'none';
-        }
-        
-    } catch (error) {
-        console.error('검색 실패:', error);
-        console.error('Error details:', error.message, error.stack);
-        
-        const container = document.getElementById('pack-list');
-        const searchStatus = document.getElementById('search-status');
-        
-        if (container) {
-            container.innerHTML = '<div class="error">검색 중 오류가 발생했습니다: ' + error.message + '</div>';
-        }
-        if (searchStatus) {
-            searchStatus.style.display = 'none';
-        }
-    }
-}
-
-// HTML 이스케이프 함수
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 function updatePagination(page, hasNext) {

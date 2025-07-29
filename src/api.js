@@ -27,8 +27,6 @@ export async function handleAPI(request, env, path) {
     
     if (path === '/api/packs' && request.method === 'GET') {
         response = await handleGetPacks(request, env);
-    } else if (path === '/api/search' && request.method === 'GET') {
-        response = await handleSearchPacks(request, env);
     } else if (path === '/api/upload' && request.method === 'POST') {
         response = await handleUpload(request, env);
     } else if (path === '/api/upload-limit' && request.method === 'GET') {
@@ -42,104 +40,6 @@ export async function handleAPI(request, env, path) {
     
     // 모든 API 응답에 CORS 헤더 추가
     return addCorsHeaders(response);
-}
-
-// 이모티콘 팩 검색 (제목 기준)
-export async function handleSearchPacks(request, env) {
-    try {
-        const url = new URL(request.url);
-        const baseUrl = `${url.protocol}//${url.host}`;
-        const query = url.searchParams.get('q') || url.searchParams.get('query') || '';
-        const page = parseInt(url.searchParams.get('page') || '1');
-        const limit = 20;
-        const offset = (page - 1) * limit;
-        
-        // 검색어가 없으면 에러 반환
-        if (!query.trim()) {
-            return new Response(JSON.stringify({
-                error: '검색어를 입력해주세요'
-            }), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-        
-        // 검색어 정규화 (공백 제거, 소문자 변환)
-        const normalizedQuery = query.trim().toLowerCase();
-        
-        // KV에서 pack_ prefix로 모든 팩 키 조회
-        const packKeys = await env.PLAKKER_KV.list({ prefix: 'pack_' });
-        
-        if (!packKeys.keys || packKeys.keys.length === 0) {
-            return new Response(JSON.stringify({
-                packs: [],
-                currentPage: page,
-                hasNext: false,
-                total: 0,
-                query: query
-            }), {
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-        
-        // 모든 팩 데이터를 조회하고 검색어로 필터링
-        const packPromises = packKeys.keys.map(async (key) => {
-            try {
-                const pack = await env.PLAKKER_KV.get(key.name, 'json');
-                return pack;
-            } catch (error) {
-                console.error(`Failed to load pack ${key.name}:`, error);
-                return null;
-            }
-        });
-        
-        const allPacks = (await Promise.all(packPromises))
-            .filter(pack => pack !== null); // null 제거 (로드 실패한 팩들)
-        
-        // 제목으로 검색 필터링
-        const filteredPacks = allPacks.filter(pack => {
-            const title = (pack.title || '').toLowerCase();
-            const creator = (pack.creator || '').toLowerCase();
-            
-            // 제목 또는 제작자 이름에서 검색어 포함 여부 확인
-            return title.includes(normalizedQuery) || creator.includes(normalizedQuery);
-        });
-        
-        // 최신순 정렬
-        filteredPacks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        
-        // 페이지네이션 적용
-        const startIndex = offset;
-        const endIndex = offset + limit;
-        const paginatedPacks = filteredPacks.slice(startIndex, endIndex).map(pack => {
-            // 목록에서는 필요한 정보만 반환 (emoticons 배열 제외로 응답 크기 최적화)
-            const listPack = {
-                id: pack.id,
-                title: convertToSafeUnicode(pack.title || ''), // 출력 시 안전 변환
-                creator: convertToSafeUnicode(pack.creator || ''), // 출력 시 안전 변환
-                creatorLink: pack.creatorLink,
-                thumbnail: toAbsoluteUrl(pack.thumbnail, baseUrl),
-                createdAt: pack.createdAt
-            };
-            return listPack;
-        });
-        
-        return new Response(JSON.stringify({
-            packs: paginatedPacks,
-            currentPage: page,
-            hasNext: endIndex < filteredPacks.length,
-            total: filteredPacks.length,
-            query: query
-        }), {
-            headers: { 'Content-Type': 'application/json' }
-        });
-    } catch (error) {
-        console.error('이모티콘 팩 검색 오류:', error);
-        return new Response(JSON.stringify({ error: '검색 중 오류가 발생했습니다' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
-    }
 }
 
 // 팩 리스트 조회 (pack_list 없이 직접 KV에서 조회)
