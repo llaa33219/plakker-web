@@ -5,19 +5,30 @@ export function generateId() {
     return 'pack_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
-// HTML 특수문자 이스케이프 함수 (XSS 방지)
+// HTML 특수문자 이스케이프 함수 (이제 유니코드 변환된 텍스트용)
 export function escapeHtml(text) {
     if (typeof text !== 'string') return '';
+    
+    // 이미 안전한 유니코드로 변환된 텍스트는 그대로 반환
+    // 추가로 남은 위험 요소만 이스케이프
     return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;')
+        .replace(/&(?![a-zA-Z0-9#]{1,7};)/g, '&amp;') // 이미 인코딩된 것은 제외
         .replace(/\//g, '&#x2F;');
 }
 
-// 입력 텍스트 검증 및 정화 함수
+// HTML 특수문자를 시각적으로 유사한 유니코드 문자로 변환 (실행 방지하면서 외형 유지)
+export function convertToSafeUnicode(text) {
+    if (typeof text !== 'string') return '';
+    
+    return text
+        .replace(/</g, '\uFF1C')    // 전각 부등호 (U+FF1C) ＜
+        .replace(/>/g, '\uFF1E')    // 전각 부등호 (U+FF1E) ＞
+        .replace(/"/g, '\u201C')    // 좌측 큰따옴표 (U+201C) "
+        .replace(/'/g, '\u2018')    // 좌측 작은따옴표 (U+2018) '
+        .replace(/&/g, '\uFF06');   // 전각 앰퍼샌드 (U+FF06) ＆
+}
+
+// 입력 텍스트 검증 및 안전화 함수
 export function sanitizeTextInput(text, maxLength = 100) {
     if (typeof text !== 'string') return '';
     
@@ -29,14 +40,16 @@ export function sanitizeTextInput(text, maxLength = 100) {
         text = text.substring(0, maxLength);
     }
     
-    // HTML 태그 완전 제거 (정규식으로)
-    text = text.replace(/<[^>]*>/g, '');
-    
     // 연속된 공백을 하나로 변환
     text = text.replace(/\s+/g, ' ');
     
-    // 특수 문자 제한 (기본적인 문자, 숫자, 한글, 일부 특수문자만 허용)
-    text = text.replace(/[^\w\s가-힣ㄱ-ㅎㅏ-ㅣ\-_.!?()]/g, '');
+    // 위험한 스크립트 관련 키워드 제거
+    text = text.replace(/javascript:/gi, '');
+    text = text.replace(/data:/gi, '');
+    text = text.replace(/vbscript:/gi, '');
+    
+    // HTML 특수문자를 안전한 유니코드로 변환
+    text = convertToSafeUnicode(text);
     
     return text.trim();
 }

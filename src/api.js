@@ -12,7 +12,8 @@ import {
     incrementUploadCount,
     maskIP,
     sanitizeTextInput,
-    sanitizeUrl
+    sanitizeUrl,
+    convertToSafeUnicode
 } from './utils.js';
 
 // API 핸들러
@@ -86,8 +87,8 @@ export async function handleGetPacks(request, env) {
             // 목록에서는 필요한 정보만 반환 (emoticons 배열 제외로 응답 크기 최적화)
             const listPack = {
                 id: pack.id,
-                title: pack.title,
-                creator: pack.creator,
+                title: convertToSafeUnicode(pack.title || ''), // 출력 시 안전 변환
+                creator: convertToSafeUnicode(pack.creator || ''), // 출력 시 안전 변환
                 creatorLink: pack.creatorLink,
                 thumbnail: toAbsoluteUrl(pack.thumbnail, baseUrl),
                 createdAt: pack.createdAt
@@ -128,7 +129,14 @@ export async function handleGetPack(packId, env, request) {
         
         const convertedPack = convertPackToAbsoluteUrls(pack, baseUrl);
         
-        return new Response(JSON.stringify(convertedPack), {
+        // 출력 시 텍스트 필드를 안전하게 변환
+        const safePack = {
+            ...convertedPack,
+            title: convertToSafeUnicode(convertedPack.title || ''),
+            creator: convertToSafeUnicode(convertedPack.creator || '')
+        };
+        
+        return new Response(JSON.stringify(safePack), {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
@@ -395,7 +403,15 @@ export async function handlePackDetail(packId, env, request) {
         }
         
         const convertedPack = convertPackToAbsoluteUrls(pack, baseUrl);
-        return convertedPack;
+        
+        // 출력 시 텍스트 필드를 안전하게 변환
+        const safePack = {
+            ...convertedPack,
+            title: convertToSafeUnicode(convertedPack.title || ''),
+            creator: convertToSafeUnicode(convertedPack.creator || '')
+        };
+        
+        return safePack;
     } catch (error) {
         return null;
     }

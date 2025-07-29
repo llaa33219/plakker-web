@@ -95,16 +95,16 @@ function setupUploadForm() {
     const creatorInput = document.getElementById('creator');
     const creatorLinkInput = document.getElementById('creator-link');
     
-    // 실시간 검증 함수
+    // 실시간 검증 함수 - 위험한 프로토콜만 차단
     function setupRealTimeValidation(input, fieldName, maxLength) {
         let timeoutId;
         input.addEventListener('input', function() {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
                 const value = input.value.trim();
-                if (value && /<[^>]*>/g.test(value)) {
+                if (value && (/javascript:/gi.test(value) || /data:/gi.test(value) || /vbscript:/gi.test(value))) {
                     input.style.borderColor = '#ff4444';
-                    input.title = fieldName + '에는 HTML 태그를 포함할 수 없습니다.';
+                    input.title = fieldName + '에는 위험한 스크립트 프로토콜을 포함할 수 없습니다.';
                 } else if (value.length > maxLength) {
                     input.style.borderColor = '#ff4444';
                     input.title = fieldName + '은(는) ' + maxLength + '자를 초과할 수 없습니다.';
@@ -276,15 +276,15 @@ function setupUploadForm() {
         e.target.value = '';
     });
     
-    // 텍스트 입력 검증 함수 (클라이언트 사이드)
+    // 텍스트 입력 검증 함수 (클라이언트 사이드) - 위험한 프로토콜만 차단
     function validateTextInput(text, fieldName, maxLength = 100) {
         if (!text || text.trim().length === 0) {
             return { valid: false, message: fieldName + '은(는) 필수 항목입니다.' };
         }
         
-        // HTML 태그 포함 검사
-        if (/<[^>]*>/g.test(text)) {
-            return { valid: false, message: fieldName + '에는 HTML 태그를 포함할 수 없습니다.' };
+        // 위험한 프로토콜 검사 (꺽쇠괄호는 이제 허용)
+        if (/javascript:/gi.test(text) || /data:/gi.test(text) || /vbscript:/gi.test(text)) {
+            return { valid: false, message: fieldName + '에는 위험한 스크립트 프로토콜을 포함할 수 없습니다.' };
         }
         
         // 길이 검사
