@@ -110,6 +110,97 @@ button:disabled {
     padding: 0 1rem;
 }
 
+/* 검색 관련 스타일 */
+.search-container {
+    max-width: 800px;
+    margin: 2rem auto 1rem auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    position: relative;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.search-box input {
+    flex: 1;
+    padding: 1rem 1.5rem;
+    border: none;
+    outline: none;
+    font-size: 1rem;
+    background: transparent;
+    color: #333;
+}
+
+.search-box input::placeholder {
+    color: #999;
+}
+
+.search-button, .clear-button {
+    background: none;
+    border: none;
+    padding: 1rem;
+    cursor: pointer;
+    color: #6c757d;
+    transition: color 0.2s, background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0;
+    min-height: auto;
+    height: auto;
+}
+
+.search-button:hover, .clear-button:hover {
+    color: #007bff;
+    background-color: #f8f9fa;
+    transform: none;
+    box-shadow: none;
+}
+
+.search-button:active, .clear-button:active {
+    background-color: #e9ecef;
+    transform: none;
+    box-shadow: none;
+}
+
+.search-icon, .clear-icon {
+    font-size: 1.2rem;
+}
+
+.clear-button {
+    color: #dc3545;
+}
+
+.clear-button:hover {
+    color: #c82333;
+    background-color: #f8f9fa;
+}
+
+.search-info {
+    padding: 1rem 1.5rem;
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+}
+
+.search-result-info {
+    color: #6c757d;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.search-result-info.no-results {
+    color: #dc3545;
+}
+
 .pack-grid {
     display: flex;
     flex-direction: column;
