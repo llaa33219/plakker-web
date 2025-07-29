@@ -1,5 +1,4 @@
 // 유틸리티 함수들
-import { OpenAI } from "openai";
 
 // ID 생성 함수
 export function generateId() {
@@ -333,41 +332,77 @@ export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
             '응답은 반드시 다음 JSON 형식으로만 해주세요:\n' +
             '{"classification": "APPROPRIATE|INAPPROPRIATE", "reason": "분류 이유를 한 줄로"}';
         
-        // Hugging Face Llama 4 API 호출
-        const client = new OpenAI({
-            baseURL: "https://router.huggingface.co/v1",
-            apiKey: hfToken,
-        });
+        // Hugging Face Llama 4 API 직접 호출
+        const apiUrl = 'https://router.huggingface.co/v1/chat/completions';
         
         // 디버깅 로그
         console.log('Llama 4 API 호출:', {
+            apiUrl,
             tokenLength: hfToken ? hfToken.length : 0
         });
         
-        const response = await client.chat.completions.create({
-            model: "meta-llama/Llama-4-Scout-17B-16E-Instruct:fireworks-ai",
-            messages: [
-                {
-                    role: "user",
-                    content: [
-                        {
-                            type: "text",
-                            text: promptText,
-                        },
-                        {
-                            type: "image_url",
-                            image_url: {
-                                url: `data:${mimeType};base64,${base64Image}`,
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${hfToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: "meta-llama/Llama-4-Scout-17B-16E-Instruct:fireworks-ai",
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            {
+                                type: "text",
+                                text: promptText,
                             },
-                        },
-                    ],
-                },
-            ],
-            max_tokens: 200,
+                            {
+                                type: "image_url",
+                                image_url: {
+                                    url: `data:${mimeType};base64,${base64Image}`,
+                                },
+                            },
+                        ],
+                    },
+                ],
+                max_tokens: 200,
+                stream: false
+            })
         });
         
-        // OpenAI 클라이언트에서는 이미 JSON으로 파싱되어 전달됨
-        const content = response.choices?.[0]?.message?.content;
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Llama 4 API 응답 오류:', {
+                status: response.status,
+                statusText: response.statusText,
+                headers: Object.fromEntries(response.headers.entries()),
+                body: errorText
+            });
+            
+            if (response.status === 401 || response.status === 403) {
+                return { 
+                    isValid: false, 
+                    reason: 'AI API 토큰 인증 오류 - 관리자에게 문의하세요',
+                    error: 'Authentication failed: ' + errorText
+                };
+            } else if (response.status === 429) {
+                return { 
+                    isValid: false, 
+                    reason: 'AI API 호출 한도 초과 - 잠시 후 다시 시도해주세요',
+                    error: 'Rate limit exceeded: ' + errorText
+                };
+            } else {
+                return { 
+                    isValid: false, 
+                    reason: 'AI 검증 시스템 연결 오류',
+                    error: 'HTTP ' + response.status + ': ' + errorText
+                };
+            }
+        }
+        
+        const result = await response.json();
+        const content = result.choices?.[0]?.message?.content;
         
         if (!content) {
             return { 
@@ -405,27 +440,11 @@ export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
         
     } catch (error) {
         console.error('Llama 4 API 검증 오류:', error);
-        
-        // OpenAI 클라이언트 에러 처리
-        if (error.status === 401 || error.status === 403) {
-            return { 
-                isValid: false, 
-                reason: 'AI API 토큰 인증 오류 - 관리자에게 문의하세요',
-                error: 'Authentication failed: ' + error.message
-            };
-        } else if (error.status === 429) {
-            return { 
-                isValid: false, 
-                reason: 'AI API 호출 한도 초과 - 잠시 후 다시 시도해주세요',
-                error: 'Rate limit exceeded: ' + error.message
-            };
-        } else {
-            return { 
-                isValid: false, 
-                reason: 'AI 검증 중 오류가 발생했습니다',
-                error: error.message || 'Unknown error'
-            };
-        }
+        return { 
+            isValid: false, 
+            reason: 'AI 검증 중 오류가 발생했습니다',
+            error: error.message || 'Unknown error'
+        };
     }
 }
 
