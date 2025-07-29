@@ -95,7 +95,7 @@ function setupUploadForm() {
     const creatorInput = document.getElementById('creator');
     const creatorLinkInput = document.getElementById('creator-link');
     
-    // 실시간 검증 함수 - 길이 제한만 체크 (서버에서 보안 처리함)
+    // 실시간 검증 함수 - 시각적 피드백만 (에러는 표시하지 않음)
     function setupRealTimeValidation(input, fieldName, maxLength) {
         let timeoutId;
         input.addEventListener('input', function() {
@@ -103,8 +103,9 @@ function setupUploadForm() {
             timeoutId = setTimeout(() => {
                 const value = input.value.trim();
                 if (value.length > maxLength) {
-                    input.style.borderColor = '#ff4444';
-                    input.title = fieldName + '은(는) ' + maxLength + '자를 초과할 수 없습니다.';
+                    // 길이 초과 시에만 약간의 시각적 피드백 (에러 메시지 없음)
+                    input.style.borderColor = '#ffaa00';
+                    input.title = fieldName + ' 글자 수: ' + value.length + '/' + maxLength;
                 } else {
                     input.style.borderColor = '';
                     input.title = '';
@@ -113,9 +114,9 @@ function setupUploadForm() {
         });
     }
     
-    // 각 입력 필드에 실시간 검증 적용
-    if (titleInput) setupRealTimeValidation(titleInput, '제목', 50);
-    if (creatorInput) setupRealTimeValidation(creatorInput, '제작자 이름', 30);
+    // 각 입력 필드에 실시간 검증 적용 (완전히 자유로운 입력 허용)
+    // if (titleInput) setupRealTimeValidation(titleInput, '제목', 50);
+    // if (creatorInput) setupRealTimeValidation(creatorInput, '제작자 이름', 30);
     if (creatorLinkInput) {
         creatorLinkInput.addEventListener('blur', function() {
             const value = this.value.trim();
@@ -299,16 +300,14 @@ function setupUploadForm() {
         const creator = document.getElementById('creator').value.trim();
         const creatorLink = document.getElementById('creator-link').value.trim();
         
-        // 텍스트 입력 유효성 검사
-        const titleValidation = validateTextInput(title, '제목', 50);
-        if (!titleValidation.valid) {
-            alert(titleValidation.message);
+        // 기본 입력 검사만 (서버에서 모든 검증 처리)
+        if (!title || title.trim().length === 0) {
+            alert('제목은 필수 항목입니다.');
             return;
         }
         
-        const creatorValidation = validateTextInput(creator, '제작자 이름', 30);
-        if (!creatorValidation.valid) {
-            alert(creatorValidation.message);
+        if (!creator || creator.trim().length === 0) {
+            alert('제작자 이름은 필수 항목입니다.');
             return;
         }
         
