@@ -41,7 +41,7 @@ export async function handleAPI(request, env, path) {
     return addCorsHeaders(response);
 }
 
-// 팩 리스트 조회
+// 팩 리스트 조회 (pack_list 없이 직접 KV에서 조회)
 export async function handleGetPacks(request, env) {
     try {
         const url = new URL(request.url);
@@ -50,27 +50,61 @@ export async function handleGetPacks(request, env) {
         const limit = 20;
         const offset = (page - 1) * limit;
         
-        const packList = await env.PLAKKER_KV.get('pack_list', 'json') || [];
+        // KV에서 pack_ prefix로 모든 팩 키 조회
+        const packKeys = await env.PLAKKER_KV.list({ prefix: 'pack_' });
         
+        if (!packKeys.keys || packKeys.keys.length === 0) {
+            return new Response(JSON.stringify({
+                packs: [],
+                currentPage: page,
+                hasNext: false,
+                total: 0
+            }), {
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        // 모든 팩 데이터를 조회 (한번에 여러 개 조회)
+        const packPromises = packKeys.keys.map(async (key) => {
+            try {
+                const pack = await env.PLAKKER_KV.get(key.name, 'json');
+                return pack;
+            } catch (error) {
+                console.error(`Failed to load pack ${key.name}:`, error);
+                return null;
+            }
+        });
+        
+        const allPacks = (await Promise.all(packPromises))
+            .filter(pack => pack !== null) // null 제거 (로드 실패한 팩들)
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // 최신순 정렬
+        
+        // 페이지네이션 적용
         const startIndex = offset;
         const endIndex = offset + limit;
-        const paginatedPacks = packList.slice(startIndex, endIndex).map(pack => {
-            const convertedPack = { ...pack };
-            if (convertedPack.thumbnail) {
-                convertedPack.thumbnail = toAbsoluteUrl(convertedPack.thumbnail, baseUrl);
-            }
-            return convertedPack;
+        const paginatedPacks = allPacks.slice(startIndex, endIndex).map(pack => {
+            // 목록에서는 필요한 정보만 반환 (emoticons 배열 제외로 응답 크기 최적화)
+            const listPack = {
+                id: pack.id,
+                title: pack.title,
+                creator: pack.creator,
+                creatorLink: pack.creatorLink,
+                thumbnail: toAbsoluteUrl(pack.thumbnail, baseUrl),
+                createdAt: pack.createdAt
+            };
+            return listPack;
         });
         
         return new Response(JSON.stringify({
             packs: paginatedPacks,
             currentPage: page,
-            hasNext: endIndex < packList.length,
-            total: packList.length
+            hasNext: endIndex < allPacks.length,
+            total: allPacks.length
         }), {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
+        console.error('팩 리스트 조회 오류:', error);
         return new Response(JSON.stringify({ error: '팩 리스트 조회 실패' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
@@ -293,19 +327,8 @@ export async function handleUpload(request, env) {
             createdAt: new Date().toISOString()
         };
         
-        // KV에 팩 정보 저장
+        // KV에 팩 정보 저장 (pack_list는 더 이상 사용하지 않음)
         await env.PLAKKER_KV.put(`pack_${packId}`, JSON.stringify(pack));
-        
-        // 팩 리스트 업데이트
-        const packList = await env.PLAKKER_KV.get('pack_list', 'json') || [];
-        packList.unshift({
-            id: packId,
-            title,
-            creator,
-            thumbnail: `/r2/${thumbnailKey}`,
-            createdAt: pack.createdAt
-        });
-        await env.PLAKKER_KV.put('pack_list', JSON.stringify(packList));
         
         // 업로드 성공 시 IP별 카운트 증가
         await incrementUploadCount(env, clientIP);
