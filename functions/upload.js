@@ -1,7 +1,6 @@
 import { HTML_TEMPLATES } from '../src/templates.js';
 import { createHtmlResponse } from '../src/utils.js';
 
-// 홈페이지 핸들러 (루트 경로에서만 실행)
 export async function onRequest() {
-    return createHtmlResponse(HTML_TEMPLATES.base('홈', HTML_TEMPLATES.home()));
+    return createHtmlResponse(HTML_TEMPLATES.base('업로드', HTML_TEMPLATES.upload()));
 } 
