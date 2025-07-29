@@ -40,11 +40,11 @@ async function loadPackList(page = 1) {
                 
                 const title = document.createElement('div');
                 title.className = 'pack-title';
-                title.textContent = pack.title;
+                title.textContent = pack.title; // textContent는 HTML 태그를 자동으로 이스케이프함
                 
                 const creator = document.createElement('div');
                 creator.className = 'pack-creator';
-                creator.textContent = pack.creator;
+                creator.textContent = pack.creator; // textContent는 HTML 태그를 자동으로 이스케이프함
                 
                 info.appendChild(title);
                 info.appendChild(creator);
@@ -89,6 +89,58 @@ function setupUploadForm() {
     const form = document.getElementById('upload-form');
     const thumbnailInput = document.getElementById('thumbnail-input');
     const emoticonsInput = document.getElementById('emoticons-input');
+    
+    // 실시간 입력 검증 설정
+    const titleInput = document.getElementById('title');
+    const creatorInput = document.getElementById('creator');
+    const creatorLinkInput = document.getElementById('creator-link');
+    
+    // 실시간 검증 함수
+    function setupRealTimeValidation(input, fieldName, maxLength) {
+        let timeoutId;
+        input.addEventListener('input', function() {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                const value = input.value.trim();
+                if (value && /<[^>]*>/g.test(value)) {
+                    input.style.borderColor = '#ff4444';
+                    input.title = fieldName + '에는 HTML 태그를 포함할 수 없습니다.';
+                } else if (value.length > maxLength) {
+                    input.style.borderColor = '#ff4444';
+                    input.title = fieldName + '은(는) ' + maxLength + '자를 초과할 수 없습니다.';
+                } else {
+                    input.style.borderColor = '';
+                    input.title = '';
+                }
+            }, 300);
+        });
+    }
+    
+    // 각 입력 필드에 실시간 검증 적용
+    if (titleInput) setupRealTimeValidation(titleInput, '제목', 50);
+    if (creatorInput) setupRealTimeValidation(creatorInput, '제작자 이름', 30);
+    if (creatorLinkInput) {
+        creatorLinkInput.addEventListener('blur', function() {
+            const value = this.value.trim();
+            if (value && value.length > 0) {
+                try {
+                    let testUrl = value;
+                    if (!testUrl.match(/^https?:\\/\\//i)) {
+                        testUrl = 'https://' + testUrl;
+                    }
+                    new URL(testUrl);
+                    this.style.borderColor = '';
+                    this.title = '';
+                } catch (error) {
+                    this.style.borderColor = '#ff4444';
+                    this.title = '유효한 URL 형식이 아닙니다.';
+                }
+            } else {
+                this.style.borderColor = '';
+                this.title = '';
+            }
+        });
+    }
     
     let selectedThumbnail = null;
     let selectedEmoticons = [];
@@ -224,6 +276,29 @@ function setupUploadForm() {
         e.target.value = '';
     });
     
+    // 텍스트 입력 검증 함수 (클라이언트 사이드)
+    function validateTextInput(text, fieldName, maxLength = 100) {
+        if (!text || text.trim().length === 0) {
+            return { valid: false, message: fieldName + '은(는) 필수 항목입니다.' };
+        }
+        
+        // HTML 태그 포함 검사
+        if (/<[^>]*>/g.test(text)) {
+            return { valid: false, message: fieldName + '에는 HTML 태그를 포함할 수 없습니다.' };
+        }
+        
+        // 길이 검사
+        if (text.trim().length > maxLength) {
+            return { valid: false, message: fieldName + '은(는) ' + maxLength + '자를 초과할 수 없습니다.' };
+        }
+        
+        if (text.trim().length < 2) {
+            return { valid: false, message: fieldName + '은(는) 최소 2자 이상이어야 합니다.' };
+        }
+        
+        return { valid: true, message: '' };
+    }
+    
     // 폼 제출 이벤트
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -232,10 +307,32 @@ function setupUploadForm() {
         const creator = document.getElementById('creator').value.trim();
         const creatorLink = document.getElementById('creator-link').value.trim();
         
-        // 유효성 검사
-        if (!title || !creator) {
-            alert('제목과 제작자는 필수 항목입니다.');
+        // 텍스트 입력 유효성 검사
+        const titleValidation = validateTextInput(title, '제목', 50);
+        if (!titleValidation.valid) {
+            alert(titleValidation.message);
             return;
+        }
+        
+        const creatorValidation = validateTextInput(creator, '제작자 이름', 30);
+        if (!creatorValidation.valid) {
+            alert(creatorValidation.message);
+            return;
+        }
+        
+        // URL 유효성 검사 (선택사항)
+        if (creatorLink && creatorLink.length > 0) {
+            try {
+                // 프로토콜이 없으면 https:// 추가
+                let testUrl = creatorLink;
+                if (!testUrl.match(/^https?:\\/\\//i)) {
+                    testUrl = 'https://' + testUrl;
+                }
+                new URL(testUrl); // URL 유효성 검사
+            } catch (error) {
+                alert('제작자 링크가 유효한 URL 형식이 아닙니다.');
+                return;
+            }
         }
         
         if (!selectedThumbnail) {

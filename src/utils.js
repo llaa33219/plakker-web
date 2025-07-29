@@ -5,6 +5,68 @@ export function generateId() {
     return 'pack_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
+// HTML 특수문자 이스케이프 함수 (XSS 방지)
+export function escapeHtml(text) {
+    if (typeof text !== 'string') return '';
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/\//g, '&#x2F;');
+}
+
+// 입력 텍스트 검증 및 정화 함수
+export function sanitizeTextInput(text, maxLength = 100) {
+    if (typeof text !== 'string') return '';
+    
+    // 앞뒤 공백 제거
+    text = text.trim();
+    
+    // 길이 제한
+    if (text.length > maxLength) {
+        text = text.substring(0, maxLength);
+    }
+    
+    // HTML 태그 완전 제거 (정규식으로)
+    text = text.replace(/<[^>]*>/g, '');
+    
+    // 연속된 공백을 하나로 변환
+    text = text.replace(/\s+/g, ' ');
+    
+    // 특수 문자 제한 (기본적인 문자, 숫자, 한글, 일부 특수문자만 허용)
+    text = text.replace(/[^\w\s가-힣ㄱ-ㅎㅏ-ㅣ\-_.!?()]/g, '');
+    
+    return text.trim();
+}
+
+// URL 검증 함수
+export function sanitizeUrl(url) {
+    if (typeof url !== 'string') return '';
+    
+    url = url.trim();
+    
+    // 빈 문자열이면 그대로 반환
+    if (!url) return '';
+    
+    // http:// 또는 https://로 시작하지 않으면 https:// 추가
+    if (!url.match(/^https?:\/\//i)) {
+        url = 'https://' + url;
+    }
+    
+    try {
+        const urlObj = new URL(url);
+        // 허용된 프로토콜만 허용
+        if (!['http:', 'https:'].includes(urlObj.protocol)) {
+            return '';
+        }
+        return urlObj.href;
+    } catch (error) {
+        return '';
+    }
+}
+
 // 서버 측에서는 리사이즈를 하지 않음 (클라이언트에서 처리됨)
 export async function resizeImage(imageBuffer, width = 150, height = 150) {
     // 클라이언트에서 이미 리사이즈된 이미지가 전송되므로 원본 반환

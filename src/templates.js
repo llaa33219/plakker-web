@@ -1,4 +1,6 @@
 // HTML 템플릿들
+import { escapeHtml } from './utils.js';
+
 export const HTML_TEMPLATES = {
   base: (title, content) => `
 <!DOCTYPE html>
@@ -6,7 +8,7 @@ export const HTML_TEMPLATES = {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title} - Plakker</title>
+    <title>${escapeHtml(title)} - Plakker</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -116,18 +118,18 @@ export const HTML_TEMPLATES = {
   detail: (pack) => `
 <div class="container">
     <div class="pack-detail">
-        <h2>${pack.title}</h2>
+        <h2>${escapeHtml(pack.title)}</h2>
         <div class="pack-info">
             <p class="creator">제작자: ${pack.creatorLink ? 
-                `<a href="${pack.creatorLink}" target="_blank">${pack.creator}</a>` : 
-                pack.creator
+                `<a href="${escapeHtml(pack.creatorLink)}" target="_blank" rel="noopener noreferrer">${escapeHtml(pack.creator)}</a>` : 
+                escapeHtml(pack.creator)
             }</p>
             <p class="upload-date">업로드: ${new Date(pack.createdAt).toLocaleDateString('ko-KR')}</p>
         </div>
         <div class="emoticons-grid">
             ${pack.emoticons.map((emoticon, index) => `
                 <div class="emoticon-item">
-                    <img src="${emoticon}" alt="${pack.title} 이모티콘 ${index + 1}" loading="lazy">
+                    <img src="${escapeHtml(emoticon)}" alt="${escapeHtml(pack.title)} 이모티콘 ${index + 1}" loading="lazy">
                 </div>
             `).join('')}
         </div>

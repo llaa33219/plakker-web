@@ -10,7 +10,9 @@ import {
     getClientIP,
     checkUploadLimit,
     incrementUploadCount,
-    maskIP
+    maskIP,
+    sanitizeTextInput,
+    sanitizeUrl
 } from './utils.js';
 
 // API 핸들러
@@ -124,15 +126,36 @@ export async function handleUpload(request, env) {
         
         const formData = await request.formData();
         
-        const title = formData.get('title');
-        const creator = formData.get('creator');
-        const creatorLink = formData.get('creatorLink') || '';
+        // 입력 데이터 정화 및 검증
+        const rawTitle = formData.get('title');
+        const rawCreator = formData.get('creator');
+        const rawCreatorLink = formData.get('creatorLink') || '';
         const thumbnail = formData.get('thumbnail');
         const emoticons = formData.getAll('emoticons');
         
+        // 텍스트 입력 정화 (HTML 태그 제거, 특수문자 제한)
+        const title = sanitizeTextInput(rawTitle, 50); // 제목 최대 50자
+        const creator = sanitizeTextInput(rawCreator, 30); // 제작자 이름 최대 30자
+        const creatorLink = sanitizeUrl(rawCreatorLink); // URL 검증 및 정화
+        
         // 유효성 검사
         if (!title || !creator || !thumbnail || emoticons.length < 3) {
-            return new Response(JSON.stringify({ error: '필수 항목이 누락되었습니다' }), {
+            return new Response(JSON.stringify({ error: '필수 항목이 누락되었거나 유효하지 않습니다' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        // 추가 길이 검증
+        if (title.length < 2) {
+            return new Response(JSON.stringify({ error: '제목은 최소 2자 이상이어야 합니다' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        if (creator.length < 2) {
+            return new Response(JSON.stringify({ error: '제작자 이름은 최소 2자 이상이어야 합니다' }), {
                 status: 400,
                 headers: { 'Content-Type': 'application/json' }
             });
