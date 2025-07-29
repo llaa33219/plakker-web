@@ -1,5 +1,5 @@
-import { handleGetPacks, handleOptions } from '../../src/api.js';
-import { addCorsHeaders } from '../../src/utils.js';
+import { handleGetPacks } from '../../src/api.js';
+import { addCorsHeaders, handleOptions } from '../../src/utils.js';
 
 export async function onRequest(context) {
     const { request, env } = context;

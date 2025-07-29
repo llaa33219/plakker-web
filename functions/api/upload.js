@@ -1,5 +1,5 @@
-import { handleUpload, handleOptions } from '../../src/api.js';
-import { addCorsHeaders } from '../../src/utils.js';
+import { handleUpload } from '../../src/api.js';
+import { addCorsHeaders, handleOptions } from '../../src/utils.js';
 
 export async function onRequest(context) {
     const { request, env } = context;
