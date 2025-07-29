@@ -27,8 +27,6 @@ export async function handleAPI(request, env, path) {
     
     if (path === '/api/packs' && request.method === 'GET') {
         response = await handleGetPacks(request, env);
-    } else if (path === '/api/search' && request.method === 'GET') {
-        response = await handleSearch(request, env);
     } else if (path === '/api/upload' && request.method === 'POST') {
         response = await handleUpload(request, env);
     } else if (path === '/api/upload-limit' && request.method === 'GET') {
@@ -386,109 +384,6 @@ export async function handleUploadLimitStatus(request, env) {
         return new Response(JSON.stringify({ 
             error: '제한 상태를 확인할 수 없습니다' 
         }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
-    }
-}
-
-// 검색 API 핸들러
-export async function handleSearch(request, env) {
-    try {
-        const url = new URL(request.url);
-        const baseUrl = `${url.protocol}//${url.host}`;
-        const query = url.searchParams.get('q')?.trim();
-        const page = parseInt(url.searchParams.get('page') || '1');
-        const limit = 20;
-        const offset = (page - 1) * limit;
-        
-        // 검색어가 없으면 빈 결과 반환
-        if (!query || query.length === 0) {
-            return new Response(JSON.stringify({
-                packs: [],
-                currentPage: page,
-                hasNext: false,
-                total: 0,
-                query: ''
-            }), {
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-        
-        // 검색어가 너무 짧으면 오류 반환
-        if (query.length < 2) {
-            return new Response(JSON.stringify({
-                error: '검색어는 최소 2자 이상이어야 합니다'
-            }), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-        
-        // KV에서 pack_ prefix로 모든 팩 키 조회
-        const packKeys = await env.PLAKKER_KV.list({ prefix: 'pack_' });
-        
-        if (!packKeys.keys || packKeys.keys.length === 0) {
-            return new Response(JSON.stringify({
-                packs: [],
-                currentPage: page,
-                hasNext: false,
-                total: 0,
-                query: query
-            }), {
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-        
-        // 모든 팩 데이터를 조회
-        const packPromises = packKeys.keys.map(async (key) => {
-            try {
-                const pack = await env.PLAKKER_KV.get(key.name, 'json');
-                return pack;
-            } catch (error) {
-                console.error(`Failed to load pack ${key.name}:`, error);
-                return null;
-            }
-        });
-        
-        const allPacks = (await Promise.all(packPromises))
-            .filter(pack => pack !== null) // null 제거 (로드 실패한 팩들)
-            .filter(pack => {
-                // 제목에서 검색어 매칭 (대소문자 구분 없음, 한글/영문 모두 지원)
-                const title = (pack.title || '').toLowerCase();
-                const searchQuery = query.toLowerCase();
-                return title.includes(searchQuery);
-            })
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // 최신순 정렬
-        
-        // 페이지네이션 적용
-        const startIndex = offset;
-        const endIndex = offset + limit;
-        const paginatedPacks = allPacks.slice(startIndex, endIndex).map(pack => {
-            // 목록에서는 필요한 정보만 반환 (emoticons 배열 제외로 응답 크기 최적화)
-            const listPack = {
-                id: pack.id,
-                title: convertToSafeUnicode(pack.title || ''), // 출력 시 안전 변환
-                creator: convertToSafeUnicode(pack.creator || ''), // 출력 시 안전 변환
-                creatorLink: pack.creatorLink,
-                thumbnail: toAbsoluteUrl(pack.thumbnail, baseUrl),
-                createdAt: pack.createdAt
-            };
-            return listPack;
-        });
-        
-        return new Response(JSON.stringify({
-            packs: paginatedPacks,
-            currentPage: page,
-            hasNext: endIndex < allPacks.length,
-            total: allPacks.length,
-            query: query
-        }), {
-            headers: { 'Content-Type': 'application/json' }
-        });
-    } catch (error) {
-        console.error('검색 오류:', error);
-        return new Response(JSON.stringify({ error: '검색 처리 중 오류가 발생했습니다' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });

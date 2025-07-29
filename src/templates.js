@@ -35,21 +35,6 @@ export const HTML_TEMPLATES = {
   home: () => `
 <div class="container">
     <h2 style="text-align: center;">이모티콘 목록</h2>
-    
-    <!-- 검색창 추가 -->
-    <div class="search-container">
-        <div class="search-box">
-            <input type="text" id="search-input" placeholder="이모티콘 제목으로 검색..." maxlength="50">
-            <button type="button" id="search-btn" class="search-button">
-                <span class="search-icon">🔍</span>
-            </button>
-            <button type="button" id="clear-search-btn" class="clear-button" style="display: none;">
-                <span class="clear-icon">✕</span>
-            </button>
-        </div>
-        <div id="search-info" class="search-info" style="display: none;"></div>
-    </div>
-    
     <div id="pack-list" class="pack-grid">
         <div class="loading">로딩 중...</div>
     </div>
@@ -217,55 +202,6 @@ export const HTML_TEMPLATES = {
             <div class="endpoint">
                 <div class="endpoint-header">
                     <span class="method get">GET</span>
-                    <span class="path">/api/search</span>
-                </div>
-                <div class="endpoint-content">
-                    <p class="description">이모티콘 팩을 제목으로 검색합니다.</p>
-                    
-                    <h4>Query Parameters</h4>
-                    <table class="param-table">
-                        <tr>
-                            <th>Parameter</th>
-                            <th>Type</th>
-                            <th>Required</th>
-                            <th>Description</th>
-                        </tr>
-                        <tr>
-                            <td><code>q</code></td>
-                            <td>string</td>
-                            <td>Yes</td>
-                            <td>검색어 (최소 2자, 이모티콘 팩 제목에서 검색)</td>
-                        </tr>
-                        <tr>
-                            <td><code>page</code></td>
-                            <td>integer</td>
-                            <td>No</td>
-                            <td>페이지 번호 (기본값: 1, 페이지당 20개)</td>
-                        </tr>
-                    </table>
-                    
-                    <h4>Response Example</h4>
-                    <pre class="code-block">{
-  "packs": [
-    {
-      "id": "pack_1704067200000_abc123",
-      "title": "귀여운 고양이",
-      "creator": "예시 제작자 1",
-      "thumbnail": "https://plakker.bloupla.net/r2/thumbnails/pack_1704067200000_abc123_thumbnail",
-      "createdAt": "2024-01-01T00:00:00.000Z"
-    }
-  ],
-  "currentPage": 1,
-  "hasNext": false,
-  "total": 1,
-  "query": "고양이"
-}</pre>
-                </div>
-            </div>
-
-            <div class="endpoint">
-                <div class="endpoint-header">
-                    <span class="method get">GET</span>
                     <span class="path">/api/pack/{pack_id}</span>
                 </div>
                 <div class="endpoint-content">
@@ -399,13 +335,6 @@ const response = await fetch('/api/packs?page=1');
 const data = await response.json();
 console.log(data.packs);
 
-// 검색 기능
-const searchResponse = await fetch('/api/search?q=' + encodeURIComponent('고양이') + '&page=1');
-const searchData = await searchResponse.json();
-console.log('검색 결과:', searchData.packs);
-console.log('검색어:', searchData.query);
-console.log('총 결과 수:', searchData.total);
-
 // 특정 팩 조회
 const packResponse = await fetch('/api/pack/pack_1704067200000_abc123');
 const pack = await packResponse.json();
@@ -475,9 +404,6 @@ async function downloadEmoticonAsBlob(imageUrl) {
             <h4>cURL</h4>
             <pre class="code-block"># 팩 목록 조회
 curl "https://plakker.bloupla.net/api/packs?page=1"
-
-# 검색 기능
-curl "https://plakker.bloupla.net/api/search?q=%EA%B3%A0%EC%96%91%EC%9D%B4&page=1"
 
 # 특정 팩 조회
 curl "https://plakker.bloupla.net/api/pack/pack_1704067200000_abc123"
