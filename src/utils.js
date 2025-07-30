@@ -364,35 +364,29 @@ export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
             mimeType = 'image/webp';
         }
         
-        const promptText = 'Analyze this image to determine if it contains inappropriate content for use as an emoticon/sticker.\n\n' +
-            'INAPPROPRIATE CONTENT CRITERIA:\n' +
-            '1. Political content (real politicians\' faces, partisan political symbols, divisive political messages)\n' +
-            '   - Simple voting encouragement or democratic symbols are allowed\n' +
-            '2. Sexual content (explicit sexual expressions, obvious nudity, adult content)\n' +
-            '   - Swimwear and underwear are allowed\n' +
-            '3. Violent content (real violence, detailed depictions of blood/injuries, direct death expressions)\n' +
-            '   - Cartoonish/game-like expressions are allowed\n' +
-            '4. Hate/discrimination content (hate speech against specific groups, content promoting discrimination)\n' +
-            '5. Illegal content (drug use scenes, obvious illegal activities)\n' +
-            '6. Negative intent/mockery content (STRICTLY MODERATED in ALL LANGUAGES):\n' +
-            '   - Any expressions that ignore or belittle others\n' +
-            '   - Sarcastic or mocking text tone (cynical, sneering expressions)\n' +
-            '   - Expressions that doubt or disparage others\' abilities or level\n' +
-            '   - Messages intended to cause discomfort or provoke conflict\n' +
-            '   - Expressions intended to embarrass or upset others\n' +
-            '   - Angry or annoyed facial expressions combined with negative text\n' +
-            '   - Derogatory expressions like "level", "skill", "do you think this is right?" etc.\n' +
-            '   - Tongue clicking, sighing, eye rolling combined with negative text\n' +
-            '   - Text in ANY LANGUAGE including but not limited to: English, Korean, Japanese, Chinese, Spanish, French, German, Russian, Arabic, Hindi, Portuguese, Italian, Dutch, Thai, Vietnamese, Indonesian, etc.\n' +
-            '   - Slang, abbreviations, or coded language intended to bypass moderation\n' +
-            '   - Emoticons or symbols used to convey mockery or contempt\n\n' +
-            'ALLOWED CONTENT:\n' +
-            '- Simple fun or humor-oriented content with positive atmosphere\n' +
-            '- Positive or neutral emotional expressions\n' +
-            '- General photos, food, animals, landscapes, characters, cartoons\n' +
-            '- Healthy jokes or pleasant memes\n\n' +
-            'Respond ONLY in the following JSON format:\n' +
-            '{"classification": "APPROPRIATE|INAPPROPRIATE", "reason": "Brief reason for classification"}';
+        const promptText = '이 이미지가 이모티콘/스티커로 사용하기에 부적절한 콘텐츠가 포함되어 있는지 분석해주세요.\n\n' +
+            '부적절한 콘텐츠 기준:\n' +
+            '1. 정치적인 내용 (현실 정치인의 얼굴, 당파적 정치 상징, 분열을 조장하는 정치적 메시지)\n' +
+            '   - 단순한 투표 독려나 민주주의 상징은 허용\n' +
+            '2. 선정적인 내용 (명백한 성적 표현, 노골적인 노출, 성인 콘텐츠)\n' +
+            '   - 수영복, 속옷 착용 상태는 허용\n' +
+            '3. 잔인한 내용 (실제 폭력, 피/상해의 상세한 묘사, 죽음의 직접적 표현)\n' +
+            '   - 만화적/게임적 표현은 허용\n' +
+            '4. 혐오/차별 내용 (특정 집단에 대한 혐오 표현, 차별을 조장하는 내용)\n' +
+            '5. 불법적인 내용 (마약 사용 장면, 명백한 불법 활동)\n' +
+            '6. 타인 비하/조롱/부정적 표현 (상대방에게 불쾌감을 주거나 비하하는 모든 표현)\n' +
+            '   - 비꼬기, 조롱, 무시, 깎아내리기, 따지기, 빈정거리기\n' +
+            '   - 실력이나 능력을 의심하거나 폄하하는 표현\n' +
+            '   - 답답함, 한숨, 혀차기 등 부정적 감정을 드러내는 표현\n' +
+            '   - "ㅉㅉ", "수준", "그건 좀", "맞다고 생각하십니까" 같은 비판적/의심적 표현\n' +
+            '   - 상대를 무능하거나 틀렸다고 암시하는 모든 텍스트나 이미지\n' +
+            '   - 남을 가르치려 들거나 훈계하는 듯한 표현\n' +
+            '   - 불신, 의심, 실망을 표현하는 내용\n' +
+            '   - 상대방을 어리석다고 여기거나 무시하는 표현\n\n' +
+            '위 기준에 해당하지 않는 모든 이미지는 적절한 것으로 분류해주세요.\n' +
+            '(일반 사진, 음식, 동물, 풍경, 캐릭터, 만화, 순수한 밈, 긍정적 텍스트, 중립적 유머 등은 모두 적절함)\n\n' +
+            '응답은 반드시 다음 JSON 형식으로만 해주세요:\n' +
+            '{"classification": "APPROPRIATE|INAPPROPRIATE", "reason": "분류 이유를 한 줄로"}';
         
         // Hugging Face Qwen VL API 직접 호출
         const apiUrl = 'https://router.huggingface.co/v1/chat/completions';
