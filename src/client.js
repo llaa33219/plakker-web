@@ -151,9 +151,44 @@ function setupUploadForm() {
         return allowedImageTypes.includes(file.type.toLowerCase());
     }
     
+    // GIF 파일 검증 함수
+    function validateGifFile(file, maxWidth = 200, maxHeight = 200, maxSize = 5 * 1024 * 1024) {
+        return new Promise((resolve, reject) => {
+            // 파일 크기 체크 (5MB)
+            if (file.size > maxSize) {
+                reject('GIF 파일 크기가 ' + Math.round(maxSize / (1024 * 1024)) + 'MB를 초과합니다. (현재: ' + Math.round(file.size / (1024 * 1024) * 100) / 100 + 'MB)');
+                return;
+            }
+            
+            // 이미지 해상도 체크
+            const img = new Image();
+            img.onload = function() {
+                if (img.width > maxWidth || img.height > maxHeight) {
+                    reject('GIF 해상도가 ' + maxWidth + 'x' + maxHeight + '를 초과합니다. (현재: ' + img.width + 'x' + img.height + ')');
+                } else {
+                    resolve(true);
+                }
+                URL.revokeObjectURL(img.src);
+            };
+            img.onerror = function() {
+                reject('GIF 파일을 읽을 수 없습니다.');
+                URL.revokeObjectURL(img.src);
+            };
+            img.src = URL.createObjectURL(file);
+        });
+    }
+
     // 이미지 리사이즈 함수
     function resizeImage(file, maxWidth, maxHeight) {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
+            // GIF 파일의 경우 검증 후 원본 반환 (애니메이션 보존)
+            if (file.type.toLowerCase() === 'image/gif') {
+                validateGifFile(file, maxWidth, maxHeight)
+                    .then(() => resolve(file))
+                    .catch((error) => reject(error));
+                return;
+            }
+            
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             const img = new Image();
@@ -180,8 +215,14 @@ function setupUploadForm() {
                 // 이미지 그리기
                 ctx.drawImage(img, 0, 0, width, height);
                 
+                // GIF는 지원되지 않으므로 다른 형식으로 변환
+                let outputType = file.type;
+                if (file.type.toLowerCase() === 'image/gif') {
+                    outputType = 'image/png'; // GIF를 PNG로 변환
+                }
+                
                 // Blob으로 변환
-                canvas.toBlob(resolve, file.type, 0.8);
+                canvas.toBlob(resolve, outputType, 0.8);
             };
             
             img.src = URL.createObjectURL(file);
@@ -207,8 +248,9 @@ function setupUploadForm() {
                 });
                 updateThumbnailPreview();
             } catch (error) {
-                console.error('이미지 리사이즈 오류:', error);
-                alert('이미지 처리 중 오류가 발생했습니다.');
+                console.error('이미지 처리 오류:', error);
+                alert(error || '이미지 처리 중 오류가 발생했습니다.');
+                e.target.value = '';
             }
         }
     });
@@ -244,7 +286,7 @@ function setupUploadForm() {
             let processedFiles = 0;
             
             // 각 이미지를 150x150으로 리사이즈
-            const resizedFiles = await Promise.all(
+            const resizeResults = await Promise.allSettled(
                 validImageFiles.map(async function(file, index) {
                     const resizedFile = await resizeImage(file, 150, 150);
                     processedFiles++;
@@ -261,13 +303,46 @@ function setupUploadForm() {
                 })
             );
             
-            // 기존 선택된 파일들에 추가
-            selectedEmoticons = selectedEmoticons.concat(resizedFiles);
-            updateEmoticonPreview();
+            // 성공한 파일들만 필터링
+            const resizedFiles = [];
+            const failedFiles = [];
+            
+            resizeResults.forEach((result, index) => {
+                if (result.status === 'fulfilled') {
+                    resizedFiles.push(result.value);
+                } else {
+                    failedFiles.push({
+                        name: validImageFiles[index].name,
+                        error: result.reason
+                    });
+                }
+            });
+            
+            // 실패한 파일들이 있으면 알림
+            if (failedFiles.length > 0) {
+                let errorMessage = '다음 파일들이 처리되지 않았습니다:\\n';
+                failedFiles.forEach(failed => {
+                    errorMessage += '- ' + failed.name + ': ' + failed.error + '\\n';
+                });
+                alert(errorMessage);
+            }
+            
+            // 성공한 파일들만 추가
+            if (resizedFiles.length > 0) {
+                selectedEmoticons = selectedEmoticons.concat(resizedFiles);
+                updateEmoticonPreview();
+            } else {
+                // 미리보기 컨테이너 초기화
+                const previewContainer = document.getElementById('emoticon-preview');
+                previewContainer.innerHTML = '';
+            }
             
         } catch (error) {
-            console.error('이미지 리사이즈 오류:', error);
-            alert('이미지 처리 중 오류가 발생했습니다.');
+            console.error('이미지 처리 오류:', error);
+            alert(error || '이미지 처리 중 오류가 발생했습니다.');
+            // 미리보기 컨테이너 초기화
+            const previewContainer = document.getElementById('emoticon-preview');
+            previewContainer.innerHTML = '';
         }
         
         // input 값 리셋 (같은 파일을 다시 선택할 수 있도록)
