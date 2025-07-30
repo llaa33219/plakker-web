@@ -226,10 +226,10 @@ export async function testLlamaAPI(env) {
             result.test = {
                 success: false,
                 message: `❌ API 호출 중 네트워크 오류 발생: ${error.message}
-                
+
 **해결 방법:**
 1. 인터넷 연결 확인
-2. Google AI Studio 서비스 상태 확인
+2. Hugging Face API 서비스 상태 확인
 3. 방화벽이나 프록시 설정 확인`,
                 error: error.toString()
             };
