@@ -1,4 +1,4 @@
-// JavaScript client code (template literals changed to regular strings)
+// JavaScript 클라이언트 코드 (템플릿 리터럴을 일반 문자열로 변경)
 export const JS_CLIENT = `
 let currentPage = 1;
 
@@ -42,11 +42,11 @@ async function loadPackList(page = 1) {
                 
                 const title = document.createElement('div');
                 title.className = 'pack-title';
-                title.textContent = pack.title; // textContent automatically escapes HTML tags
+                title.textContent = pack.title; // textContent는 HTML 태그를 자동으로 이스케이프함
                 
                 const creator = document.createElement('div');
                 creator.className = 'pack-creator';
-                creator.textContent = pack.creator; // textContent automatically escapes HTML tags
+                creator.textContent = pack.creator; // textContent는 HTML 태그를 자동으로 이스케이프함
                 
                 info.appendChild(title);
                 info.appendChild(creator);
@@ -55,14 +55,14 @@ async function loadPackList(page = 1) {
                 container.appendChild(packDiv);
             });
         } else {
-            container.innerHTML = '<div class="loading">No emoticon packs registered.</div>';
+            container.innerHTML = '<div class="loading">등록된 이모티콘 팩이 없습니다.</div>';
         }
         
         updatePagination(data.currentPage, data.hasNext);
         
     } catch (error) {
-        console.error('Pack list load failed:', error);
-        document.getElementById('pack-list').innerHTML = '<div class="error">Failed to load pack list.</div>';
+        console.error('팩 리스트 로드 실패:', error);
+        document.getElementById('pack-list').innerHTML = '<div class="error">팩 리스트를 불러오는데 실패했습니다.</div>';
     }
 }
 
@@ -82,7 +82,7 @@ function setupPagination() {
 
 function updatePagination(page, hasNext) {
     currentPage = page;
-    document.getElementById('page-info').textContent = 'Page ' + page;
+    document.getElementById('page-info').textContent = page + '페이지';
     document.getElementById('prev-page').disabled = page <= 1;
     document.getElementById('next-page').disabled = !hasNext;
 }
@@ -92,12 +92,12 @@ function setupUploadForm() {
     const thumbnailInput = document.getElementById('thumbnail-input');
     const emoticonsInput = document.getElementById('emoticons-input');
     
-    // Real-time input validation setup
+    // 실시간 입력 검증 설정
     const titleInput = document.getElementById('title');
     const creatorInput = document.getElementById('creator');
     const creatorLinkInput = document.getElementById('creator-link');
     
-    // Real-time validation function - visual feedback only (no error display)
+    // 실시간 검증 함수 - 시각적 피드백만 (에러는 표시하지 않음)
     function setupRealTimeValidation(input, fieldName, maxLength) {
         let timeoutId;
         input.addEventListener('input', function() {
@@ -105,9 +105,9 @@ function setupUploadForm() {
             timeoutId = setTimeout(() => {
                 const value = input.value.trim();
                 if (value.length > maxLength) {
-                    // Visual feedback only when length exceeded (no error message)
+                    // 길이 초과 시에만 약간의 시각적 피드백 (에러 메시지 없음)
                     input.style.borderColor = '#ffaa00';
-                    input.title = fieldName + ' character count: ' + value.length + '/' + maxLength;
+                    input.title = fieldName + ' 글자 수: ' + value.length + '/' + maxLength;
                 } else {
                     input.style.borderColor = '';
                     input.title = '';
@@ -116,16 +116,16 @@ function setupUploadForm() {
         });
     }
     
-    // Apply real-time validation to each input field (allow completely free input)
-    // if (titleInput) setupRealTimeValidation(titleInput, 'Title', 50);
-    // if (creatorInput) setupRealTimeValidation(creatorInput, 'Creator Name', 30);
+    // 각 입력 필드에 실시간 검증 적용 (완전히 자유로운 입력 허용)
+    // if (titleInput) setupRealTimeValidation(titleInput, '제목', 50);
+    // if (creatorInput) setupRealTimeValidation(creatorInput, '제작자 이름', 30);
     if (creatorLinkInput) {
         creatorLinkInput.addEventListener('blur', function() {
             const value = this.value.trim();
             if (value && value.length > 0) {
                 try {
                     let testUrl = value;
-                    if (!testUrl.match(/^https?:\/\//i)) {
+                    if (!testUrl.match(/^https?:\\/\\//i)) {
                         testUrl = 'https://' + testUrl;
                     }
                     new URL(testUrl);
@@ -133,7 +133,7 @@ function setupUploadForm() {
                     this.title = '';
                 } catch (error) {
                     this.style.borderColor = '#ff4444';
-                    this.title = 'Invalid URL format.';
+                    this.title = '유효한 URL 형식이 아닙니다.';
                 }
             } else {
                 this.style.borderColor = '';
@@ -145,19 +145,19 @@ function setupUploadForm() {
     let selectedThumbnail = null;
     let selectedEmoticons = [];
     
-    // Allowed image formats
+    // 허용된 이미지 형식
     const allowedImageTypes = ['image/png', 'image/jpg', 'image/jpeg', 'image/webp', 'image/gif'];
     
-    // File format validation function
+    // 파일 형식 검증 함수
     function isValidImageType(file) {
         return allowedImageTypes.includes(file.type.toLowerCase());
     }
     
-    // Function to check if WebP file is animated
+    // WebP 파일이 애니메이션인지 확인하는 함수
     function isAnimatedWebP(arrayBuffer) {
         const uint8Array = new Uint8Array(arrayBuffer);
         
-        // Check if it's a WebP file (RIFF....WEBP)
+        // WebP 파일인지 확인 (RIFF....WEBP)
         if (uint8Array.length < 12) return false;
         
         const riffHeader = String.fromCharCode(...uint8Array.slice(0, 4));
@@ -167,7 +167,7 @@ function setupUploadForm() {
             return false;
         }
         
-        // Find ANIM chunk to check for animation
+        // ANIM 청크를 찾아 애니메이션 여부 확인
         for (let i = 12; i < uint8Array.length - 4; i++) {
             const chunkType = String.fromCharCode(...uint8Array.slice(i, i + 4));
             if (chunkType === 'ANIM') {
@@ -178,18 +178,18 @@ function setupUploadForm() {
         return false;
     }
     
-    // Check if file is animated (GIF or animated WebP)
+    // 애니메이션 파일인지 확인 (GIF 또는 애니메이션 WebP)
     function isAnimatedImage(file, arrayBuffer) {
         if (!file || !file.type) return false;
         
         const fileType = file.type.toLowerCase();
         
-        // GIF is always treated as animated
+        // GIF는 항상 애니메이션으로 처리
         if (fileType === 'image/gif') {
             return true;
         }
         
-        // For WebP, check if animated
+        // WebP의 경우 애니메이션 여부 확인
         if (fileType === 'image/webp' && arrayBuffer) {
             return isAnimatedWebP(arrayBuffer);
         }
@@ -556,13 +556,12 @@ function setupUploadForm() {
         
         const reader = new FileReader();
         reader.onload = function(e) {
-            previewContainer.innerHTML = \`
-                <div class="preview-item">
-                    <img src="\${e.target.result}" class="preview-image" alt="썸네일 미리보기">
-                    <div class="preview-filename">\${selectedThumbnail.name}</div>
-                    <button type="button" class="preview-remove" data-action="remove-thumbnail">×</button>
-                </div>
-            \`;
+            previewContainer.innerHTML =
+                '<div class="preview-item">' +
+                    '<img src="' + e.target.result + '" class="preview-image" alt="썸네일 미리보기">' +
+                    '<div class="preview-filename">' + selectedThumbnail.name + '</div>' +
+                    '<button type="button" class="preview-remove" data-action="remove-thumbnail">×</button>' +
+                '</div>';
             previewContainer.classList.add('has-files');
         };
         reader.readAsDataURL(selectedThumbnail);
@@ -586,11 +585,10 @@ function setupUploadForm() {
             reader.onload = function(e) {
                 const previewItem = document.createElement('div');
                 previewItem.className = 'preview-item';
-                previewItem.innerHTML = \`
-                    <img src="\${e.target.result}" class="preview-image" alt="이모티콘 \${index + 1}">
-                    <div class="preview-filename">\${file.name}</div>
-                    <button type="button" class="preview-remove" data-action="remove-emoticon" data-index="\${index}">×</button>
-                \`;
+                previewItem.innerHTML =
+                    '<img src="' + e.target.result + '" class="preview-image" alt="이모티콘 ' + (index + 1) + '">' +
+                    '<div class="preview-filename">' + file.name + '</div>' +
+                    '<button type="button" class="preview-remove" data-action="remove-emoticon" data-index="' + index + '">×</button>';
                 previewContainer.appendChild(previewItem);
             };
             reader.readAsDataURL(file);
@@ -626,59 +624,67 @@ function setupUploadForm() {
         // 모달 생성
         const modal = document.createElement('div');
         modal.className = 'upload-result-modal';
-        modal.innerHTML = \`
-            <div class="modal-backdrop" \${isSuccess && packId ? '' : 'onclick="closeUploadModal()"'}></div>
-            <div class="modal-content">
-                <div class="modal-header \${isSuccess ? 'success' : 'error'}">
-                    <span class="modal-icon"></span>
-                    <h3>업로드 \${isSuccess ? '완료' : '실패'}</h3>
-                </div>
-                
-                <div class="modal-body">
-                    <p class="main-message">\${message}</p>
-                    
-                    \${validationInfo ? \`
-                        <div class="validation-summary">
-                            <h4>검열 결과</h4>
-                            <div class="validation-stats">
-                                <div class="stat-item">
-                                    <span class="stat-label">제출된 이미지:</span>
-                                    <span class="stat-value">\${validationInfo.totalSubmitted}개</span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-label">승인된 이미지:</span>
-                                    <span class="stat-value success">\${validationInfo.approved}개</span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-label">거부된 이미지:</span>
-                                    <span class="stat-value error">\${validationInfo.rejected}개</span>
-                                </div>
-                            </div>
-                            
-                            \${validationInfo.rejected > 0 && validationInfo.rejectedItems ? \`
-                                <div class="rejected-details">
-                                    <h5>거부된 이미지 상세</h5>
-                                    <ul class="rejected-list">
-                                        \${validationInfo.rejectedItems.map(item => 
-                                            \`<li><strong>\${item.fileName}:</strong> \${item.reason}</li>\`
-                                        ).join('')}
-                                    </ul>
-                                </div>
-                            \` : ''}
-                        </div>
-                    \` : ''}
-                </div>
-                
-                <div class="modal-footer">
-                    \${isSuccess && packId ? \`
-                        <button class="btn btn-primary" onclick="location.href='/pack/\${packId}'">업로드된 이모티콘 보기</button>
-                        <button class="btn btn-secondary" onclick="location.href='/'">홈으로 이동</button>
-                    \` : \`
-                        <button class="btn btn-primary" onclick="closeUploadModal()">확인</button>
-                    \`}
-                </div>
-            </div>
-        \`;
+
+        let validationHtml = '';
+        if (validationInfo) {
+            let rejectedItemsHtml = '';
+            if (validationInfo.rejected > 0 && validationInfo.rejectedItems) {
+                rejectedItemsHtml =
+                    '<div class="rejected-details">' +
+                        '<h5>거부된 이미지 상세</h5>' +
+                        '<ul class="rejected-list">' +
+                            validationInfo.rejectedItems.map(item => 
+                                '<li><strong>' + item.fileName + ':</strong> ' + item.reason + '</li>'
+                            ).join('') +
+                        '</ul>' +
+                    '</div>';
+            }
+
+            validationHtml =
+                '<div class="validation-summary">' +
+                    '<h4>검열 결과</h4>' +
+                    '<div class="validation-stats">' +
+                        '<div class="stat-item">' +
+                            '<span class="stat-label">제출된 이미지:</span>' +
+                            '<span class="stat-value">' + validationInfo.totalSubmitted + '개</span>' +
+                        '</div>' +
+                        '<div class="stat-item">' +
+                            '<span class="stat-label">승인된 이미지:</span>' +
+                            '<span class="stat-value success">' + validationInfo.approved + '개</span>' +
+                        '</div>' +
+                        '<div class="stat-item">' +
+                            '<span class="stat-label">거부된 이미지:</span>' +
+                            '<span class="stat-value error">' + validationInfo.rejected + '개</span>' +
+                        '</div>' +
+                    '</div>' +
+                    rejectedItemsHtml +
+                '</div>';
+        }
+
+        let footerHtml = '';
+        if (isSuccess && packId) {
+            footerHtml =
+                '<button class="btn btn-primary" onclick="location.href=\'/pack/' + packId + '\'">업로드된 이모티콘 보기</button>' +
+                '<button class="btn btn-secondary" onclick="location.href=\'/\'">홈으로 이동</button>';
+        } else {
+            footerHtml = '<button class="btn btn-primary" onclick="closeUploadModal()">확인</button>';
+        }
+
+        modal.innerHTML =
+            '<div class="modal-backdrop" ' + (isSuccess && packId ? '' : 'onclick="closeUploadModal()"') + '></div>' +
+            '<div class="modal-content">' +
+                '<div class="modal-header ' + (isSuccess ? 'success' : 'error') + '">' +
+                    '<span class="modal-icon"></span>' +
+                    '<h3>업로드 ' + (isSuccess ? '완료' : '실패') + '</h3>' +
+                '</div>' +
+                '<div class="modal-body">' +
+                    '<p class="main-message">' + message + '</p>' +
+                    validationHtml +
+                '</div>' +
+                '<div class="modal-footer">' +
+                    footerHtml +
+                '</div>' +
+            '</div>';
         
         document.body.appendChild(modal);
         
@@ -750,24 +756,24 @@ function setupContactForm() {
         const subject = document.getElementById('contact-subject').value.trim();
         const message = document.getElementById('contact-message').value.trim();
         
-        // Basic validation
+        // 기본 유효성 검사
         if (!email || !subject || !message) {
-            alert('Please fill in all fields.');
+            alert('모든 필드를 입력해주세요.');
             return;
         }
         
         if (!isValidEmail(email)) {
-            alert('Please enter a valid email address.');
+            alert('올바른 이메일 주소를 입력해주세요.');
             return;
         }
         
-        // Final confirmation
-        const confirmed = confirm('Send this inquiry?\n\nSubject: ' + subject + '\nEmail: ' + email);
+        // 최종 확인
+        const confirmed = confirm('문의를 전송하시겠습니까?\\n\\n제목: ' + subject + '\\n이메일: ' + email);
         if (!confirmed) {
             return;
         }
         
-        // Loading state setup
+        // 로딩 상태 설정
         const submitBtn = form.querySelector('.submit-btn');
         const submitText = submitBtn.querySelector('.submit-text');
         const submitLoading = submitBtn.querySelector('.submit-loading');
@@ -775,10 +781,10 @@ function setupContactForm() {
         submitBtn.disabled = true;
         submitText.style.display = 'none';
         submitLoading.style.display = 'block';
-        submitLoading.textContent = 'Sending...';
+        submitLoading.textContent = '전송 중...';
         
         try {
-            // API call
+            // API 호출
             const response = await fetch('/api/contact', {
                 method: 'POST',
                 headers: {
