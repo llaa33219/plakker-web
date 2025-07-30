@@ -481,7 +481,7 @@ function setupUploadForm() {
         }
         
         // 최종 확인
-        const confirmed = confirm(\`업로드하시겠습니까?\\n\\n제목: \${title}\\n제작자: \${creator}\\n이미지 개수: \${selectedEmoticons.length}개\\n\\n모든 이미지는 검열을 거칩니다 (1-2분 소요)\\n업로드 후에는 수정할 수 없습니다.\`);
+        const confirmed = confirm('업로드하시겠습니까?\\n\\n제목: ' + title + '\\n제작자: ' + creator + '\\n이미지 개수: ' + selectedEmoticons.length + '개\\n\\n모든 이미지는 검열을 거칩니다 (1-2분 소요)\\n업로드 후에는 수정할 수 없습니다.');
         if (!confirmed) {
             return;
         }
@@ -554,13 +554,12 @@ function setupUploadForm() {
         
         const reader = new FileReader();
         reader.onload = function(e) {
-            previewContainer.innerHTML = \`
-                <div class="preview-item">
-                    <img src="\${e.target.result}" class="preview-image" alt="썸네일 미리보기">
-                    <div class="preview-filename">\${selectedThumbnail.name}</div>
-                    <button type="button" class="preview-remove" data-action="remove-thumbnail">×</button>
-                </div>
-            \`;
+            previewContainer.innerHTML = 
+                '<div class="preview-item">' +
+                    '<img src="' + e.target.result + '" class="preview-image" alt="썸네일 미리보기">' +
+                    '<div class="preview-filename">' + selectedThumbnail.name + '</div>' +
+                    '<button type="button" class="preview-remove" data-action="remove-thumbnail">×</button>' +
+                '</div>';
             previewContainer.classList.add('has-files');
         };
         reader.readAsDataURL(selectedThumbnail);
@@ -584,11 +583,10 @@ function setupUploadForm() {
             reader.onload = function(e) {
                 const previewItem = document.createElement('div');
                 previewItem.className = 'preview-item';
-                previewItem.innerHTML = \`
-                    <img src="\${e.target.result}" class="preview-image" alt="이모티콘 \${index + 1}">
-                    <div class="preview-filename">\${file.name}</div>
-                    <button type="button" class="preview-remove" data-action="remove-emoticon" data-index="\${index}">×</button>
-                \`;
+                previewItem.innerHTML = 
+                    '<img src="' + e.target.result + '" class="preview-image" alt="이모티콘 ' + (index + 1) + '">' +
+                    '<div class="preview-filename">' + file.name + '</div>' +
+                    '<button type="button" class="preview-remove" data-action="remove-emoticon" data-index="' + index + '">×</button>';
                 previewContainer.appendChild(previewItem);
             };
             reader.readAsDataURL(file);
@@ -624,59 +622,62 @@ function setupUploadForm() {
         // 모달 생성
         const modal = document.createElement('div');
         modal.className = 'upload-result-modal';
-        modal.innerHTML = \`
-            <div class="modal-backdrop" \${isSuccess && packId ? '' : 'onclick="closeUploadModal()"'}></div>
-            <div class="modal-content">
-                <div class="modal-header \${isSuccess ? 'success' : 'error'}">
-                    <span class="modal-icon"></span>
-                    <h3>업로드 \${isSuccess ? '완료' : '실패'}</h3>
-                </div>
+        
+        let modalHTML = '<div class="modal-backdrop" ' + (isSuccess && packId ? '' : 'onclick="closeUploadModal()"') + '></div>' +
+            '<div class="modal-content">' +
+                '<div class="modal-header ' + (isSuccess ? 'success' : 'error') + '">' +
+                    '<span class="modal-icon"></span>' +
+                    '<h3>업로드 ' + (isSuccess ? '완료' : '실패') + '</h3>' +
+                '</div>' +
+                '<div class="modal-body">' +
+                    '<p class="main-message">' + message + '</p>';
+        
+        if (validationInfo) {
+            modalHTML += '<div class="validation-summary">' +
+                '<h4>검열 결과</h4>' +
+                '<div class="validation-stats">' +
+                    '<div class="stat-item">' +
+                        '<span class="stat-label">제출된 이미지:</span>' +
+                        '<span class="stat-value">' + validationInfo.totalSubmitted + '개</span>' +
+                    '</div>' +
+                    '<div class="stat-item">' +
+                        '<span class="stat-label">승인된 이미지:</span>' +
+                        '<span class="stat-value success">' + validationInfo.approved + '개</span>' +
+                    '</div>' +
+                    '<div class="stat-item">' +
+                        '<span class="stat-label">거부된 이미지:</span>' +
+                        '<span class="stat-value error">' + validationInfo.rejected + '개</span>' +
+                    '</div>' +
+                '</div>';
+            
+            if (validationInfo.rejected > 0 && validationInfo.rejectedItems) {
+                modalHTML += '<div class="rejected-details">' +
+                    '<h5>거부된 이미지 상세</h5>' +
+                    '<ul class="rejected-list">';
                 
-                <div class="modal-body">
-                    <p class="main-message">\${message}</p>
-                    
-                    \${validationInfo ? \`
-                        <div class="validation-summary">
-                            <h4>검열 결과</h4>
-                            <div class="validation-stats">
-                                <div class="stat-item">
-                                    <span class="stat-label">제출된 이미지:</span>
-                                    <span class="stat-value">\${validationInfo.totalSubmitted}개</span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-label">승인된 이미지:</span>
-                                    <span class="stat-value success">\${validationInfo.approved}개</span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-label">거부된 이미지:</span>
-                                    <span class="stat-value error">\${validationInfo.rejected}개</span>
-                                </div>
-                            </div>
-                            
-                            \${validationInfo.rejected > 0 && validationInfo.rejectedItems ? \`
-                                <div class="rejected-details">
-                                    <h5>거부된 이미지 상세</h5>
-                                    <ul class="rejected-list">
-                                        \${validationInfo.rejectedItems.map(item => 
-                                            \`<li><strong>\${item.fileName}:</strong> \${item.reason}</li>\`
-                                        ).join('')}
-                                    </ul>
-                                </div>
-                            \` : ''}
-                        </div>
-                    \` : ''}
-                </div>
+                validationInfo.rejectedItems.forEach(function(item) {
+                    modalHTML += '<li><strong>' + item.fileName + ':</strong> ' + item.reason + '</li>';
+                });
                 
-                <div class="modal-footer">
-                    \${isSuccess && packId ? \`
-                        <button class="btn btn-primary" onclick="location.href='/pack/\${packId}'">업로드된 이모티콘 보기</button>
-                        <button class="btn btn-secondary" onclick="location.href='/'">홈으로 이동</button>
-                    \` : \`
-                        <button class="btn btn-primary" onclick="closeUploadModal()">확인</button>
-                    \`}
-                </div>
-            </div>
-        \`;
+                modalHTML += '</ul></div>';
+            }
+            
+            modalHTML += '</div>';
+        }
+        
+        modalHTML += '</div>' +
+            '<div class="modal-footer">';
+        
+        if (isSuccess && packId) {
+            modalHTML += '<button class="btn btn-primary" onclick="location.href=\\'/pack/' + packId + '\\'">업로드된 이모티콘 보기</button>' +
+                '<button class="btn btn-secondary" onclick="location.href=\\'/\\'">홈으로 이동</button>';
+        } else {
+            modalHTML += '<button class="btn btn-primary" onclick="closeUploadModal()">확인</button>';
+        }
+        
+        modalHTML += '</div></div>';
+        
+        modal.innerHTML = modalHTML;
         
         document.body.appendChild(modal);
         
