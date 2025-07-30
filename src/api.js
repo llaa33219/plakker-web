@@ -6,7 +6,7 @@ import {
     convertPackToAbsoluteUrls,
     generateId,
     resizeImage,
-    validateEmoticonWithLlama,
+    validateEmoticonWithQwen,
     getClientIP,
     checkUploadLimit,
     incrementUploadCount,
@@ -250,8 +250,8 @@ export async function handleUpload(request, env) {
         // 썸네일 처리
         let thumbnailBuffer = await thumbnail.arrayBuffer();
         
-        // 썸네일 Llama 4 검증 (필수)
-        const thumbnailValidation = await validateEmoticonWithLlama(thumbnailBuffer, hfToken, env);
+        // 썸네일 Qwen 검증 (필수)
+        const thumbnailValidation = await validateEmoticonWithQwen(thumbnailBuffer, hfToken, env);
         if (!thumbnailValidation.isValid) {
             const errorDetail = thumbnailValidation.error ? 
                 ' (상세: ' + thumbnailValidation.error + ')' : '';
@@ -281,8 +281,8 @@ export async function handleUpload(request, env) {
             const emoticon = emoticons[i];
             let emoticonBuffer = await emoticon.arrayBuffer();
             
-            // Llama 4 검증 (필수)
-            const validation = await validateEmoticonWithLlama(emoticonBuffer, hfToken, env);
+            // Qwen 검증 (필수)
+            const validation = await validateEmoticonWithQwen(emoticonBuffer, hfToken, env);
             if (!validation.isValid) {
                 const errorDetail = validation.error ? 
                     ' (' + validation.error + ')' : '';
