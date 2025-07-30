@@ -762,7 +762,7 @@ function setupContactForm() {
         }
         
         // 최종 확인
-        const confirmed = confirm('문의를 전송하시겠습니까?\n\n제목: ' + subject + '\n이메일: ' + email);
+        const confirmed = confirm('Send this inquiry?\n\nSubject: ' + subject + '\nEmail: ' + email);
         if (!confirmed) {
             return;
         }
