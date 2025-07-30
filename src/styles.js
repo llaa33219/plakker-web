@@ -268,34 +268,30 @@ button:disabled {
     font-size: 1.1rem;
 }
 
-.form-group input,
-.upload-form input,
-input[type="text"],
-input[type="email"],
-input[type="url"],
-input[type="password"],
-input[type="number"],
-input:not([type]) {
-    width: 100% !important;
-    padding: 0.75rem !important;
-    border: 2px solid #e2e8f0 !important;
-    border-radius: 6px !important;
-    font-size: 1rem !important;
-    transition: border-color 0.2s, box-shadow 0.2s !important;
-    box-sizing: border-box !important;
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group input[type="email"],
+.form-group input[type="password"],
+.form-group input[type="search"],
+.form-group input[type="tel"],
+.form-group input[type="number"],
+.form-group input[type="date"],
+.form-group input[type="datetime-local"],
+.form-group input[type="time"],
+.form-group input[type="week"],
+.form-group input[type="month"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.form-group input:focus,
-.upload-form input:focus,
-input[type="text"]:focus,
-input[type="email"]:focus,
-input[type="url"]:focus,
-input[type="password"]:focus,
-input[type="number"]:focus,
-input:not([type]):focus {
-    outline: none !important;
-    border-color: #007bff !important;
-    box-shadow: 0 0 0 3px rgba(0,123,255,0.1) !important;
+.form-group input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
 }
 
 .file-upload-area {
