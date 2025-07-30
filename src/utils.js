@@ -5,6 +5,50 @@ export function generateId() {
     return 'pack_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
+// WebP 파일이 애니메이션인지 확인하는 함수
+export function isAnimatedWebP(arrayBuffer) {
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // WebP 파일인지 확인 (RIFF....WEBP)
+    if (uint8Array.length < 12) return false;
+    
+    const riffHeader = String.fromCharCode(...uint8Array.slice(0, 4));
+    const webpHeader = String.fromCharCode(...uint8Array.slice(8, 12));
+    
+    if (riffHeader !== 'RIFF' || webpHeader !== 'WEBP') {
+        return false;
+    }
+    
+    // ANIM 청크를 찾아 애니메이션 여부 확인
+    for (let i = 12; i < uint8Array.length - 4; i++) {
+        const chunkType = String.fromCharCode(...uint8Array.slice(i, i + 4));
+        if (chunkType === 'ANIM') {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// 애니메이션 파일인지 확인 (GIF 또는 애니메이션 WebP)
+export function isAnimatedImage(file, arrayBuffer) {
+    if (!file || !file.type) return false;
+    
+    const fileType = file.type.toLowerCase();
+    
+    // GIF는 항상 애니메이션으로 처리
+    if (fileType === 'image/gif') {
+        return true;
+    }
+    
+    // WebP의 경우 애니메이션 여부 확인
+    if (fileType === 'image/webp' && arrayBuffer) {
+        return isAnimatedWebP(arrayBuffer);
+    }
+    
+    return false;
+}
+
 // HTML 특수문자 이스케이프 함수 (이제 유니코드 변환된 텍스트용)
 export function escapeHtml(text) {
     if (typeof text !== 'string') return '';

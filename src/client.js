@@ -151,12 +151,57 @@ function setupUploadForm() {
         return allowedImageTypes.includes(file.type.toLowerCase());
     }
     
-    // GIF 파일 검증 함수
-    function validateGifFile(file, maxWidth = 200, maxHeight = 200, maxSize = 1 * 1024 * 1024) {
+    // WebP 파일이 애니메이션인지 확인하는 함수
+    function isAnimatedWebP(arrayBuffer) {
+        const uint8Array = new Uint8Array(arrayBuffer);
+        
+        // WebP 파일인지 확인 (RIFF....WEBP)
+        if (uint8Array.length < 12) return false;
+        
+        const riffHeader = String.fromCharCode(...uint8Array.slice(0, 4));
+        const webpHeader = String.fromCharCode(...uint8Array.slice(8, 12));
+        
+        if (riffHeader !== 'RIFF' || webpHeader !== 'WEBP') {
+            return false;
+        }
+        
+        // ANIM 청크를 찾아 애니메이션 여부 확인
+        for (let i = 12; i < uint8Array.length - 4; i++) {
+            const chunkType = String.fromCharCode(...uint8Array.slice(i, i + 4));
+            if (chunkType === 'ANIM') {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    // 애니메이션 파일인지 확인 (GIF 또는 애니메이션 WebP)
+    function isAnimatedImage(file, arrayBuffer) {
+        if (!file || !file.type) return false;
+        
+        const fileType = file.type.toLowerCase();
+        
+        // GIF는 항상 애니메이션으로 처리
+        if (fileType === 'image/gif') {
+            return true;
+        }
+        
+        // WebP의 경우 애니메이션 여부 확인
+        if (fileType === 'image/webp' && arrayBuffer) {
+            return isAnimatedWebP(arrayBuffer);
+        }
+        
+        return false;
+    }
+    
+    // 애니메이션 파일 검증 함수 (GIF 및 애니메이션 WebP)
+    function validateAnimatedFile(file, maxWidth = 200, maxHeight = 200, maxSize = 1 * 1024 * 1024) {
         return new Promise((resolve, reject) => {
             // 파일 크기 체크 (1MB)
             if (file.size > maxSize) {
-                reject('GIF 파일 크기가 ' + Math.round(maxSize / (1024 * 1024)) + 'MB를 초과합니다. (현재: ' + Math.round(file.size / (1024 * 1024) * 100) / 100 + 'MB)');
+                const fileTypeName = file.type === 'image/gif' ? 'GIF' : '애니메이션 WebP';
+                reject(fileTypeName + ' 파일 크기가 ' + Math.round(maxSize / (1024 * 1024)) + 'MB를 초과합니다. (현재: ' + Math.round(file.size / (1024 * 1024) * 100) / 100 + 'MB)');
                 return;
             }
             
@@ -164,14 +209,16 @@ function setupUploadForm() {
             const img = new Image();
             img.onload = function() {
                 if (img.width > maxWidth || img.height > maxHeight) {
-                    reject('GIF 해상도가 ' + maxWidth + 'x' + maxHeight + '를 초과합니다. (현재: ' + img.width + 'x' + img.height + ')');
+                    const fileTypeName = file.type === 'image/gif' ? 'GIF' : '애니메이션 WebP';
+                    reject(fileTypeName + ' 해상도가 ' + maxWidth + 'x' + maxHeight + '를 초과합니다. (현재: ' + img.width + 'x' + img.height + ')');
                 } else {
                     resolve(true);
                 }
                 URL.revokeObjectURL(img.src);
             };
             img.onerror = function() {
-                reject('GIF 파일을 읽을 수 없습니다.');
+                const fileTypeName = file.type === 'image/gif' ? 'GIF' : '애니메이션 WebP';
+                reject(fileTypeName + ' 파일을 읽을 수 없습니다.');
                 URL.revokeObjectURL(img.src);
             };
             img.src = URL.createObjectURL(file);
@@ -180,10 +227,19 @@ function setupUploadForm() {
 
     // 이미지 리사이즈 함수
     function resizeImage(file, maxWidth, maxHeight) {
-        return new Promise((resolve, reject) => {
-            // GIF 파일의 경우 검증 후 원본 반환 (애니메이션 보존)
-            if (file.type.toLowerCase() === 'image/gif') {
-                validateGifFile(file, maxWidth, maxHeight)
+        return new Promise(async (resolve, reject) => {
+            // 애니메이션 파일인지 확인하기 위해 arrayBuffer 읽기
+            let fileArrayBuffer;
+            try {
+                fileArrayBuffer = await file.arrayBuffer();
+            } catch (error) {
+                reject('파일을 읽을 수 없습니다.');
+                return;
+            }
+            
+            // 애니메이션 파일의 경우 검증 후 원본 반환 (애니메이션 보존)
+            if (isAnimatedImage(file, fileArrayBuffer)) {
+                validateAnimatedFile(file, maxWidth, maxHeight)
                     .then(() => resolve(file))
                     .catch((error) => reject(error));
                 return;
@@ -243,9 +299,10 @@ function setupUploadForm() {
                 // 썸네일 리사이즈 (200x200)
                 const resizedFile = await resizeImage(file, 200, 200);
                 
-                // GIF 파일의 경우 원본을 그대로 사용 (애니메이션 보존)
-                if (file.type.toLowerCase() === 'image/gif') {
-                    selectedThumbnail = resizedFile; // 원본 GIF 파일 그대로 사용
+                // 애니메이션 파일의 경우 원본을 그대로 사용 (애니메이션 보존)
+                const fileArrayBuffer = await file.arrayBuffer();
+                if (isAnimatedImage(file, fileArrayBuffer)) {
+                    selectedThumbnail = resizedFile; // 원본 애니메이션 파일 그대로 사용
                 } else {
                     selectedThumbnail = new File([resizedFile], file.name, { 
                         type: file.type, 
@@ -302,9 +359,10 @@ function setupUploadForm() {
                         console.log('이미지 처리 중... ' + processedFiles + '/' + totalFiles);
                     }
                     
-                    // GIF 파일의 경우 원본을 그대로 사용 (애니메이션 보존)
-                    if (file.type.toLowerCase() === 'image/gif') {
-                        return resizedFile; // 원본 GIF 파일 그대로 사용
+                    // 애니메이션 파일의 경우 원본을 그대로 사용 (애니메이션 보존)
+                    const fileArrayBuffer = await file.arrayBuffer();
+                    if (isAnimatedImage(file, fileArrayBuffer)) {
+                        return resizedFile; // 원본 애니메이션 파일 그대로 사용
                     } else {
                         return new File([resizedFile], file.name, { 
                             type: file.type, 

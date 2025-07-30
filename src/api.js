@@ -263,8 +263,9 @@ export async function handleUpload(request, env) {
             });
         }
         
-        // 썸네일 리사이즈 및 업로드 (GIF는 원본 유지)
-        if (thumbnail.type.toLowerCase() !== 'image/gif') {
+        // 썸네일 리사이즈 및 업로드 (애니메이션 파일은 원본 유지)
+        const { isAnimatedImage } = await import('./utils.js');
+        if (!isAnimatedImage(thumbnail, thumbnailBuffer)) {
             thumbnailBuffer = await resizeImage(thumbnailBuffer, 200, 200); // 썸네일은 200x200
         }
         const thumbnailKey = `thumbnails/${packId}_thumbnail`;
@@ -292,8 +293,8 @@ export async function handleUpload(request, env) {
                 continue; // 다음 이모티콘으로 건너뛰기
             }
             
-            // 이모티콘 리사이즈 (150x150, GIF는 원본 유지)
-            if (emoticon.type.toLowerCase() !== 'image/gif') {
+            // 이모티콘 리사이즈 (150x150, 애니메이션 파일은 원본 유지)
+            if (!isAnimatedImage(emoticon, emoticonBuffer)) {
                 emoticonBuffer = await resizeImage(emoticonBuffer, 150, 150);
             }
             
