@@ -1,4 +1,4 @@
-// JavaScript 클라이언트 코드 (템플릿 리터럴을 일반 문자열로 변경)
+// JavaScript client code (template literals changed to regular strings)
 export const JS_CLIENT = `
 let currentPage = 1;
 
@@ -42,11 +42,11 @@ async function loadPackList(page = 1) {
                 
                 const title = document.createElement('div');
                 title.className = 'pack-title';
-                title.textContent = pack.title; // textContent는 HTML 태그를 자동으로 이스케이프함
+                title.textContent = pack.title; // textContent automatically escapes HTML tags
                 
                 const creator = document.createElement('div');
                 creator.className = 'pack-creator';
-                creator.textContent = pack.creator; // textContent는 HTML 태그를 자동으로 이스케이프함
+                creator.textContent = pack.creator; // textContent automatically escapes HTML tags
                 
                 info.appendChild(title);
                 info.appendChild(creator);
@@ -55,14 +55,14 @@ async function loadPackList(page = 1) {
                 container.appendChild(packDiv);
             });
         } else {
-            container.innerHTML = '<div class="loading">등록된 이모티콘 팩이 없습니다.</div>';
+            container.innerHTML = '<div class="loading">No emoticon packs registered.</div>';
         }
         
         updatePagination(data.currentPage, data.hasNext);
         
     } catch (error) {
-        console.error('팩 리스트 로드 실패:', error);
-        document.getElementById('pack-list').innerHTML = '<div class="error">팩 리스트를 불러오는데 실패했습니다.</div>';
+        console.error('Pack list load failed:', error);
+        document.getElementById('pack-list').innerHTML = '<div class="error">Failed to load pack list.</div>';
     }
 }
 
@@ -82,7 +82,7 @@ function setupPagination() {
 
 function updatePagination(page, hasNext) {
     currentPage = page;
-    document.getElementById('page-info').textContent = page + '페이지';
+    document.getElementById('page-info').textContent = 'Page ' + page;
     document.getElementById('prev-page').disabled = page <= 1;
     document.getElementById('next-page').disabled = !hasNext;
 }
@@ -92,12 +92,12 @@ function setupUploadForm() {
     const thumbnailInput = document.getElementById('thumbnail-input');
     const emoticonsInput = document.getElementById('emoticons-input');
     
-    // 실시간 입력 검증 설정
+    // Real-time input validation setup
     const titleInput = document.getElementById('title');
     const creatorInput = document.getElementById('creator');
     const creatorLinkInput = document.getElementById('creator-link');
     
-    // 실시간 검증 함수 - 시각적 피드백만 (에러는 표시하지 않음)
+    // Real-time validation function - visual feedback only (no error display)
     function setupRealTimeValidation(input, fieldName, maxLength) {
         let timeoutId;
         input.addEventListener('input', function() {
@@ -105,9 +105,9 @@ function setupUploadForm() {
             timeoutId = setTimeout(() => {
                 const value = input.value.trim();
                 if (value.length > maxLength) {
-                    // 길이 초과 시에만 약간의 시각적 피드백 (에러 메시지 없음)
+                    // Visual feedback only when length exceeded (no error message)
                     input.style.borderColor = '#ffaa00';
-                    input.title = fieldName + ' 글자 수: ' + value.length + '/' + maxLength;
+                    input.title = fieldName + ' character count: ' + value.length + '/' + maxLength;
                 } else {
                     input.style.borderColor = '';
                     input.title = '';
@@ -116,9 +116,9 @@ function setupUploadForm() {
         });
     }
     
-    // 각 입력 필드에 실시간 검증 적용 (완전히 자유로운 입력 허용)
-    // if (titleInput) setupRealTimeValidation(titleInput, '제목', 50);
-    // if (creatorInput) setupRealTimeValidation(creatorInput, '제작자 이름', 30);
+    // Apply real-time validation to each input field (allow completely free input)
+    // if (titleInput) setupRealTimeValidation(titleInput, 'Title', 50);
+    // if (creatorInput) setupRealTimeValidation(creatorInput, 'Creator Name', 30);
     if (creatorLinkInput) {
         creatorLinkInput.addEventListener('blur', function() {
             const value = this.value.trim();
@@ -133,7 +133,7 @@ function setupUploadForm() {
                     this.title = '';
                 } catch (error) {
                     this.style.borderColor = '#ff4444';
-                    this.title = '유효한 URL 형식이 아닙니다.';
+                    this.title = 'Invalid URL format.';
                 }
             } else {
                 this.style.borderColor = '';
@@ -145,19 +145,19 @@ function setupUploadForm() {
     let selectedThumbnail = null;
     let selectedEmoticons = [];
     
-    // 허용된 이미지 형식
+    // Allowed image formats
     const allowedImageTypes = ['image/png', 'image/jpg', 'image/jpeg', 'image/webp', 'image/gif'];
     
-    // 파일 형식 검증 함수
+    // File format validation function
     function isValidImageType(file) {
         return allowedImageTypes.includes(file.type.toLowerCase());
     }
     
-    // WebP 파일이 애니메이션인지 확인하는 함수
+    // Function to check if WebP file is animated
     function isAnimatedWebP(arrayBuffer) {
         const uint8Array = new Uint8Array(arrayBuffer);
         
-        // WebP 파일인지 확인 (RIFF....WEBP)
+        // Check if it's a WebP file (RIFF....WEBP)
         if (uint8Array.length < 12) return false;
         
         const riffHeader = String.fromCharCode(...uint8Array.slice(0, 4));
@@ -167,7 +167,7 @@ function setupUploadForm() {
             return false;
         }
         
-        // ANIM 청크를 찾아 애니메이션 여부 확인
+        // Find ANIM chunk to check for animation
         for (let i = 12; i < uint8Array.length - 4; i++) {
             const chunkType = String.fromCharCode(...uint8Array.slice(i, i + 4));
             if (chunkType === 'ANIM') {
@@ -178,18 +178,18 @@ function setupUploadForm() {
         return false;
     }
     
-    // 애니메이션 파일인지 확인 (GIF 또는 애니메이션 WebP)
+    // Check if file is animated (GIF or animated WebP)
     function isAnimatedImage(file, arrayBuffer) {
         if (!file || !file.type) return false;
         
         const fileType = file.type.toLowerCase();
         
-        // GIF는 항상 애니메이션으로 처리
+        // GIF is always treated as animated
         if (fileType === 'image/gif') {
             return true;
         }
         
-        // WebP의 경우 애니메이션 여부 확인
+        // For WebP, check if animated
         if (fileType === 'image/webp' && arrayBuffer) {
             return isAnimatedWebP(arrayBuffer);
         }
