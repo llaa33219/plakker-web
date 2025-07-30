@@ -130,8 +130,8 @@ export async function resizeImage(imageBuffer, width = 150, height = 150) {
     return imageBuffer;
 }
 
-// Hugging Face Qwen API 테스트 함수
-export async function testQwenAPI(env) {
+// Hugging Face Llama 4 API 테스트 함수
+export async function testLlamaAPI(env) {
     const result = {
         timestamp: new Date().toISOString(),
         environment: env.ENVIRONMENT || 'unknown',
@@ -153,7 +153,7 @@ export async function testQwenAPI(env) {
         try {
             const hfToken = env.HF_TOKEN;
             
-            // Hugging Face Qwen API 테스트
+            // Hugging Face Llama 4 API 테스트
             const apiUrl = 'https://router.huggingface.co/v1/chat/completions';
             
             result.test = {
@@ -161,7 +161,7 @@ export async function testQwenAPI(env) {
                 timestamp: new Date().toISOString()
             };
             
-            console.log('Qwen API 테스트 시작:', {
+            console.log('Llama 4 API 테스트 시작:', {
                 apiUrl,
                 tokenLength: hfToken.length
             });
@@ -173,7 +173,7 @@ export async function testQwenAPI(env) {
                     'Authorization': `Bearer ${hfToken}`
                 },
                 body: JSON.stringify({
-                    model: "Qwen/Qwen2.5-VL-72B-Instruct:nebius",
+                    model: "meta-llama/Llama-4-Scout-17B-16E-Instruct:fireworks-ai",
                     messages: [{
                         role: "user",
                         content: "Hello, this is a test message. Please respond with TEST_SUCCESS."
@@ -191,7 +191,7 @@ export async function testQwenAPI(env) {
                 body: responseText
             };
             
-            console.log('Qwen API 응답:', {
+            console.log('Llama 4 API 응답:', {
                 status: response.status,
                 statusText: response.statusText,
                 bodyPreview: responseText.substring(0, 200)
@@ -199,7 +199,7 @@ export async function testQwenAPI(env) {
             
             if (response.ok) {
                 result.test.success = true;
-                result.test.message = '✅ Qwen API 연결 성공!';
+                result.test.message = '✅ Llama 4 API 연결 성공!';
             } else {
                 result.test.success = false;
                 
@@ -222,7 +222,7 @@ export async function testQwenAPI(env) {
             }
             
         } catch (error) {
-            console.error('Qwen API 테스트 오류:', error);
+            console.error('Llama 4 API 테스트 오류:', error);
             result.test = {
                 success: false,
                 message: `❌ API 호출 중 네트워크 오류 발생: ${error.message}
@@ -258,7 +258,7 @@ export async function testQwenAPI(env) {
     </head>
     <body>
         <div class="container">
-            <h1>Qwen API 연결 테스트</h1>
+            <h1>Llama 4 API 연결 테스트</h1>
             
             <div class="section">
                 <h2>설정 현황</h2>
@@ -330,7 +330,7 @@ export async function testQwenAPI(env) {
     });
 }
 
-// Hugging Face Qwen API를 통한 이모티콘 검증
+// Hugging Face Llama 4 API를 통한 이모티콘 검증
 export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
     try {
         // 이미지 크기 제한 (20MB)
@@ -364,34 +364,30 @@ export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
             mimeType = 'image/webp';
         }
         
-        const promptText = 'Analyze this image to determine if it contains inappropriate content for use as emoticons/stickers. You must analyze text and visual content in ALL languages (Korean, English, Japanese, Chinese, Spanish, French, German, Arabic, Russian, etc.).\n\n' +
-            'INAPPROPRIATE content criteria:\n' +
-            '1. Political content (ALL political content including politicians, political parties, political symbols, political themes, voting, elections, government criticism)\n' +
-            '   - Any political references whatsoever are not allowed\n' +
-            '2. Sexual content (only explicit sexual acts, graphic nudity, hardcore adult content)\n' +
-            '   - Swimwear, underwear, and suggestive but non-explicit content are allowed\n' +
-            '3. Violent content (only graphic violence, detailed gore, realistic depictions of death)\n' +
-            '   - Cartoon violence, game-style combat, and mild action scenes are allowed\n' +
-            '4. Hate/discrimination content (only clear hate speech, direct discrimination against specific groups)\n' +
-            '   - General criticism or negative opinions are allowed\n' +
-            '5. Illegal content (only obvious drug trafficking, serious criminal activities)\n' +
-            '   - General references to substances or minor rule-breaking are allowed\n' +
-            '6. Disparaging/mocking content (ANY content that mocks, ridicules, or demeans individuals or groups, including mild disparagement)\n' +
-            '   - ALL sarcastic, mocking, or condescending expressions (including "어휴", "ㅉㅉ", "실력 수준", "대가리", "멍청이", "바보" etc.)\n' +
-            '   - ANY text-based disparagement, ridicule, sarcasm, condescension in ANY language, even mild ones\n' +
-            '   - ANY expressions that belittle, dismiss, or show disdain for others, no matter how mild\n' +
-            '   - Content with ANY negative, dismissive, or condescending attitudes toward people\n' +
-            '   - Facial expressions or gestures that mock or show contempt\n\n' +
-            'All images that do not meet the above criteria should be classified as appropriate.\n' +
-            '(General photos, food, animals, landscapes, characters, cartoons, memes, neutral text, humor, etc. are all appropriate)\n\n' +
-            'Respond ONLY in the following JSON format:\n' +
-            '{"classification": "APPROPRIATE|INAPPROPRIATE", "reason": "classification reason in one line"}';
+        const promptText = '이 이미지가 이모티콘/스티커로 사용하기에 부적절한 콘텐츠가 포함되어 있는지 분석해주세요.\n\n' +
+            '부적절한 콘텐츠 기준:\n' +
+            '1. 정치적인 내용 (현실 정치인의 얼굴, 당파적 정치 상징, 분열을 조장하는 정치적 메시지)\n' +
+            '   - 단순한 투표 독려나 민주주의 상징은 허용\n' +
+            '2. 선정적인 내용 (명백한 성적 표현, 노골적인 노출, 성인 콘텐츠)\n' +
+            '   - 수영복, 속옷 착용 상태는 허용\n' +
+            '3. 잔인한 내용 (실제 폭력, 피/상해의 상세한 묘사, 죽음의 직접적 표현)\n' +
+            '   - 만화적/게임적 표현은 허용\n' +
+            '4. 혐오/차별 내용 (특정 집단에 대한 혐오 표현, 차별을 조장하는 내용)\n' +
+            '5. 불법적인 내용 (마약 사용 장면, 명백한 불법 활동)\n' +
+            '6. 타인 비하/조롱 내용 (개인이나 집단을 조롱하거나 모독하는 내용, 괴롭힘을 조장하는 이미지)\n' +
+            '   - 비꼬거나 따지는 듯한 표현이나 메시지\n' +
+            '   - 텍스트로 된 비하, 조롱, 비꼬기, 따지기 등의 내용도 포함\n' +
+            '   - 상대방을 깎아내리거나 무시하는 표현\n\n' +
+            '위 기준에 해당하지 않는 모든 이미지는 적절한 것으로 분류해주세요.\n' +
+            '(일반 사진, 음식, 동물, 풍경, 캐릭터, 만화, 밈, 텍스트, 유머 등은 모두 적절함)\n\n' +
+            '응답은 반드시 다음 JSON 형식으로만 해주세요:\n' +
+            '{"classification": "APPROPRIATE|INAPPROPRIATE", "reason": "분류 이유를 한 줄로"}';
         
-        // Hugging Face Qwen API 직접 호출
+        // Hugging Face Llama 4 API 직접 호출
         const apiUrl = 'https://router.huggingface.co/v1/chat/completions';
         
         // 디버깅 로그
-        console.log('Qwen API 호출:', {
+        console.log('Llama 4 API 호출:', {
             apiUrl,
             tokenLength: hfToken ? hfToken.length : 0
         });
@@ -403,7 +399,7 @@ export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: "Qwen/Qwen2.5-VL-72B-Instruct:nebius",
+                model: "meta-llama/Llama-4-Scout-17B-16E-Instruct:fireworks-ai",
                 messages: [
                     {
                         role: "user",
@@ -428,7 +424,7 @@ export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Qwen API 응답 오류:', {
+            console.error('Llama 4 API 응답 오류:', {
                 status: response.status,
                 statusText: response.statusText,
                 headers: Object.fromEntries(response.headers.entries()),
@@ -494,7 +490,7 @@ export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
         }
         
     } catch (error) {
-        console.error('Qwen API 검증 오류:', error);
+        console.error('Llama 4 API 검증 오류:', error);
         return { 
             isValid: false, 
             reason: 'AI 검증 중 오류가 발생했습니다',
