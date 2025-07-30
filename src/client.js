@@ -219,29 +219,7 @@ function setupUploadForm() {
         });
     }
     
-    // 각 입력 필드에 실시간 검증 적용 (완전히 자유로운 입력 허용)
-    // if (titleInput) setupRealTimeValidation(titleInput, '제목', 50);
-    // if (creatorInput) setupRealTimeValidation(creatorInput, '제작자 이름', 30);
-    if (creatorLinkInput) {
-        creatorLinkInput.addEventListener('blur', function() {
-            const value = this.value.trim();
-            if (value && value.length > 0) {
-                // 개선된 URL 검증 로직
-                if (isValidCreatorUrl(value)) {
-                    this.style.borderColor = '';
-                    this.title = '';
-                } else {
-                    this.style.borderColor = '#ff4444';
-                    this.title = '유효한 웹사이트 URL을 입력해주세요. (예: example.com, https://example.com)';
-                }
-            } else {
-                this.style.borderColor = '';
-                this.title = '';
-            }
-        });
-    }
-    
-    // URL 유효성 검증 함수 - 서버와 동일한 로직
+    // URL 유효성 검증 함수 - 서버와 동일한 로직 (함수를 먼저 정의)
     function isValidCreatorUrl(url) {
         if (!url || url.trim().length === 0) return true; // 빈 값은 허용 (선택사항)
         
@@ -290,6 +268,28 @@ function setupUploadForm() {
             const basicUrlPattern = /^https?:\\/\\/[a-zA-Z0-9-._~:/?#[\\]@!$&'()*+,;=%]+\\.[a-zA-Z]{2,}[a-zA-Z0-9-._~:/?#[\\]@!$&'()*+,;=%]*$/i;
             return basicUrlPattern.test(url);
         }
+    }
+    
+    // 각 입력 필드에 실시간 검증 적용 (완전히 자유로운 입력 허용)
+    // if (titleInput) setupRealTimeValidation(titleInput, '제목', 50);
+    // if (creatorInput) setupRealTimeValidation(creatorInput, '제작자 이름', 30);
+    if (creatorLinkInput) {
+        creatorLinkInput.addEventListener('blur', function() {
+            const value = this.value.trim();
+            if (value && value.length > 0) {
+                // 개선된 URL 검증 로직
+                if (isValidCreatorUrl(value)) {
+                    this.style.borderColor = '';
+                    this.title = '';
+                } else {
+                    this.style.borderColor = '#ff4444';
+                    this.title = '유효한 웹사이트 URL을 입력해주세요. (예: example.com, https://example.com)';
+                }
+            } else {
+                this.style.borderColor = '';
+                this.title = '';
+            }
+        });
     }
     
     let selectedThumbnail = null;
