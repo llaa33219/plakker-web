@@ -312,9 +312,9 @@ export async function handleUpload(request, env) {
         if (emoticonUrls.length < 3) {
             let errorMessage = `유효한 이미지가 ${emoticonUrls.length}개뿐입니다. 최소 3개가 필요합니다.`;
             if (rejectedEmoticons.length > 0) {
-                errorMessage += '\n\n거부된 이미지들:\n';
+                errorMessage += '\\n\\n거부된 이미지들:\\n';
                 rejectedEmoticons.forEach(rejected => {
-                    errorMessage += `- ${rejected.fileName}: ${rejected.reason}\n`;
+                    errorMessage += `- ${rejected.fileName}: ${rejected.reason}\\n`;
                 });
             }
             
