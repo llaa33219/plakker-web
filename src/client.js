@@ -34,51 +34,67 @@ let currentPage = 1;
 
 // 캐시 무효화 및 버전 관리
 const CACHE_VERSION_KEY = 'plakker_cache_version';
-const CURRENT_VERSION = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '') + '_fix'; // YYYYMMDDHHMM + 수정버전
+const CURRENT_VERSION = Date.now() + '_urlfix_v2'; // 타임스탬프 + 수정버전
 
 function checkCacheVersion() {
     try {
         const storedVersion = localStorage.getItem(CACHE_VERSION_KEY);
-        const currentTime = Date.now();
-        const oneHour = 60 * 60 * 1000; // 1시간
+        console.log('현재 버전:', CURRENT_VERSION, '저장된 버전:', storedVersion);
         
-        // 1시간마다 캐시 체크
-        const lastCheck = localStorage.getItem('plakker_last_cache_check');
-        if (lastCheck && (currentTime - parseInt(lastCheck)) < oneHour) {
-            return; // 아직 체크할 시간이 아님
-        }
-        
-        // 버전이 다르거나 처음 방문인 경우
+        // 버전이 다르거나 처음 방문인 경우 무조건 캐시 정리
         if (!storedVersion || storedVersion !== CURRENT_VERSION) {
-            console.log('캐시 버전 업데이트 감지, 캐시 정리 중...');
+            console.log('캐시 버전 업데이트 감지, 모든 캐시 정리 중...');
+            
+            // localStorage 전체 정리 (plakker 관련만)
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+                if (key.startsWith('plakker_')) {
+                    localStorage.removeItem(key);
+                }
+            });
+            
+            // sessionStorage도 정리
+            if (sessionStorage) {
+                const sessionKeys = Object.keys(sessionStorage);
+                sessionKeys.forEach(key => {
+                    if (key.startsWith('plakker_')) {
+                        sessionStorage.removeItem(key);
+                    }
+                });
+            }
             
             // 서비스 워커 캐시 정리 (있는 경우)
             if ('serviceWorker' in navigator && 'caches' in window) {
                 caches.keys().then(function(cacheNames) {
+                    console.log('캐시 이름들:', cacheNames);
                     return Promise.all(
                         cacheNames.map(function(cacheName) {
+                            console.log('캐시 삭제:', cacheName);
                             return caches.delete(cacheName);
                         })
                     );
+                }).then(() => {
+                    console.log('모든 서비스 워커 캐시 삭제 완료');
                 });
             }
             
             // localStorage 버전 업데이트
             localStorage.setItem(CACHE_VERSION_KEY, CURRENT_VERSION);
-            localStorage.setItem('plakker_last_cache_check', currentTime.toString());
             
-            // 페이지 강제 새로고침 (캐시 무시)
-            if (storedVersion && storedVersion !== CURRENT_VERSION) {
-                window.location.reload(true);
+            // 페이지 강제 새로고침 (캐시 무시) - 이전 버전이 있었다면
+            if (storedVersion) {
+                console.log('캐시 정리 후 페이지 새로고침...');
+                setTimeout(() => {
+                    window.location.reload(true);
+                }, 100);
                 return;
             }
         }
         
-        // 체크 시간 업데이트
-        localStorage.setItem('plakker_last_cache_check', currentTime.toString());
-        
     } catch (error) {
         console.warn('캐시 버전 체크 실패:', error);
+        // 에러가 나면 강제로 새로고침
+        window.location.reload(true);
     }
 }
 
@@ -195,14 +211,14 @@ function setupUploadForm() {
     const thumbnailInput = document.getElementById('thumbnail-input');
     const emoticonsInput = document.getElementById('emoticons-input');
     
-    // URL 유효성 검증 함수 - 서버와 동일한 로직 (맨 앞에 정의)
+    // URL 유효성 검증 함수 - 간단하고 안전한 버전
     function isValidCreatorUrl(url) {
         if (!url || url.trim().length === 0) return true; // 빈 값은 허용 (선택사항)
         
         url = url.trim();
         
         // http:// 또는 https://로 시작하지 않으면 https:// 추가
-        if (!url.match(/^https?:\\/\//i)) {
+        if (!url.toLowerCase().startsWith('http://') && !url.toLowerCase().startsWith('https://')) {
             url = 'https://' + url;
         }
         
@@ -210,7 +226,7 @@ function setupUploadForm() {
             const urlObj = new URL(url);
             
             // 허용된 프로토콜만 허용
-            if (!['http:', 'https:'].includes(urlObj.protocol)) {
+            if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
                 return false;
             }
             
@@ -232,17 +248,16 @@ function setupUploadForm() {
                 'vbscript:', 'about:', 'chrome:', 'chrome-extension:'
             ];
             
-            for (const pattern of dangerousPatterns) {
-                if (fullUrl.startsWith(pattern)) {
+            for (let i = 0; i < dangerousPatterns.length; i++) {
+                if (fullUrl.startsWith(dangerousPatterns[i])) {
                     return false;
                 }
             }
             
             return true;
         } catch (error) {
-            // URL 파싱에 실패한 경우, 기본적인 형식 검증만 수행
-            const basicUrlPattern = /^https?:\\/\\/[a-zA-Z0-9-._~:/?#[\\]@!$&'()*+,;=%]+\\.[a-zA-Z]{2,}[a-zA-Z0-9-._~:/?#[\\]@!$&'()*+,;=%]*$/i;
-            return basicUrlPattern.test(url);
+            // URL 파싱에 실패한 경우, 간단한 도메인 패턴 체크
+            return url.includes('.') && !url.includes(' ') && url.length > 3;
         }
     }
 
