@@ -47,3 +47,4 @@ clearPlakkerCache();
 - **JavaScript/CSS**: 콘텐츠 변경 시 즉시 반영
 - **정적 리소스**: ETag 기반 조건부 캐싱
 - **클라이언트 측**: localStorage 기반 버전 관리
+ 
