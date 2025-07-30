@@ -251,7 +251,7 @@ export async function handleUpload(request, env) {
         // 썸네일 처리
         let thumbnailBuffer = await thumbnail.arrayBuffer();
         
-        // 썸네일 Llama 4 검증 (필수)
+        // 썸네일 Qwen VL 검증 (필수)
         const thumbnailValidation = await validateEmoticonWithLlama(thumbnailBuffer, hfToken, env);
         if (!thumbnailValidation.isValid) {
             const errorDetail = thumbnailValidation.error ? 
@@ -282,7 +282,7 @@ export async function handleUpload(request, env) {
             const emoticon = emoticons[i];
             let emoticonBuffer = await emoticon.arrayBuffer();
             
-            // Llama 4 검증 (필수)
+            // Qwen VL 검증 (필수)
             const validation = await validateEmoticonWithLlama(emoticonBuffer, hfToken, env);
             if (!validation.isValid) {
                 const errorDetail = validation.error ? 
