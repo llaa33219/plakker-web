@@ -750,24 +750,24 @@ function setupContactForm() {
         const subject = document.getElementById('contact-subject').value.trim();
         const message = document.getElementById('contact-message').value.trim();
         
-        // 기본 유효성 검사
+        // Basic validation
         if (!email || !subject || !message) {
-            alert('모든 필드를 입력해주세요.');
+            alert('Please fill in all fields.');
             return;
         }
         
         if (!isValidEmail(email)) {
-            alert('올바른 이메일 주소를 입력해주세요.');
+            alert('Please enter a valid email address.');
             return;
         }
         
-        // 최종 확인
+        // Final confirmation
         const confirmed = confirm('Send this inquiry?\n\nSubject: ' + subject + '\nEmail: ' + email);
         if (!confirmed) {
             return;
         }
         
-        // 로딩 상태 설정
+        // Loading state setup
         const submitBtn = form.querySelector('.submit-btn');
         const submitText = submitBtn.querySelector('.submit-text');
         const submitLoading = submitBtn.querySelector('.submit-loading');
@@ -775,10 +775,10 @@ function setupContactForm() {
         submitBtn.disabled = true;
         submitText.style.display = 'none';
         submitLoading.style.display = 'block';
-        submitLoading.textContent = '전송 중...';
+        submitLoading.textContent = 'Sending...';
         
         try {
-            // API 호출
+            // API call
             const response = await fetch('/api/contact', {
                 method: 'POST',
                 headers: {
