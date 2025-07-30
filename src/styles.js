@@ -188,6 +188,38 @@ button:disabled {
     line-height: 1.5;
 }
 
+.contact-info {
+    background: #e8f4fd;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.upload-form textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 120px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.upload-form textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+}
+
 .upload-limit-notice {
     border-radius: 8px;
     padding: 1rem;

@@ -21,6 +21,7 @@ export const HTML_TEMPLATES = {
         <nav>
             <a href="/">홈</a>
             <a href="/upload">업로드</a>
+            <a href="/contact">문의하기</a>
             <a href="/api-docs" class="hidden-nav">API 문서</a>
             <a href="/test-gateway" class="hidden-nav">AI 테스트</a>
         </nav>
@@ -111,6 +112,46 @@ export const HTML_TEMPLATES = {
             <button type="submit" class="submit-btn">
                 <span class="submit-text">업로드</span>
                 <span class="submit-loading" style="display: none;">업로드 중...</span>
+            </button>
+        </div>
+    </form>
+</div>`,
+
+  contact: () => `
+<div class="container">
+    <h2 style="text-align: center;">문의하기</h2>
+    
+    <div class="contact-info">
+        <span class="info-icon"></span>
+        <strong>문의 안내:</strong> 궁금한 점이나 의견이 있으시면 언제든지 문의해주세요. 빠른 시일 내에 답변드리겠습니다.
+    </div>
+    
+    <form id="contact-form" class="upload-form">
+        <div class="form-group">
+            <label for="contact-name">이름</label>
+            <input type="text" id="contact-name" name="name" required placeholder="이름을 입력하세요">
+        </div>
+        
+        <div class="form-group">
+            <label for="contact-email">이메일</label>
+            <input type="email" id="contact-email" name="email" required placeholder="답변을 받을 이메일 주소를 입력하세요">
+        </div>
+        
+        <div class="form-group">
+            <label for="contact-subject">제목</label>
+            <input type="text" id="contact-subject" name="subject" required placeholder="문의 제목을 입력하세요">
+        </div>
+        
+        <div class="form-group">
+            <label for="contact-message">문의 내용</label>
+            <textarea id="contact-message" name="message" required placeholder="궁금한 점이나 의견을 자세히 적어주세요" rows="6"></textarea>
+        </div>
+        
+        <div class="form-actions">
+            <button type="button" class="reset-btn" onclick="resetContactForm()">초기화</button>
+            <button type="submit" class="submit-btn">
+                <span class="submit-text">문의하기</span>
+                <span class="submit-loading" style="display: none;">전송 중...</span>
             </button>
         </div>
     </form>

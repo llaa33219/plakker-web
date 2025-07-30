@@ -13,7 +13,8 @@ import {
     maskIP,
     sanitizeTextInput,
     sanitizeUrl,
-    convertToSafeUnicode
+    convertToSafeUnicode,
+    escapeHtml
 } from './utils.js';
 
 // API 핸들러

@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (path === '/upload') {
         setupUploadForm();
         loadUploadLimitStatus();
+    } else if (path === '/contact') {
+        setupContactForm();
     }
 });
 
@@ -710,28 +712,119 @@ async function loadUploadLimitStatus() {
             const statusElement = document.getElementById('upload-limit-status');
             const limitTextElement = document.getElementById('limit-text');
             
-                         if (statusElement && limitTextElement) {
-                 if (data.allowed) {
-                     limitTextElement.textContent = '오늘 ' + data.currentCount + '/' + data.limit + '개 업로드함 (남은 횟수: ' + data.remaining + '개)';
-                     statusElement.className = 'upload-limit-notice info';
-                 } else {
-                     limitTextElement.textContent = '일일 업로드 제한에 도달했습니다. (' + data.currentCount + '/' + data.limit + '개) 내일 다시 시도해주세요.';
-                     statusElement.className = 'upload-limit-notice warning';
-                     
-                     // 제한 도달 시 업로드 버튼 비활성화
-                     const submitBtn = document.querySelector('.submit-btn');
-                     if (submitBtn) {
-                         submitBtn.disabled = true;
-                         submitBtn.style.opacity = '0.6';
-                         submitBtn.style.cursor = 'not-allowed';
-                     }
-                 }
-                 statusElement.style.display = 'block';
-             }
+            if (statusElement && limitTextElement) {
+                if (data.allowed) {
+                    limitTextElement.textContent = '오늘 ' + data.currentCount + '/' + data.limit + '개 업로드함 (남은 횟수: ' + data.remaining + '개)';
+                    statusElement.className = 'upload-limit-notice info';
+                } else {
+                    limitTextElement.textContent = '일일 업로드 제한에 도달했습니다. (' + data.currentCount + '/' + data.limit + '개) 내일 다시 시도해주세요.';
+                    statusElement.className = 'upload-limit-notice warning';
+                    
+                    // 제한 도달 시 업로드 버튼 비활성화
+                    const submitBtn = document.querySelector('.submit-btn');
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.style.opacity = '0.6';
+                        submitBtn.style.cursor = 'not-allowed';
+                    }
+                }
+                statusElement.style.display = 'block';
+            }
         }
     } catch (error) {
         console.error('업로드 제한 상태 로드 실패:', error);
     }
 }
+
+// 문의하기 폼 설정
+function setupContactForm() {
+    const form = document.getElementById('contact-form');
+    
+    if (!form) return;
+    
+    // 폼 제출 이벤트
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const name = document.getElementById('contact-name').value.trim();
+        const email = document.getElementById('contact-email').value.trim();
+        const subject = document.getElementById('contact-subject').value.trim();
+        const message = document.getElementById('contact-message').value.trim();
+        
+        // 기본 유효성 검사
+        if (!name || !email || !subject || !message) {
+            alert('모든 필드를 입력해주세요.');
+            return;
+        }
+        
+        if (!isValidEmail(email)) {
+            alert('올바른 이메일 주소를 입력해주세요.');
+            return;
+        }
+        
+        // 최종 확인
+        const confirmed = confirm(\`문의를 전송하시겠습니까?\\n\\n제목: \${subject}\\n이름: \${name}\\n이메일: \${email}\`);
+        if (!confirmed) {
+            return;
+        }
+        
+        // 로딩 상태 설정
+        const submitBtn = form.querySelector('.submit-btn');
+        const submitText = submitBtn.querySelector('.submit-text');
+        const submitLoading = submitBtn.querySelector('.submit-loading');
+        
+        submitBtn.disabled = true;
+        submitText.style.display = 'none';
+        submitLoading.style.display = 'block';
+        submitLoading.textContent = '전송 중...';
+        
+        try {
+            // API 호출
+            const response = await fetch('/api/contact', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: name,
+                    email: email,
+                    subject: subject,
+                    message: message
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                alert('문의가 성공적으로 전송되었습니다! 빠른 시일 내에 답변드리겠습니다.');
+                form.reset();
+            } else {
+                alert('문의 전송에 실패했습니다: ' + (result.error || '알 수 없는 오류'));
+            }
+        } catch (error) {
+            console.error('문의 전송 오류:', error);
+            alert('문의 전송 중 오류가 발생했습니다.');
+        } finally {
+            // 로딩 상태 해제
+            submitBtn.disabled = false;
+            submitText.style.display = 'block';
+            submitLoading.style.display = 'none';
+        }
+    });
+}
+
+// 이메일 유효성 검사 함수
+function isValidEmail(email) {
+    const emailPattern = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+    return emailPattern.test(email);
+}
+
+// 문의 폼 초기화 함수
+window.resetContactForm = function() {
+    const form = document.getElementById('contact-form');
+    if (form && confirm('모든 입력 내용이 초기화됩니다. 계속하시겠습니까?')) {
+        form.reset();
+    }
+};
 
 `; 
