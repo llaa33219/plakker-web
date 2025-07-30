@@ -366,19 +366,22 @@ export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
         
         const promptText = 'Analyze this image to determine if it contains inappropriate content for use as emoticons/stickers. You must analyze text and visual content in ALL languages (Korean, English, Japanese, Chinese, Spanish, French, German, Arabic, Russian, etc.).\n\n' +
             'INAPPROPRIATE content criteria:\n' +
-            '1. Political content (real politicians\' faces, partisan political symbols, divisive political messages)\n' +
-            '   - Simple voting encouragement or democratic symbols are allowed\n' +
-            '2. Sexual content (explicit sexual expressions, graphic nudity, adult content)\n' +
-            '   - Swimwear and underwear are allowed\n' +
-            '3. Violent content (actual violence, detailed depictions of blood/injury, direct representation of death)\n' +
-            '   - Cartoon/game-style expressions are allowed\n' +
-            '4. Hate/discrimination content (hate speech against specific groups, content promoting discrimination)\n' +
-            '5. Illegal content (drug use scenes, obvious illegal activities)\n' +
-            '6. Disparaging/mocking content (content that mocks, ridicules, or demeans individuals or groups, images that encourage bullying)\n' +
-            '   - Sarcastic, mocking, or condescending expressions or messages\n' +
-            '   - Text-based disparagement, ridicule, sarcasm, condescension in ANY language\n' +
-            '   - Expressions that belittle or dismiss others\n' +
-            '   - Content with negative, hostile, or non-positive attitudes toward people\n\n' +
+            '1. Political content (ALL political content including politicians, political parties, political symbols, political themes, voting, elections, government criticism)\n' +
+            '   - Any political references whatsoever are not allowed\n' +
+            '2. Sexual content (only explicit sexual acts, graphic nudity, hardcore adult content)\n' +
+            '   - Swimwear, underwear, and suggestive but non-explicit content are allowed\n' +
+            '3. Violent content (only graphic violence, detailed gore, realistic depictions of death)\n' +
+            '   - Cartoon violence, game-style combat, and mild action scenes are allowed\n' +
+            '4. Hate/discrimination content (only clear hate speech, direct discrimination against specific groups)\n' +
+            '   - General criticism or negative opinions are allowed\n' +
+            '5. Illegal content (only obvious drug trafficking, serious criminal activities)\n' +
+            '   - General references to substances or minor rule-breaking are allowed\n' +
+            '6. Disparaging/mocking content (ANY content that mocks, ridicules, or demeans individuals or groups, including mild disparagement)\n' +
+            '   - ALL sarcastic, mocking, or condescending expressions (including "어휴", "ㅉㅉ", "실력 수준", "대가리", "멍청이", "바보" etc.)\n' +
+            '   - ANY text-based disparagement, ridicule, sarcasm, condescension in ANY language, even mild ones\n' +
+            '   - ANY expressions that belittle, dismiss, or show disdain for others, no matter how mild\n' +
+            '   - Content with ANY negative, dismissive, or condescending attitudes toward people\n' +
+            '   - Facial expressions or gestures that mock or show contempt\n\n' +
             'All images that do not meet the above criteria should be classified as appropriate.\n' +
             '(General photos, food, animals, landscapes, characters, cartoons, memes, neutral text, humor, etc. are all appropriate)\n\n' +
             'Respond ONLY in the following JSON format:\n' +
