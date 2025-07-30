@@ -1,5 +1,5 @@
-import { testLlamaAPI } from '../src/utils.js';
+import { testQwenAPI } from '../src/utils.js';
 
 export async function onRequest(context) {
-    return await testLlamaAPI(context.env);
+    return await testQwenAPI(context.env);
 } 
