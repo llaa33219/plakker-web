@@ -125,7 +125,7 @@ function setupUploadForm() {
             if (value && value.length > 0) {
                 try {
                     let testUrl = value;
-                    if (!testUrl.match(/^https?:\\/\\//i)) {
+                    if (!testUrl.match(/^https?:\/\//i)) {
                         testUrl = 'https://' + testUrl;
                     }
                     new URL(testUrl);
