@@ -130,7 +130,7 @@ export async function resizeImage(imageBuffer, width = 150, height = 150) {
     return imageBuffer;
 }
 
-// Hugging Face Llama 4 API 테스트 함수
+// Hugging Face Qwen VL API 테스트 함수
 export async function testLlamaAPI(env) {
     const result = {
         timestamp: new Date().toISOString(),
@@ -153,7 +153,7 @@ export async function testLlamaAPI(env) {
         try {
             const hfToken = env.HF_TOKEN;
             
-            // Hugging Face Llama 4 API 테스트
+            // Hugging Face Qwen VL API 테스트
             const apiUrl = 'https://router.huggingface.co/v1/chat/completions';
             
             result.test = {
@@ -161,7 +161,7 @@ export async function testLlamaAPI(env) {
                 timestamp: new Date().toISOString()
             };
             
-            console.log('Llama 4 API 테스트 시작:', {
+            console.log('Qwen VL API 테스트 시작:', {
                 apiUrl,
                 tokenLength: hfToken.length
             });
@@ -383,11 +383,11 @@ export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
             '응답은 반드시 다음 JSON 형식으로만 해주세요:\n' +
             '{"classification": "APPROPRIATE|INAPPROPRIATE", "reason": "분류 이유를 한 줄로"}';
         
-        // Hugging Face Llama 4 API 직접 호출
+        // Hugging Face Qwen VL API 직접 호출
         const apiUrl = 'https://router.huggingface.co/v1/chat/completions';
         
         // 디버깅 로그
-        console.log('Llama 4 API 호출:', {
+        console.log('Qwen VL API 호출:', {
             apiUrl,
             tokenLength: hfToken ? hfToken.length : 0
         });
@@ -399,7 +399,7 @@ export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: "meta-llama/Llama-4-Scout-17B-16E-Instruct:fireworks-ai",
+                model: "Qwen/Qwen2.5-VL-72B-Instruct:nebius",
                 messages: [
                     {
                         role: "user",
@@ -424,7 +424,7 @@ export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Llama 4 API 응답 오류:', {
+            console.error('Qwen VL API 응답 오류:', {
                 status: response.status,
                 statusText: response.statusText,
                 headers: Object.fromEntries(response.headers.entries()),
