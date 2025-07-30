@@ -188,22 +188,6 @@ button:disabled {
     line-height: 1.5;
 }
 
-.contact-info {
-    background: #e8f4fd;
-    color: #0c5460;
-    border: 1px solid #bee5eb;
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 2rem;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-    font-size: 0.95rem;
-    line-height: 1.5;
-}
-
-/* Textarea styles are now consolidated above with other form inputs */
-
 .upload-limit-notice {
     border-radius: 8px;
     padding: 1rem;
@@ -253,25 +237,16 @@ button:disabled {
 }
 
 .form-group input[type="text"],
-.form-group input[type="url"],
-.form-group input[type="email"],
-.form-group textarea {
+.form-group input[type="url"] {
     width: 100%;
     padding: 0.75rem;
     border: 2px solid #e2e8f0;
     border-radius: 6px;
     font-size: 1rem;
-    font-family: inherit;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.form-group textarea {
-    resize: vertical;
-    min-height: 120px;
-}
-
-.form-group input:focus,
-.form-group textarea:focus {
+.form-group input:focus {
     outline: none;
     border-color: #007bff;
     box-shadow: 0 0 0 3px rgba(0,123,255,0.1);

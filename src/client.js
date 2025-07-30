@@ -11,8 +11,6 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (path === '/upload') {
         setupUploadForm();
         loadUploadLimitStatus();
-    } else if (path === '/contact') {
-        setupContactForm();
     }
 });
 
@@ -125,7 +123,7 @@ function setupUploadForm() {
             if (value && value.length > 0) {
                 try {
                     let testUrl = value;
-                    if (!new RegExp('^https?://', 'i').test(testUrl)) {
+                    if (!testUrl.match(/^https?:\\/\\//i)) {
                         testUrl = 'https://' + testUrl;
                     }
                     new URL(testUrl);
@@ -462,7 +460,7 @@ function setupUploadForm() {
             try {
                 // 프로토콜이 없으면 https:// 추가
                 let testUrl = creatorLink;
-                if (!new RegExp('^https?://', 'i').test(testUrl)) {
+                if (!testUrl.match(/^https?:\\/\\//i)) {
                     testUrl = 'https://' + testUrl;
                 }
                 new URL(testUrl); // URL 유효성 검사
@@ -483,7 +481,7 @@ function setupUploadForm() {
         }
         
         // 최종 확인
-        const confirmed = confirm('업로드하시겠습니까?\\n\\n제목: ' + title + '\\n제작자: ' + creator + '\\n이미지 개수: ' + selectedEmoticons.length + '개\\n\\n모든 이미지는 검열을 거칩니다 (1-2분 소요)\\n업로드 후에는 수정할 수 없습니다.');
+        const confirmed = confirm(\`업로드하시겠습니까?\\n\\n제목: \${title}\\n제작자: \${creator}\\n이미지 개수: \${selectedEmoticons.length}개\\n\\n모든 이미지는 검열을 거칩니다 (1-2분 소요)\\n업로드 후에는 수정할 수 없습니다.\`);
         if (!confirmed) {
             return;
         }
@@ -556,12 +554,13 @@ function setupUploadForm() {
         
         const reader = new FileReader();
         reader.onload = function(e) {
-            previewContainer.innerHTML =
-                '<div class="preview-item">' +
-                    '<img src="' + e.target.result + '" class="preview-image" alt="썸네일 미리보기">' +
-                    '<div class="preview-filename">' + selectedThumbnail.name + '</div>' +
-                    '<button type="button" class="preview-remove" data-action="remove-thumbnail">×</button>' +
-                '</div>';
+            previewContainer.innerHTML = \`
+                <div class="preview-item">
+                    <img src="\${e.target.result}" class="preview-image" alt="썸네일 미리보기">
+                    <div class="preview-filename">\${selectedThumbnail.name}</div>
+                    <button type="button" class="preview-remove" data-action="remove-thumbnail">×</button>
+                </div>
+            \`;
             previewContainer.classList.add('has-files');
         };
         reader.readAsDataURL(selectedThumbnail);
@@ -585,10 +584,11 @@ function setupUploadForm() {
             reader.onload = function(e) {
                 const previewItem = document.createElement('div');
                 previewItem.className = 'preview-item';
-                previewItem.innerHTML =
-                    '<img src="' + e.target.result + '" class="preview-image" alt="이모티콘 ' + (index + 1) + '">' +
-                    '<div class="preview-filename">' + file.name + '</div>' +
-                    '<button type="button" class="preview-remove" data-action="remove-emoticon" data-index="' + index + '">×</button>';
+                previewItem.innerHTML = \`
+                    <img src="\${e.target.result}" class="preview-image" alt="이모티콘 \${index + 1}">
+                    <div class="preview-filename">\${file.name}</div>
+                    <button type="button" class="preview-remove" data-action="remove-emoticon" data-index="\${index}">×</button>
+                \`;
                 previewContainer.appendChild(previewItem);
             };
             reader.readAsDataURL(file);
@@ -624,67 +624,59 @@ function setupUploadForm() {
         // 모달 생성
         const modal = document.createElement('div');
         modal.className = 'upload-result-modal';
-
-        let validationHtml = '';
-        if (validationInfo) {
-            let rejectedItemsHtml = '';
-            if (validationInfo.rejected > 0 && validationInfo.rejectedItems) {
-                rejectedItemsHtml =
-                    '<div class="rejected-details">' +
-                        '<h5>거부된 이미지 상세</h5>' +
-                        '<ul class="rejected-list">' +
-                            validationInfo.rejectedItems.map(item => 
-                                '<li><strong>' + item.fileName + ':</strong> ' + item.reason + '</li>'
-                            ).join('') +
-                        '</ul>' +
-                    '</div>';
-            }
-
-            validationHtml =
-                '<div class="validation-summary">' +
-                    '<h4>검열 결과</h4>' +
-                    '<div class="validation-stats">' +
-                        '<div class="stat-item">' +
-                            '<span class="stat-label">제출된 이미지:</span>' +
-                            '<span class="stat-value">' + validationInfo.totalSubmitted + '개</span>' +
-                        '</div>' +
-                        '<div class="stat-item">' +
-                            '<span class="stat-label">승인된 이미지:</span>' +
-                            '<span class="stat-value success">' + validationInfo.approved + '개</span>' +
-                        '</div>' +
-                        '<div class="stat-item">' +
-                            '<span class="stat-label">거부된 이미지:</span>' +
-                            '<span class="stat-value error">' + validationInfo.rejected + '개</span>' +
-                        '</div>' +
-                    '</div>' +
-                    rejectedItemsHtml +
-                '</div>';
-        }
-
-        let footerHtml = '';
-        if (isSuccess && packId) {
-            footerHtml =
-                '<button class="btn btn-primary" onclick="location.href=\'/pack/' + packId + '\'">업로드된 이모티콘 보기</button>' +
-                '<button class="btn btn-secondary" onclick="location.href=\'/\'">홈으로 이동</button>';
-        } else {
-            footerHtml = '<button class="btn btn-primary" onclick="closeUploadModal()">확인</button>';
-        }
-
-        modal.innerHTML =
-            '<div class="modal-backdrop" ' + (isSuccess && packId ? '' : 'onclick="closeUploadModal()"') + '></div>' +
-            '<div class="modal-content">' +
-                '<div class="modal-header ' + (isSuccess ? 'success' : 'error') + '">' +
-                    '<span class="modal-icon"></span>' +
-                    '<h3>업로드 ' + (isSuccess ? '완료' : '실패') + '</h3>' +
-                '</div>' +
-                '<div class="modal-body">' +
-                    '<p class="main-message">' + message + '</p>' +
-                    validationHtml +
-                '</div>' +
-                '<div class="modal-footer">' +
-                    footerHtml +
-                '</div>' +
-            '</div>';
+        modal.innerHTML = \`
+            <div class="modal-backdrop" \${isSuccess && packId ? '' : 'onclick="closeUploadModal()"'}></div>
+            <div class="modal-content">
+                <div class="modal-header \${isSuccess ? 'success' : 'error'}">
+                    <span class="modal-icon"></span>
+                    <h3>업로드 \${isSuccess ? '완료' : '실패'}</h3>
+                </div>
+                
+                <div class="modal-body">
+                    <p class="main-message">\${message}</p>
+                    
+                    \${validationInfo ? \`
+                        <div class="validation-summary">
+                            <h4>검열 결과</h4>
+                            <div class="validation-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">제출된 이미지:</span>
+                                    <span class="stat-value">\${validationInfo.totalSubmitted}개</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">승인된 이미지:</span>
+                                    <span class="stat-value success">\${validationInfo.approved}개</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">거부된 이미지:</span>
+                                    <span class="stat-value error">\${validationInfo.rejected}개</span>
+                                </div>
+                            </div>
+                            
+                            \${validationInfo.rejected > 0 && validationInfo.rejectedItems ? \`
+                                <div class="rejected-details">
+                                    <h5>거부된 이미지 상세</h5>
+                                    <ul class="rejected-list">
+                                        \${validationInfo.rejectedItems.map(item => 
+                                            \`<li><strong>\${item.fileName}:</strong> \${item.reason}</li>\`
+                                        ).join('')}
+                                    </ul>
+                                </div>
+                            \` : ''}
+                        </div>
+                    \` : ''}
+                </div>
+                
+                <div class="modal-footer">
+                    \${isSuccess && packId ? \`
+                        <button class="btn btn-primary" onclick="location.href='/pack/\${packId}'">업로드된 이모티콘 보기</button>
+                        <button class="btn btn-secondary" onclick="location.href='/'">홈으로 이동</button>
+                    \` : \`
+                        <button class="btn btn-primary" onclick="closeUploadModal()">확인</button>
+                    \`}
+                </div>
+            </div>
+        \`;
         
         document.body.appendChild(modal);
         
@@ -741,94 +733,5 @@ async function loadUploadLimitStatus() {
         console.error('업로드 제한 상태 로드 실패:', error);
     }
 }
-
-// 문의하기 폼 설정
-function setupContactForm() {
-    const form = document.getElementById('contact-form');
-    
-    if (!form) return;
-    
-    // 폼 제출 이벤트
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const email = document.getElementById('contact-email').value.trim();
-        const subject = document.getElementById('contact-subject').value.trim();
-        const message = document.getElementById('contact-message').value.trim();
-        
-        // 기본 유효성 검사
-        if (!email || !subject || !message) {
-            alert('모든 필드를 입력해주세요.');
-            return;
-        }
-        
-        if (!isValidEmail(email)) {
-            alert('올바른 이메일 주소를 입력해주세요.');
-            return;
-        }
-        
-        // 최종 확인
-        const confirmed = confirm('문의를 전송하시겠습니까?\\n\\n제목: ' + subject + '\\n이메일: ' + email);
-        if (!confirmed) {
-            return;
-        }
-        
-        // 로딩 상태 설정
-        const submitBtn = form.querySelector('.submit-btn');
-        const submitText = submitBtn.querySelector('.submit-text');
-        const submitLoading = submitBtn.querySelector('.submit-loading');
-        
-        submitBtn.disabled = true;
-        submitText.style.display = 'none';
-        submitLoading.style.display = 'block';
-        submitLoading.textContent = '전송 중...';
-        
-        try {
-            // API 호출
-            const response = await fetch('/api/contact', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email: email,
-                    subject: subject,
-                    message: message
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (response.ok) {
-                alert('문의가 성공적으로 전송되었습니다! 빠른 시일 내에 답변드리겠습니다.');
-                form.reset();
-            } else {
-                alert('문의 전송에 실패했습니다: ' + (result.error || '알 수 없는 오류'));
-            }
-        } catch (error) {
-            console.error('문의 전송 오류:', error);
-            alert('문의 전송 중 오류가 발생했습니다.');
-        } finally {
-            // 로딩 상태 해제
-            submitBtn.disabled = false;
-            submitText.style.display = 'block';
-            submitLoading.style.display = 'none';
-        }
-    });
-}
-
-// 이메일 유효성 검사 함수
-function isValidEmail(email) {
-    const emailPattern = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
-    return emailPattern.test(email);
-}
-
-// 문의 폼 초기화 함수
-window.resetContactForm = function() {
-    const form = document.getElementById('contact-form');
-    if (form && confirm('모든 입력 내용이 초기화됩니다. 계속하시겠습니까?')) {
-        form.reset();
-    }
-};
 
 `; 

@@ -21,7 +21,6 @@ export const HTML_TEMPLATES = {
         <nav>
             <a href="/">홈</a>
             <a href="/upload">업로드</a>
-            <a href="/contact">문의하기</a>
             <a href="/api-docs" class="hidden-nav">API 문서</a>
             <a href="/test-gateway" class="hidden-nav">AI 테스트</a>
         </nav>
@@ -112,41 +111,6 @@ export const HTML_TEMPLATES = {
             <button type="submit" class="submit-btn">
                 <span class="submit-text">업로드</span>
                 <span class="submit-loading" style="display: none;">업로드 중...</span>
-            </button>
-        </div>
-    </form>
-</div>`,
-
-  contact: () => `
-<div class="container">
-    <h2 style="text-align: center;">문의하기</h2>
-    
-    <div class="contact-info">
-        <span class="info-icon"></span>
-        <strong>문의 안내:</strong> 문제가 있는 이모티콘이 있다면 바로 제보해주세요. 빠르게 조치하겠습니다.
-    </div>
-    
-    <form id="contact-form" class="upload-form">
-        <div class="form-group">
-            <label for="contact-email">이메일</label>
-            <input type="email" id="contact-email" name="email" required placeholder="답변을 받을 이메일 주소를 입력하세요">
-        </div>
-        
-        <div class="form-group">
-            <label for="contact-subject">제목</label>
-            <input type="text" id="contact-subject" name="subject" required placeholder="문의 제목을 입력하세요">
-        </div>
-        
-        <div class="form-group">
-            <label for="contact-message">문의 내용</label>
-            <textarea id="contact-message" name="message" required placeholder="문제가 있는 이모티콘이나 기타 문의사항을 자세히 적어주세요" rows="6"></textarea>
-        </div>
-        
-        <div class="form-actions">
-            <button type="button" class="reset-btn" onclick="resetContactForm()">초기화</button>
-            <button type="submit" class="submit-btn">
-                <span class="submit-text">문의하기</span>
-                <span class="submit-loading" style="display: none;">전송 중...</span>
             </button>
         </div>
     </form>
@@ -472,19 +436,12 @@ curl -X POST "https://plakker.bloupla.net/api/upload" \\
             
             <h4>검증 기준</h4>
             <ul>
-                <li><strong>승인:</strong> 일반적인 모든 이미지 (캐릭터, 만화, 사진, 밈, 텍스트, 유머 등)</li>
-                <li><strong>거부:</strong> 정치적인 내용 (현실 정치인의 얼굴, 당파적 정치 상징, 분열을 조장하는 정치적 메시지)</li>
-                <li><strong>거부:</strong> 선정적인 내용 (명백한 성적 표현, 노골적인 노출, 성인 콘텐츠)</li>
-                <li><strong>거부:</strong> 잔인한 내용 (실제 폭력, 피/상해의 상세한 묘사, 죽음의 직접적 표현)</li>
-                <li><strong>거부:</strong> 혐오/차별 내용 (특정 집단에 대한 혐오 표현, 차별을 조장하는 내용)</li>
-                <li><strong>거부:</strong> 불법적인 내용 (마약 사용 장면, 명백한 불법 활동)</li>
-                <li><strong>거부:</strong> 타인 비하/조롱 내용 (개인이나 집단을 조롱하거나 모독하는 내용, 괴롭힘을 조장하는 이미지)
-                    <ul style="margin-top: 5px;">
-                        <li>비꼬거나 따지는 듯한 표현이나 메시지</li>
-                        <li>텍스트로 된 비하, 조롱, 비꼬기, 따지기 등의 내용도 포함</li>
-                        <li>상대방을 깎아내리거나 무시하는 표현</li>
-                    </ul>
-                </li>
+                <li><strong>승인:</strong> 일반적인 모든 이미지 (캐릭터, 만화, 사진, 밈, 텍스트 등)</li>
+                <li><strong>거부:</strong> 정치적인 내용 (정치인, 정치 관련 상징, 정치적 메시지)</li>
+                <li><strong>거부:</strong> 선정적인 내용 (성적 표현, 노출, 성인 콘텐츠)</li>
+                <li><strong>거부:</strong> 잔인한 내용 (폭력, 피, 상해, 죽음 관련)</li>
+                <li><strong>거부:</strong> 혐오 내용 (혐오 표현, 차별적 내용)</li>
+                <li><strong>거부:</strong> 불법적인 내용 (마약, 불법 활동)</li>
             </ul>
             
             <h4>환경 설정 (필수)</h4>
