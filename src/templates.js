@@ -1,8 +1,10 @@
 // HTML 템플릿들
-import { escapeHtml, convertToSafeUnicode } from './utils.js';
+import { escapeHtml, convertToSafeUnicode, generateCacheVersion } from './utils.js';
 
 export const HTML_TEMPLATES = {
-  base: (title, content) => `
+  base: (title, content) => {
+    const cacheVersion = generateCacheVersion();
+    return `
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -10,7 +12,7 @@ export const HTML_TEMPLATES = {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${escapeHtml(convertToSafeUnicode(title || ''))} - Plakker</title>
     <link rel="icon" type="image/png" href="https://i.imgur.com/2MkyDCh.png">
-    <link rel="stylesheet" href="/static/style.css?v=2025012901">
+    <link rel="stylesheet" href="/static/style.css?v=${cacheVersion}">
 </head>
 <body>
     <header class="header">
@@ -28,9 +30,10 @@ export const HTML_TEMPLATES = {
     <main class="main">
         ${content}
     </main>
-    <script src="/static/script.js?v=2025012901"></script>
+    <script src="/static/script.js?v=${cacheVersion}"></script>
 </body>
-</html>`,
+</html>`;
+  },
 
   home: () => `
 <div class="container">

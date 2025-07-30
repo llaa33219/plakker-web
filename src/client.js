@@ -32,7 +32,82 @@ function createButton(text, clickHandler, className = '') {
 
 let currentPage = 1;
 
+// 캐시 무효화 및 버전 관리
+const CACHE_VERSION_KEY = 'plakker_cache_version';
+const CURRENT_VERSION = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, ''); // YYYYMMDDHHMM
+
+function checkCacheVersion() {
+    try {
+        const storedVersion = localStorage.getItem(CACHE_VERSION_KEY);
+        const currentTime = Date.now();
+        const oneHour = 60 * 60 * 1000; // 1시간
+        
+        // 1시간마다 캐시 체크
+        const lastCheck = localStorage.getItem('plakker_last_cache_check');
+        if (lastCheck && (currentTime - parseInt(lastCheck)) < oneHour) {
+            return; // 아직 체크할 시간이 아님
+        }
+        
+        // 버전이 다르거나 처음 방문인 경우
+        if (!storedVersion || storedVersion !== CURRENT_VERSION) {
+            console.log('캐시 버전 업데이트 감지, 캐시 정리 중...');
+            
+            // 서비스 워커 캐시 정리 (있는 경우)
+            if ('serviceWorker' in navigator && 'caches' in window) {
+                caches.keys().then(function(cacheNames) {
+                    return Promise.all(
+                        cacheNames.map(function(cacheName) {
+                            return caches.delete(cacheName);
+                        })
+                    );
+                });
+            }
+            
+            // localStorage 버전 업데이트
+            localStorage.setItem(CACHE_VERSION_KEY, CURRENT_VERSION);
+            localStorage.setItem('plakker_last_cache_check', currentTime.toString());
+            
+            // 페이지 강제 새로고침 (캐시 무시)
+            if (storedVersion && storedVersion !== CURRENT_VERSION) {
+                window.location.reload(true);
+                return;
+            }
+        }
+        
+        // 체크 시간 업데이트
+        localStorage.setItem('plakker_last_cache_check', currentTime.toString());
+        
+    } catch (error) {
+        console.warn('캐시 버전 체크 실패:', error);
+    }
+}
+
+// 개발자 도구용 수동 캐시 클리어 함수
+window.clearPlakkerCache = function() {
+    localStorage.removeItem(CACHE_VERSION_KEY);
+    localStorage.removeItem('plakker_last_cache_check');
+    
+    if ('serviceWorker' in navigator && 'caches' in window) {
+        caches.keys().then(function(cacheNames) {
+            return Promise.all(
+                cacheNames.map(function(cacheName) {
+                    return caches.delete(cacheName);
+                })
+            );
+        }).then(function() {
+            console.log('모든 캐시가 정리되었습니다.');
+            window.location.reload(true);
+        });
+    } else {
+        console.log('캐시가 정리되었습니다.');
+        window.location.reload(true);
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
+    // 캐시 버전 체크 먼저 실행
+    checkCacheVersion();
+    
     const path = window.location.pathname;
     
     if (path === '/') {

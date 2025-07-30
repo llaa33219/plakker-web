@@ -5,6 +5,36 @@ export function generateId() {
     return 'pack_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
+// 캐시 무효화를 위한 버전 생성 함수들
+export function generateCacheVersion() {
+    const now = new Date();
+    const timestamp = now.getTime();
+    const dateString = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const timeString = now.toTimeString().slice(0, 8).replace(/:/g, '');
+    
+    // 날짜 + 시간 + 타임스탬프 마지막 4자리
+    return dateString + timeString + timestamp.toString().slice(-4);
+}
+
+export function generateContentHash(content) {
+    // 간단한 해시 함수 (실제 프로덕션에서는 crypto.subtle.digest 사용 권장)
+    let hash = 0;
+    if (content.length === 0) return hash.toString();
+    
+    for (let i = 0; i < content.length; i++) {
+        const char = content.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // 32비트 정수로 변환
+    }
+    
+    return Math.abs(hash).toString(36);
+}
+
+export function getCacheKey(type = 'static') {
+    const version = generateCacheVersion();
+    return `${type}_${version}`;
+}
+
 // WebP 파일이 애니메이션인지 확인하는 함수
 export function isAnimatedWebP(arrayBuffer) {
     const uint8Array = new Uint8Array(arrayBuffer);
@@ -787,4 +817,37 @@ export async function incrementUploadCount(env, ip) {
         console.error('업로드 카운트 증가 오류:', maskIP(ip), error.message);
         return 0;
     }
+}
+
+// 캐시 관련 HTTP 헤더 생성
+export function getCacheHeaders(maxAge = 3600, mustRevalidate = false) {
+    const headers = new Headers();
+    
+    if (mustRevalidate) {
+        // 즉시 만료, 항상 재검증 필요 (개발/테스트용)
+        headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        headers.set('Pragma', 'no-cache');
+        headers.set('Expires', '0');
+    } else {
+        // 일반 캐시 정책
+        headers.set('Cache-Control', `public, max-age=${maxAge}`);
+        headers.set('ETag', `"${generateCacheVersion()}"`);
+    }
+    
+    // 캐시 무효화를 위한 추가 헤더
+    headers.set('Vary', 'Accept-Encoding');
+    headers.set('Last-Modified', new Date().toUTCString());
+    
+    return headers;
+}
+
+// 정적 리소스용 캐시 무효화 헤더
+export function getStaticResourceHeaders(contentType, isDevelopment = false) {
+    const headers = getCacheHeaders(isDevelopment ? 0 : 86400, isDevelopment); // 개발: 즉시만료, 프로덕션: 1일
+    headers.set('Content-Type', contentType);
+    
+    // 추가 보안 헤더
+    headers.set('X-Content-Type-Options', 'nosniff');
+    
+    return headers;
 } 
