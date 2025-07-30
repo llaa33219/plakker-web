@@ -130,7 +130,7 @@ export async function resizeImage(imageBuffer, width = 150, height = 150) {
     return imageBuffer;
 }
 
-// Hugging Face Qwen VL API 테스트 함수
+// Hugging Face Llama 4 API 테스트 함수
 export async function testLlamaAPI(env) {
     const result = {
         timestamp: new Date().toISOString(),
@@ -153,7 +153,7 @@ export async function testLlamaAPI(env) {
         try {
             const hfToken = env.HF_TOKEN;
             
-            // Hugging Face Qwen VL API 테스트
+            // Hugging Face Llama 4 API 테스트
             const apiUrl = 'https://router.huggingface.co/v1/chat/completions';
             
             result.test = {
@@ -161,7 +161,7 @@ export async function testLlamaAPI(env) {
                 timestamp: new Date().toISOString()
             };
             
-            console.log('Qwen VL API 테스트 시작:', {
+            console.log('Llama 4 API 테스트 시작:', {
                 apiUrl,
                 tokenLength: hfToken.length
             });
@@ -191,7 +191,7 @@ export async function testLlamaAPI(env) {
                 body: responseText
             };
             
-            console.log('Qwen VL API 응답:', {
+            console.log('Llama 4 API 응답:', {
                 status: response.status,
                 statusText: response.statusText,
                 bodyPreview: responseText.substring(0, 200)
@@ -199,7 +199,7 @@ export async function testLlamaAPI(env) {
             
             if (response.ok) {
                 result.test.success = true;
-                result.test.message = '✅ Qwen VL API 연결 성공!';
+                result.test.message = '✅ Llama 4 API 연결 성공!';
             } else {
                 result.test.success = false;
                 
@@ -222,14 +222,14 @@ export async function testLlamaAPI(env) {
             }
             
         } catch (error) {
-            console.error('Qwen VL API 테스트 오류:', error);
+            console.error('Llama 4 API 테스트 오류:', error);
             result.test = {
                 success: false,
                 message: `❌ API 호출 중 네트워크 오류 발생: ${error.message}
-
+                
 **해결 방법:**
 1. 인터넷 연결 확인
-2. Hugging Face API 서비스 상태 확인
+2. Google AI Studio 서비스 상태 확인
 3. 방화벽이나 프록시 설정 확인`,
                 error: error.toString()
             };
@@ -258,7 +258,7 @@ export async function testLlamaAPI(env) {
     </head>
     <body>
         <div class="container">
-            <h1>Qwen VL API 연결 테스트</h1>
+            <h1>Llama 4 API 연결 테스트</h1>
             
             <div class="section">
                 <h2>설정 현황</h2>
@@ -330,7 +330,7 @@ export async function testLlamaAPI(env) {
     });
 }
 
-// Hugging Face Qwen VL API를 통한 이모티콘 검증
+// Hugging Face Llama 4 API를 통한 이모티콘 검증
 export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
     try {
         // 이미지 크기 제한 (20MB)
@@ -374,25 +374,20 @@ export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
             '   - 만화적/게임적 표현은 허용\n' +
             '4. 혐오/차별 내용 (특정 집단에 대한 혐오 표현, 차별을 조장하는 내용)\n' +
             '5. 불법적인 내용 (마약 사용 장면, 명백한 불법 활동)\n' +
-            '6. 타인 비하/조롱/부정적 표현 (상대방에게 불쾌감을 주거나 비하하는 모든 표현)\n' +
-            '   - 비꼬기, 조롱, 무시, 깎아내리기, 따지기, 빈정거리기\n' +
-            '   - 실력이나 능력을 의심하거나 폄하하는 표현\n' +
-            '   - 답답함, 한숨, 혀차기 등 부정적 감정을 드러내는 표현\n' +
-            '   - "ㅉㅉ", "수준", "그건 좀", "맞다고 생각하십니까" 같은 비판적/의심적 표현\n' +
-            '   - 상대를 무능하거나 틀렸다고 암시하는 모든 텍스트나 이미지\n' +
-            '   - 남을 가르치려 들거나 훈계하는 듯한 표현\n' +
-            '   - 불신, 의심, 실망을 표현하는 내용\n' +
-            '   - 상대방을 어리석다고 여기거나 무시하는 표현\n\n' +
+            '6. 타인 비하/조롱 내용 (개인이나 집단을 조롱하거나 모독하는 내용, 괴롭힘을 조장하는 이미지)\n' +
+            '   - 비꼬거나 따지는 듯한 표현이나 메시지\n' +
+            '   - 텍스트로 된 비하, 조롱, 비꼬기, 따지기 등의 내용도 포함\n' +
+            '   - 상대방을 깎아내리거나 무시하는 표현\n\n' +
             '위 기준에 해당하지 않는 모든 이미지는 적절한 것으로 분류해주세요.\n' +
-            '(일반 사진, 음식, 동물, 풍경, 캐릭터, 만화, 순수한 밈, 긍정적 텍스트, 중립적 유머 등은 모두 적절함)\n\n' +
+            '(일반 사진, 음식, 동물, 풍경, 캐릭터, 만화, 밈, 텍스트, 유머 등은 모두 적절함)\n\n' +
             '응답은 반드시 다음 JSON 형식으로만 해주세요:\n' +
             '{"classification": "APPROPRIATE|INAPPROPRIATE", "reason": "분류 이유를 한 줄로"}';
         
-        // Hugging Face Qwen VL API 직접 호출
+        // Hugging Face Llama 4 API 직접 호출
         const apiUrl = 'https://router.huggingface.co/v1/chat/completions';
         
         // 디버깅 로그
-        console.log('Qwen VL API 호출:', {
+        console.log('Llama 4 API 호출:', {
             apiUrl,
             tokenLength: hfToken ? hfToken.length : 0
         });
@@ -404,7 +399,7 @@ export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: "Qwen/Qwen2.5-VL-72B-Instruct:nebius",
+                model: "meta-llama/Llama-4-Scout-17B-16E-Instruct:fireworks-ai",
                 messages: [
                     {
                         role: "user",
@@ -429,7 +424,7 @@ export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Qwen VL API 응답 오류:', {
+            console.error('Llama 4 API 응답 오류:', {
                 status: response.status,
                 statusText: response.statusText,
                 headers: Object.fromEntries(response.headers.entries()),
@@ -495,7 +490,7 @@ export async function validateEmoticonWithLlama(imageBuffer, hfToken, env) {
         }
         
     } catch (error) {
-        console.error('Qwen VL API 검증 오류:', error);
+        console.error('Llama 4 API 검증 오류:', error);
         return { 
             isValid: false, 
             reason: 'AI 검증 중 오류가 발생했습니다',

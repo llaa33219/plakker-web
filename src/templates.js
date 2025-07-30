@@ -468,26 +468,21 @@ curl -X POST "https://plakker.bloupla.net/api/upload" \\
 
         <div class="api-section">
             <h3>이미지 검증 기능 (필수)</h3>
-            <p><strong>모든 업로드 이미지는 Hugging Face Qwen VL AI를 통한 검증을 반드시 통과해야 합니다.</strong> 검증에 실패하거나 오류가 발생하면 업로드가 차단됩니다.</p>
+            <p><strong>모든 업로드 이미지는 Hugging Face Llama 4 AI를 통한 검증을 반드시 통과해야 합니다.</strong> 검증에 실패하거나 오류가 발생하면 업로드가 차단됩니다.</p>
             
             <h4>검증 기준</h4>
             <ul>
-                <li><strong>승인:</strong> 일반적인 모든 이미지 (캐릭터, 만화, 사진, 순수한 밈, 긍정적 텍스트, 중립적 유머 등)</li>
+                <li><strong>승인:</strong> 일반적인 모든 이미지 (캐릭터, 만화, 사진, 밈, 텍스트, 유머 등)</li>
                 <li><strong>거부:</strong> 정치적인 내용 (현실 정치인의 얼굴, 당파적 정치 상징, 분열을 조장하는 정치적 메시지)</li>
                 <li><strong>거부:</strong> 선정적인 내용 (명백한 성적 표현, 노골적인 노출, 성인 콘텐츠)</li>
                 <li><strong>거부:</strong> 잔인한 내용 (실제 폭력, 피/상해의 상세한 묘사, 죽음의 직접적 표현)</li>
                 <li><strong>거부:</strong> 혐오/차별 내용 (특정 집단에 대한 혐오 표현, 차별을 조장하는 내용)</li>
                 <li><strong>거부:</strong> 불법적인 내용 (마약 사용 장면, 명백한 불법 활동)</li>
-                <li><strong>거부:</strong> 타인 비하/조롱/부정적 표현 (상대방에게 불쾌감을 주거나 비하하는 모든 표현)
+                <li><strong>거부:</strong> 타인 비하/조롱 내용 (개인이나 집단을 조롱하거나 모독하는 내용, 괴롭힘을 조장하는 이미지)
                     <ul style="margin-top: 5px;">
-                        <li>비꼬기, 조롱, 무시, 깎아내리기, 따지기, 빈정거리기</li>
-                        <li>실력이나 능력을 의심하거나 폄하하는 표현</li>
-                        <li>답답함, 한숨, 혀차기 등 부정적 감정을 드러내는 표현</li>
-                        <li>비판적이거나 의심스러운 표현들</li>
-                        <li>상대를 무능하거나 틀렸다고 암시하는 텍스트나 이미지</li>
-                        <li>남을 가르치려 들거나 훈계하는 듯한 표현</li>
-                        <li>불신, 의심, 실망을 표현하는 내용</li>
-                        <li>상대방을 어리석다고 여기거나 무시하는 표현</li>
+                        <li>비꼬거나 따지는 듯한 표현이나 메시지</li>
+                        <li>텍스트로 된 비하, 조롱, 비꼬기, 따지기 등의 내용도 포함</li>
+                        <li>상대방을 깎아내리거나 무시하는 표현</li>
                     </ul>
                 </li>
             </ul>
@@ -511,7 +506,7 @@ curl -X POST "https://plakker.bloupla.net/api/upload" \\
 wrangler secret put HF_TOKEN</pre>
             
             <div class="api-info">
-                <p><strong>중요:</strong> Hugging Face Qwen VL API를 사용하여 업로드된 이미지의 부적절한 콘텐츠를 검증합니다. 토큰이 올바르지 않으면 업로드가 차단됩니다.</p>
+                <p><strong>중요:</strong> Hugging Face Llama 4 API를 사용하여 업로드된 이미지의 부적절한 콘텐츠를 검증합니다. 토큰이 올바르지 않으면 업로드가 차단됩니다.</p>
             </div>
         </div>
 
