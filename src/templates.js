@@ -88,7 +88,7 @@ export const HTML_TEMPLATES = {
                     <span class="plus-icon">+</span>
                     썸네일 선택
                 </button>
-                <div class="file-info">이모티콘을 대표할 썸네일 이미지를 선택하세요 (PNG, JPG, JPEG, WebP, GIF). GIF는 5MB 이하, 200x200 이하만 가능하며 애니메이션이 보존됩니다.</div>
+                <div class="file-info">이모티콘을 대표할 썸네일 이미지를 선택하세요 (PNG, JPG, JPEG, WebP, GIF). GIF는 1MB 이하만 업로드 가능합니다.</div>
             </div>
             <div id="thumbnail-preview" class="file-preview"></div>
         </div>
@@ -101,7 +101,7 @@ export const HTML_TEMPLATES = {
                     <span class="plus-icon">+</span>
                     이미지 추가
                 </button>
-                <div class="file-info">최소 3개의 이미지를 선택하세요 (PNG, JPG, JPEG, WebP, GIF). PNG/JPG/JPEG/WebP는 150x150으로 리사이즈되고, GIF는 5MB 이하, 200x200 이하일 때만 원본 크기로 업로드됩니다.</div>
+                <div class="file-info">최소 3개의 이미지를 선택하세요 (PNG, JPG, JPEG, WebP, GIF). GIF는 1MB 이하만 업로드 가능합니다.</div>
             </div>
             <div id="emoticon-preview" class="file-preview"></div>
         </div>

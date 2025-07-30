@@ -152,9 +152,9 @@ function setupUploadForm() {
     }
     
     // GIF 파일 검증 함수
-    function validateGifFile(file, maxWidth = 200, maxHeight = 200, maxSize = 5 * 1024 * 1024) {
+    function validateGifFile(file, maxWidth = 200, maxHeight = 200, maxSize = 1 * 1024 * 1024) {
         return new Promise((resolve, reject) => {
-            // 파일 크기 체크 (5MB)
+            // 파일 크기 체크 (1MB)
             if (file.size > maxSize) {
                 reject('GIF 파일 크기가 ' + Math.round(maxSize / (1024 * 1024)) + 'MB를 초과합니다. (현재: ' + Math.round(file.size / (1024 * 1024) * 100) / 100 + 'MB)');
                 return;
