@@ -268,18 +268,7 @@ button:disabled {
     font-size: 1.1rem;
 }
 
-.form-group input[type="text"],
-.form-group input[type="url"],
-.form-group input[type="email"],
-.form-group input[type="password"],
-.form-group input[type="search"],
-.form-group input[type="tel"],
-.form-group input[type="number"],
-.form-group input[type="date"],
-.form-group input[type="datetime-local"],
-.form-group input[type="time"],
-.form-group input[type="week"],
-.form-group input[type="month"] {
+.form-group input {
     width: 100%;
     padding: 0.75rem;
     border: 2px solid #e2e8f0;
