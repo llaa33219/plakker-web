@@ -34,7 +34,7 @@ let currentPage = 1;
 
 // 캐시 무효화 및 버전 관리
 const CACHE_VERSION_KEY = 'plakker_cache_version';
-const CURRENT_VERSION = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, ''); // YYYYMMDDHHMM
+const CURRENT_VERSION = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '') + '_fix'; // YYYYMMDDHHMM + 수정버전
 
 function checkCacheVersion() {
     try {
@@ -195,31 +195,7 @@ function setupUploadForm() {
     const thumbnailInput = document.getElementById('thumbnail-input');
     const emoticonsInput = document.getElementById('emoticons-input');
     
-    // 실시간 입력 검증 설정
-    const titleInput = document.getElementById('title');
-    const creatorInput = document.getElementById('creator');
-    const creatorLinkInput = document.getElementById('creator-link');
-    
-    // 실시간 검증 함수 - 시각적 피드백만 (에러는 표시하지 않음)
-    function setupRealTimeValidation(input, fieldName, maxLength) {
-        let timeoutId;
-        input.addEventListener('input', function() {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => {
-                const value = input.value.trim();
-                if (value.length > maxLength) {
-                    // 길이 초과 시에만 약간의 시각적 피드백 (에러 메시지 없음)
-                    input.style.borderColor = '#ffaa00';
-                    input.title = fieldName + ' 글자 수: ' + value.length + '/' + maxLength;
-                } else {
-                    input.style.borderColor = '';
-                    input.title = '';
-                }
-            }, 300);
-        });
-    }
-    
-    // URL 유효성 검증 함수 - 서버와 동일한 로직 (함수를 먼저 정의)
+    // URL 유효성 검증 함수 - 서버와 동일한 로직 (맨 앞에 정의)
     function isValidCreatorUrl(url) {
         if (!url || url.trim().length === 0) return true; // 빈 값은 허용 (선택사항)
         
@@ -268,6 +244,30 @@ function setupUploadForm() {
             const basicUrlPattern = /^https?:\\/\\/[a-zA-Z0-9-._~:/?#[\\]@!$&'()*+,;=%]+\\.[a-zA-Z]{2,}[a-zA-Z0-9-._~:/?#[\\]@!$&'()*+,;=%]*$/i;
             return basicUrlPattern.test(url);
         }
+    }
+
+    // 실시간 입력 검증 설정
+    const titleInput = document.getElementById('title');
+    const creatorInput = document.getElementById('creator');
+    const creatorLinkInput = document.getElementById('creator-link');
+    
+    // 실시간 검증 함수 - 시각적 피드백만 (에러는 표시하지 않음)
+    function setupRealTimeValidation(input, fieldName, maxLength) {
+        let timeoutId;
+        input.addEventListener('input', function() {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                const value = input.value.trim();
+                if (value.length > maxLength) {
+                    // 길이 초과 시에만 약간의 시각적 피드백 (에러 메시지 없음)
+                    input.style.borderColor = '#ffaa00';
+                    input.title = fieldName + ' 글자 수: ' + value.length + '/' + maxLength;
+                } else {
+                    input.style.borderColor = '';
+                    input.title = '';
+                }
+            }, 300);
+        });
     }
     
     // 각 입력 필드에 실시간 검증 적용 (완전히 자유로운 입력 허용)
