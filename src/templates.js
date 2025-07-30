@@ -190,8 +190,18 @@ export const HTML_TEMPLATES = {
             <div class="admin-header">
                 <h1>관리자 패널</h1>
                 <div class="admin-auth" id="admin-auth">
-                    <input type="password" id="admin-password" placeholder="관리자 비밀번호" />
-                    <button onclick="adminLogin()">로그인</button>
+                    <div class="security-notice">
+                        <p><strong>보안 알림:</strong> 관리자 계정에는 강화된 보안이 적용됩니다.</p>
+                        <ul>
+                            <li>5회 실패 시 30분간 로그인 차단</li>
+                            <li>세션은 1시간 후 자동 만료</li>
+                            <li>모든 활동이 로그로 기록됩니다</li>
+                        </ul>
+                    </div>
+                    <div class="login-form">
+                        <input type="password" id="admin-password" placeholder="관리자 비밀번호" />
+                        <button class="login-btn" onclick="adminLogin()">로그인</button>
+                    </div>
                 </div>
                 <div class="admin-controls" id="admin-controls" style="display: none;">
                     <button onclick="loadPendingPacks()">대기 목록 새로고침</button>
@@ -208,7 +218,7 @@ export const HTML_TEMPLATES = {
                 </div>
                 
                 <div class="pending-packs" id="pending-packs">
-                    <div class="loading">대기 중인 팩을 불러오는 중...</div>
+                    <!-- 초기 상태에서는 빈 상태로 시작 -->
                 </div>
             </div>
             

@@ -851,3 +851,182 @@ export function getStaticResourceHeaders(contentType, isDevelopment = false) {
     
     return headers;
 } 
+
+// 보안 관련 함수들
+
+// 간단한 Base64URL 인코딩/디코딩 (JWT용)
+function base64UrlEncode(str) {
+    return btoa(str)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
+
+function base64UrlDecode(str) {
+    str += '==='.slice((str.length + 3) % 4);
+    str = str.replace(/-/g, '+').replace(/_/g, '/');
+    return atob(str);
+}
+
+// 간단한 HMAC-SHA256 구현 (Web Crypto API 대체)
+async function simpleHmac(key, message) {
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(key);
+    const messageData = encoder.encode(message);
+    
+    try {
+        const cryptoKey = await crypto.subtle.importKey(
+            'raw',
+            keyData,
+            { name: 'HMAC', hash: 'SHA-256' },
+            false,
+            ['sign']
+        );
+        
+        const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+        return new Uint8Array(signature);
+    } catch (error) {
+        // Fallback: 간단한 해시 (완벽하지 않지만 기본 보안 제공)
+        console.warn('Web Crypto API 사용 불가, fallback 해시 사용');
+        let hash = 0;
+        const fullMessage = key + message;
+        for (let i = 0; i < fullMessage.length; i++) {
+            const char = fullMessage.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return new Uint8Array([Math.abs(hash) & 0xff, (Math.abs(hash) >> 8) & 0xff]);
+    }
+}
+
+// JWT 토큰 생성
+export async function createJWT(payload, secret, expiresInSeconds = 3600) {
+    const header = {
+        typ: 'JWT',
+        alg: 'HS256'
+    };
+    
+    const now = Math.floor(Date.now() / 1000);
+    const fullPayload = {
+        ...payload,
+        iat: now,
+        exp: now + expiresInSeconds
+    };
+    
+    const encodedHeader = base64UrlEncode(JSON.stringify(header));
+    const encodedPayload = base64UrlEncode(JSON.stringify(fullPayload));
+    
+    const message = `${encodedHeader}.${encodedPayload}`;
+    const signature = await simpleHmac(secret, message);
+    
+    // 시그니처를 base64url로 인코딩
+    const signatureBase64 = base64UrlEncode(String.fromCharCode(...signature));
+    
+    return `${message}.${signatureBase64}`;
+}
+
+// JWT 토큰 검증
+export async function verifyJWT(token, secret) {
+    try {
+        const parts = token.split('.');
+        if (parts.length !== 3) {
+            return { valid: false, error: 'Invalid token format' };
+        }
+        
+        const [encodedHeader, encodedPayload, encodedSignature] = parts;
+        
+        // 시그니처 검증
+        const message = `${encodedHeader}.${encodedPayload}`;
+        const expectedSignature = await simpleHmac(secret, message);
+        const expectedSignatureBase64 = base64UrlEncode(String.fromCharCode(...expectedSignature));
+        
+        if (encodedSignature !== expectedSignatureBase64) {
+            return { valid: false, error: 'Invalid signature' };
+        }
+        
+        // 페이로드 디코딩
+        const payload = JSON.parse(base64UrlDecode(encodedPayload));
+        
+        // 만료 시간 검증
+        const now = Math.floor(Date.now() / 1000);
+        if (payload.exp && payload.exp < now) {
+            return { valid: false, error: 'Token expired' };
+        }
+        
+        return { valid: true, payload };
+    } catch (error) {
+        return { valid: false, error: 'Token validation failed' };
+    }
+}
+
+// 비밀번호 해싱 (간단한 구현)
+export async function hashPassword(password, salt = null) {
+    if (!salt) {
+        salt = crypto.getRandomValues(new Uint8Array(16));
+    }
+    
+    try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password + Array.from(salt).join(''));
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = new Uint8Array(hashBuffer);
+        
+        return {
+            hash: Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join(''),
+            salt: Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('')
+        };
+    } catch (error) {
+        // Fallback 해시
+        console.warn('Web Crypto API 사용 불가, fallback 해시 사용');
+        let hash = 0;
+        const fullPassword = password + (salt ? Array.from(salt).join('') : '');
+        for (let i = 0; i < fullPassword.length; i++) {
+            const char = fullPassword.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return {
+            hash: Math.abs(hash).toString(16),
+            salt: salt ? Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('') : ''
+        };
+    }
+}
+
+// 비밀번호 검증
+export async function verifyPassword(password, storedHash, storedSalt) {
+    try {
+        const saltBytes = new Uint8Array(storedSalt.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+        const { hash } = await hashPassword(password, saltBytes);
+        return hash === storedHash;
+    } catch (error) {
+        console.error('Password verification failed:', error);
+        return false;
+    }
+}
+
+// IP 주소 유효성 검증
+export function isValidIP(ip) {
+    if (!ip || typeof ip !== 'string') return false;
+    
+    // IPv4 검증
+    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    if (ipv4Regex.test(ip)) return true;
+    
+    // IPv6 간단 검증
+    const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
+    if (ipv6Regex.test(ip)) return true;
+    
+    return false;
+}
+
+// 안전한 세션 ID 생성
+export function generateSecureSessionId() {
+    try {
+        const array = new Uint8Array(32);
+        crypto.getRandomValues(array);
+        return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    } catch (error) {
+        // Fallback
+        return generateId() + '_' + Date.now() + '_' + Math.random().toString(36);
+    }
+} 
