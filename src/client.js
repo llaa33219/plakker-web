@@ -483,7 +483,7 @@ function setupUploadForm() {
         }
         
         // 최종 확인
-        const confirmed = confirm(\`업로드하시겠습니까?\\n\\n제목: \${title}\\n제작자: \${creator}\\n이미지 개수: \${selectedEmoticons.length}개\\n\\n모든 이미지는 검열을 거칩니다 (1-2분 소요)\\n업로드 후에는 수정할 수 없습니다.\`);
+        const confirmed = confirm('업로드하시겠습니까?\\n\\n제목: ' + title + '\\n제작자: ' + creator + '\\n이미지 개수: ' + selectedEmoticons.length + '개\\n\\n모든 이미지는 검열을 거칩니다 (1-2분 소요)\\n업로드 후에는 수정할 수 없습니다.');
         if (!confirmed) {
             return;
         }
@@ -746,13 +746,12 @@ function setupContactForm() {
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        const name = document.getElementById('contact-name').value.trim();
         const email = document.getElementById('contact-email').value.trim();
         const subject = document.getElementById('contact-subject').value.trim();
         const message = document.getElementById('contact-message').value.trim();
         
         // 기본 유효성 검사
-        if (!name || !email || !subject || !message) {
+        if (!email || !subject || !message) {
             alert('모든 필드를 입력해주세요.');
             return;
         }
@@ -763,7 +762,7 @@ function setupContactForm() {
         }
         
         // 최종 확인
-        const confirmed = confirm(\`문의를 전송하시겠습니까?\\n\\n제목: \${subject}\\n이름: \${name}\\n이메일: \${email}\`);
+        const confirmed = confirm('문의를 전송하시겠습니까?\n\n제목: ' + subject + '\n이메일: ' + email);
         if (!confirmed) {
             return;
         }
@@ -786,7 +785,6 @@ function setupContactForm() {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    name: name,
                     email: email,
                     subject: subject,
                     message: message

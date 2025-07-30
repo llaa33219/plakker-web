@@ -123,15 +123,10 @@ export const HTML_TEMPLATES = {
     
     <div class="contact-info">
         <span class="info-icon"></span>
-        <strong>문의 안내:</strong> 궁금한 점이나 의견이 있으시면 언제든지 문의해주세요. 빠른 시일 내에 답변드리겠습니다.
+        <strong>문의 안내:</strong> 문제가 있는 이모티콘이 있다면 바로 제보해주세요. 빠르게 조치하겠습니다.
     </div>
     
     <form id="contact-form" class="upload-form">
-        <div class="form-group">
-            <label for="contact-name">이름</label>
-            <input type="text" id="contact-name" name="name" required placeholder="이름을 입력하세요">
-        </div>
-        
         <div class="form-group">
             <label for="contact-email">이메일</label>
             <input type="email" id="contact-email" name="email" required placeholder="답변을 받을 이메일 주소를 입력하세요">
@@ -144,7 +139,7 @@ export const HTML_TEMPLATES = {
         
         <div class="form-group">
             <label for="contact-message">문의 내용</label>
-            <textarea id="contact-message" name="message" required placeholder="궁금한 점이나 의견을 자세히 적어주세요" rows="6"></textarea>
+            <textarea id="contact-message" name="message" required placeholder="문제가 있는 이모티콘이나 기타 문의사항을 자세히 적어주세요" rows="6"></textarea>
         </div>
         
         <div class="form-actions">

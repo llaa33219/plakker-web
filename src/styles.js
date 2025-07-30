@@ -269,7 +269,8 @@ button:disabled {
 }
 
 .form-group input[type="text"],
-.form-group input[type="url"] {
+.form-group input[type="url"],
+.form-group input[type="email"] {
     width: 100%;
     padding: 0.75rem;
     border: 2px solid #e2e8f0;

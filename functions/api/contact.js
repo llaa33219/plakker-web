@@ -9,10 +9,10 @@ export async function onRequest(context) {
 async function handleContactSubmission(request, env) {
     try {
         const formData = await request.json();
-        const { name, email, subject, message } = formData;
+        const { email, subject, message } = formData;
         
         // 입력 유효성 검사
-        if (!name || !email || !subject || !message) {
+        if (!email || !subject || !message) {
             return new Response(JSON.stringify({ 
                 error: '모든 필드를 입력해주세요.' 
             }), { 
@@ -33,7 +33,6 @@ async function handleContactSubmission(request, env) {
         }
         
         // 텍스트 입력 정리 (기본적인 정리만)
-        const cleanName = name.trim().substring(0, 100);
         const cleanEmail = email.trim().substring(0, 200);
         const cleanSubject = subject.trim().substring(0, 200);
         const cleanMessage = message.trim().substring(0, 2000);
@@ -73,17 +72,16 @@ async function handleContactSubmission(request, env) {
                     value: [
                         '<h2>새로운 문의가 접수되었습니다</h2>',
                         '<hr>',
-                        '<p><strong>보낸 사람:</strong> ' + cleanName + '</p>',
-                        '<p><strong>이메일:</strong> ' + cleanEmail + '</p>',
-                        '<p><strong>제목:</strong> ' + cleanSubject + '</p>',
+                        '<p><strong>이메일:</strong> ' + escapeHtml(cleanEmail) + '</p>',
+                        '<p><strong>제목:</strong> ' + escapeHtml(cleanSubject) + '</p>',
                         '<p><strong>접수 시간:</strong> ' + timestamp + '</p>',
                         '<hr>',
                         '<h3>문의 내용:</h3>',
-                        '<div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; white-space: pre-wrap;">' + cleanMessage + '</div>',
+                        '<div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; white-space: pre-wrap;">' + escapeHtml(cleanMessage) + '</div>',
                         '<hr>',
                         '<p style="color: #666; font-size: 12px;">',
                         '이 메일은 Plakker 문의 시스템에서 자동으로 발송되었습니다.<br>',
-                        '답변은 위 이메일 주소(' + cleanEmail + ')로 직접 보내주세요.',
+                        '답변은 위 이메일 주소(' + escapeHtml(cleanEmail) + ')로 직접 보내주세요.',
                         '</p>'
                     ].join('')
                 }
