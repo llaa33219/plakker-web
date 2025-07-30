@@ -121,23 +121,70 @@ function setupUploadForm() {
         creatorLinkInput.addEventListener('blur', function() {
             const value = this.value.trim();
             if (value && value.length > 0) {
-                try {
-                    let testUrl = value;
-                    if (!testUrl.match(/^https?:\\/\//i)) {
-                        testUrl = 'https://' + testUrl;
-                    }
-                    new URL(testUrl);
+                // 개선된 URL 검증 로직
+                if (isValidCreatorUrl(value)) {
                     this.style.borderColor = '';
                     this.title = '';
-                } catch (error) {
+                } else {
                     this.style.borderColor = '#ff4444';
-                    this.title = '유효한 URL 형식이 아닙니다.';
+                    this.title = '유효한 웹사이트 URL을 입력해주세요. (예: example.com, https://example.com)';
                 }
             } else {
                 this.style.borderColor = '';
                 this.title = '';
             }
         });
+    }
+    
+    // URL 유효성 검증 함수 - 서버와 동일한 로직
+    function isValidCreatorUrl(url) {
+        if (!url || url.trim().length === 0) return true; // 빈 값은 허용 (선택사항)
+        
+        url = url.trim();
+        
+        // http:// 또는 https://로 시작하지 않으면 https:// 추가
+        if (!url.match(/^https?:\\/\//i)) {
+            url = 'https://' + url;
+        }
+        
+        try {
+            const urlObj = new URL(url);
+            
+            // 허용된 프로토콜만 허용
+            if (!['http:', 'https:'].includes(urlObj.protocol)) {
+                return false;
+            }
+            
+            // 기본적인 도메인 검증
+            const hostname = urlObj.hostname;
+            if (!hostname || hostname.length === 0) {
+                return false;
+            }
+            
+            // 도메인이 최소한의 형식을 갖추고 있는지 확인
+            if (!hostname.includes('.') || hostname.startsWith('.') || hostname.endsWith('.')) {
+                return false;
+            }
+            
+            // 악의적인 프로토콜 차단
+            const fullUrl = urlObj.href.toLowerCase();
+            const dangerousPatterns = [
+                'javascript:', 'data:', 'file:', 'ftp:', 'ftps:',
+                'vbscript:', 'about:', 'chrome:', 'chrome-extension:'
+            ];
+            
+            for (const pattern of dangerousPatterns) {
+                if (fullUrl.startsWith(pattern)) {
+                    return false;
+                }
+            }
+            
+            return true;
+        } catch (error) {
+            // URL 파싱에 실패한 경우, 기본적인 형식 검증만 수행
+            const basicUrlPattern = /^https?:\\/\\/[a-zA-Z0-9-._~:/?#[\\]@!$&'()*+,;=%]+\\.[a-zA-Z]{2,}[a-zA-Z0-9-._~:/?#[\\]@!$&'()*+,;=%]*$/i;
+            return basicUrlPattern.test(url);
+        }
     }
     
     let selectedThumbnail = null;
@@ -455,17 +502,10 @@ function setupUploadForm() {
             return;
         }
         
-        // URL 유효성 검사 (선택사항)
+        // URL 유효성 검사 (선택사항) - 개선된 검증
         if (creatorLink && creatorLink.length > 0) {
-            try {
-                // 프로토콜이 없으면 https:// 추가
-                let testUrl = creatorLink;
-                if (!testUrl.match(/^https?:\\/\//i)) {
-                    testUrl = 'https://' + testUrl;
-                }
-                new URL(testUrl); // URL 유효성 검사
-            } catch (error) {
-                alert('제작자 링크가 유효한 URL 형식이 아닙니다.');
+            if (!isValidCreatorUrl(creatorLink)) {
+                alert('제작자 링크가 유효한 웹사이트 URL 형식이 아닙니다.\n예시: example.com, https://example.com, https://github.com/username');
                 return;
             }
         }

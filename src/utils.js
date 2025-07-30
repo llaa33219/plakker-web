@@ -98,7 +98,7 @@ export function sanitizeTextInput(text, maxLength = 100) {
     return text.trim();
 }
 
-// URL 검증 함수
+// URL 검증 함수 - 개선된 버전
 export function sanitizeUrl(url) {
     if (typeof url !== 'string') return '';
     
@@ -118,8 +118,45 @@ export function sanitizeUrl(url) {
         if (!['http:', 'https:'].includes(urlObj.protocol)) {
             return '';
         }
+        
+        // 기본적인 도메인 검증 - 점이 포함되어 있고 유효한 문자만 포함
+        const hostname = urlObj.hostname;
+        if (!hostname || hostname.length === 0) {
+            return '';
+        }
+        
+        // 도메인이 최소한의 형식을 갖추고 있는지 확인 (예: example.com)
+        // 너무 엄격하지 않게 기본적인 패턴만 확인
+        if (!hostname.includes('.') || hostname.startsWith('.') || hostname.endsWith('.')) {
+            return '';
+        }
+        
+        // 악의적인 프로토콜이나 스크립트 패턴 차단
+        const fullUrl = urlObj.href.toLowerCase();
+        const dangerousPatterns = [
+            'javascript:', 'data:', 'file:', 'ftp:', 'ftps:',
+            'vbscript:', 'about:', 'chrome:', 'chrome-extension:'
+        ];
+        
+        for (const pattern of dangerousPatterns) {
+            if (fullUrl.startsWith(pattern)) {
+                return '';
+            }
+        }
+        
         return urlObj.href;
     } catch (error) {
+        // URL 파싱에 실패한 경우, 기본적인 형식 검증만 수행
+        // 완전히 거부하지 말고 기본적인 웹 URL 패턴인지 확인
+        
+        // 기본적인 웹 URL 패턴 검증 (더 관대함)
+        // 도메인.확장자 형태의 기본 패턴
+        const basicUrlPattern = /^https?:\/\/[a-zA-Z0-9-._~:/?#[\]@!$&'()*+,;=%]+\.[a-zA-Z]{2,}[a-zA-Z0-9-._~:/?#[\]@!$&'()*+,;=%]*$/i;
+        
+        if (basicUrlPattern.test(url)) {
+            return url;
+        }
+        
         return '';
     }
 }
