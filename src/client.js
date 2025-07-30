@@ -1,5 +1,35 @@
 // JavaScript 클라이언트 코드 (템플릿 리터럴을 일반 문자열로 변경)
 export const JS_CLIENT = `
+// HTML 문자열 생성 유틸리티 함수들 (따옴표 충돌 방지)
+function createHTMLElement(tag, attributes = {}, content = '') {
+    const attrs = Object.entries(attributes)
+        .map(([key, value]) => key + '="' + String(value).replace(/"/g, '&quot;') + '"')
+        .join(' ');
+    
+    if (content) {
+        return '<' + tag + (attrs ? ' ' + attrs : '') + '>' + content + '</' + tag + '>';
+    } else {
+        return '<' + tag + (attrs ? ' ' + attrs : '') + '/>';
+    }
+}
+
+function escapeHTML(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function createButton(text, clickHandler, className = '') {
+    const btn = document.createElement('button');
+    btn.textContent = text;
+    btn.className = className;
+    if (clickHandler) btn.onclick = clickHandler;
+    return btn;
+}
+
 let currentPage = 1;
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -505,7 +535,7 @@ function setupUploadForm() {
         // URL 유효성 검사 (선택사항) - 개선된 검증
         if (creatorLink && creatorLink.length > 0) {
             if (!isValidCreatorUrl(creatorLink)) {
-                alert('제작자 링크가 유효한 웹사이트 URL 형식이 아닙니다.\n예시: example.com, https://example.com, https://github.com/username');
+                alert('제작자 링크가 유효한 웹사이트 URL 형식이 아닙니다.\\n예시: example.com, https://example.com, https://github.com/username');
                 return;
             }
         }
@@ -594,12 +624,20 @@ function setupUploadForm() {
         
         const reader = new FileReader();
         reader.onload = function(e) {
-            previewContainer.innerHTML = 
-                '<div class="preview-item">' +
-                    '<img src="' + e.target.result + '" class="preview-image" alt="썸네일 미리보기">' +
-                    '<div class="preview-filename">' + selectedThumbnail.name + '</div>' +
-                    '<button type="button" class="preview-remove" data-action="remove-thumbnail">×</button>' +
-                '</div>';
+            const previewItem = createHTMLElement('div', { class: 'preview-item' }, 
+                createHTMLElement('img', { 
+                    src: e.target.result, 
+                    class: 'preview-image', 
+                    alt: '썸네일 미리보기' 
+                }) +
+                createHTMLElement('div', { class: 'preview-filename' }, escapeHTML(selectedThumbnail.name)) +
+                createHTMLElement('button', { 
+                    type: 'button', 
+                    class: 'preview-remove', 
+                    'data-action': 'remove-thumbnail' 
+                }, '×')
+            );
+            previewContainer.innerHTML = previewItem;
             previewContainer.classList.add('has-files');
         };
         reader.readAsDataURL(selectedThumbnail);
@@ -623,10 +661,18 @@ function setupUploadForm() {
             reader.onload = function(e) {
                 const previewItem = document.createElement('div');
                 previewItem.className = 'preview-item';
-                previewItem.innerHTML = 
-                    '<img src="' + e.target.result + '" class="preview-image" alt="이모티콘 ' + (index + 1) + '">' +
-                    '<div class="preview-filename">' + file.name + '</div>' +
-                    '<button type="button" class="preview-remove" data-action="remove-emoticon" data-index="' + index + '">×</button>';
+                previewItem.innerHTML = createHTMLElement('img', { 
+                        src: e.target.result, 
+                        class: 'preview-image', 
+                        alt: '이모티콘 ' + (index + 1) 
+                    }) +
+                    createHTMLElement('div', { class: 'preview-filename' }, escapeHTML(file.name)) +
+                    createHTMLElement('button', { 
+                        type: 'button', 
+                        class: 'preview-remove', 
+                        'data-action': 'remove-emoticon', 
+                        'data-index': index 
+                    }, '×');
                 previewContainer.appendChild(previewItem);
             };
             reader.readAsDataURL(file);
@@ -709,10 +755,19 @@ function setupUploadForm() {
             '<div class="modal-footer">';
         
         if (isSuccess && packId) {
-            modalHTML += '<button class="btn btn-primary" onclick="location.href=\'/pack/\' + packId">업로드된 이모티콘 보기</button>' +
-                '<button class="btn btn-secondary" onclick="location.href=\'/\'">홈으로 이동</button>';
+            modalHTML += createHTMLElement('button', { 
+                    class: 'btn btn-primary', 
+                    onclick: 'location.href=\\'/pack/' + packId + '\\'' 
+                }, '업로드된 이모티콘 보기') +
+                createHTMLElement('button', { 
+                    class: 'btn btn-secondary', 
+                    onclick: 'location.href=\\'/\\'' 
+                }, '홈으로 이동');
         } else {
-            modalHTML += '<button class="btn btn-primary" onclick="closeUploadModal()">확인</button>';
+            modalHTML += createHTMLElement('button', { 
+                class: 'btn btn-primary', 
+                onclick: 'closeUploadModal()' 
+            }, '확인');
         }
         
         modalHTML += '</div></div>';
