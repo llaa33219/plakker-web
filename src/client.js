@@ -116,6 +116,226 @@ window.clearPlakkerCache = function() {
     }
 };
 
+// 관리자 기능들
+let adminToken = null;
+
+// 관리자 로그인
+window.adminLogin = async function() {
+    const password = document.getElementById('admin-password').value;
+    if (!password) {
+        alert('비밀번호를 입력해주세요.');
+        return;
+    }
+    
+    adminToken = password;
+    document.getElementById('admin-auth').style.display = 'none';
+    document.getElementById('admin-controls').style.display = 'block';
+    document.getElementById('admin-content').style.display = 'block';
+    
+    await loadPendingPacks();
+};
+
+// 관리자 로그아웃
+window.adminLogout = function() {
+    adminToken = null;
+    document.getElementById('admin-auth').style.display = 'block';
+    document.getElementById('admin-controls').style.display = 'none';
+    document.getElementById('admin-content').style.display = 'none';
+    document.getElementById('admin-password').value = '';
+};
+
+// 대기 중인 팩 로드
+window.loadPendingPacks = async function() {
+    if (!adminToken) {
+        alert('로그인이 필요합니다.');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/admin/pending-packs', {
+            headers: {
+                'Authorization': \`Bearer \${adminToken}\`
+            }
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                alert('잘못된 비밀번호입니다.');
+                adminLogout();
+                return;
+            }
+            throw new Error('API 호출 실패');
+        }
+        
+        const data = await response.json();
+        displayPendingPacks(data.packs);
+        document.getElementById('pending-count').textContent = data.total;
+        
+    } catch (error) {
+        console.error('대기 팩 로드 실패:', error);
+        alert('대기 중인 팩을 불러오는데 실패했습니다.');
+    }
+};
+
+// 대기 중인 팩들 표시
+function displayPendingPacks(packs) {
+    const container = document.getElementById('pending-packs');
+    
+    if (!packs || packs.length === 0) {
+        container.innerHTML = '<div class="no-packs">대기 중인 팩이 없습니다.</div>';
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    packs.forEach(pack => {
+        const packDiv = document.createElement('div');
+        packDiv.className = 'pending-pack-item';
+        packDiv.innerHTML = \`
+            <div class="pack-thumbnail">
+                <img src="\${pack.thumbnail}" alt="\${pack.title}" />
+            </div>
+            <div class="pack-info">
+                <h3>\${pack.title}</h3>
+                <p>제작자: \${pack.creator}</p>
+                <p>이모티콘 개수: \${pack.totalEmoticons}개</p>
+                <p>업로드: \${new Date(pack.createdAt).toLocaleDateString('ko-KR')}</p>
+            </div>
+            <div class="pack-actions">
+                <button class="btn btn-primary" onclick="viewPackDetails('\${pack.id}')">상세보기</button>
+                <button class="btn btn-success" onclick="approvePack('\${pack.id}')">승인</button>
+                <button class="btn btn-danger" onclick="rejectPack('\${pack.id}')">거부</button>
+            </div>
+        \`;
+        container.appendChild(packDiv);
+    });
+}
+
+// 팩 상세보기
+window.viewPackDetails = async function(packId) {
+    try {
+        // 대기 중인 팩의 상세 정보를 가져오기 위해 KV에서 직접 조회
+        const response = await fetch('/api/admin/pending-packs', {
+            headers: {
+                'Authorization': \`Bearer \${adminToken}\`
+            }
+        });
+        
+        if (!response.ok) throw new Error('API 호출 실패');
+        
+        const data = await response.json();
+        const pack = data.packs.find(p => p.id === packId);
+        
+        if (!pack) {
+            alert('팩을 찾을 수 없습니다.');
+            return;
+        }
+        
+        showPackModal(pack);
+        
+    } catch (error) {
+        console.error('팩 상세보기 실패:', error);
+        alert('팩 상세 정보를 불러오는데 실패했습니다.');
+    }
+};
+
+// 팩 상세 모달 표시
+function showPackModal(pack) {
+    const modal = document.getElementById('pack-modal');
+    const modalBody = document.getElementById('pack-modal-body');
+    const modalFooter = document.getElementById('pack-modal-footer');
+    
+    modalBody.innerHTML = \`
+        <div class="pack-detail-modal">
+            <div class="pack-header">
+                <img src="\${pack.thumbnail}" alt="\${pack.title}" class="pack-thumbnail-large" />
+                <div class="pack-meta">
+                    <h3>\${pack.title}</h3>
+                    <p><strong>제작자:</strong> \${pack.creator}</p>
+                    \${pack.creatorLink ? \`<p><strong>제작자 링크:</strong> <a href="\${pack.creatorLink}" target="_blank">\${pack.creatorLink}</a></p>\` : ''}
+                    <p><strong>업로드 시간:</strong> \${new Date(pack.createdAt).toLocaleString('ko-KR')}</p>
+                    <p><strong>이모티콘 개수:</strong> \${pack.totalEmoticons}개</p>
+                </div>
+            </div>
+            <div class="pack-emoticons">
+                <p>이모티콘들이 실제로는 여기에 표시되어야 하지만, 승인 전이므로 미리보기는 제한됩니다.</p>
+            </div>
+        </div>
+    \`;
+    
+    modalFooter.innerHTML = \`
+        <button class="btn btn-success" onclick="approvePack('\${pack.id}'); closePackModal();">승인</button>
+        <button class="btn btn-danger" onclick="showRejectModal('\${pack.id}')">거부</button>
+        <button class="btn btn-secondary" onclick="closePackModal()">닫기</button>
+    \`;
+    
+    modal.style.display = 'block';
+}
+
+// 팩 모달 닫기
+window.closePackModal = function() {
+    document.getElementById('pack-modal').style.display = 'none';
+};
+
+// 팩 승인
+window.approvePack = async function(packId) {
+    if (!confirm('이 팩을 승인하시겠습니까?')) return;
+    
+    try {
+        const response = await fetch('/api/admin/approve-pack', {
+            method: 'POST',
+            headers: {
+                'Authorization': \`Bearer \${adminToken}\`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ packId })
+        });
+        
+        if (!response.ok) throw new Error('승인 실패');
+        
+        alert('팩이 승인되었습니다.');
+        await loadPendingPacks();
+        
+    } catch (error) {
+        console.error('팩 승인 실패:', error);
+        alert('팩 승인에 실패했습니다.');
+    }
+};
+
+// 팩 거부 모달 표시
+window.showRejectModal = function(packId) {
+    const reason = prompt('거부 사유를 입력해주세요:');
+    if (reason !== null) {
+        rejectPack(packId, reason);
+    }
+};
+
+// 팩 거부
+window.rejectPack = async function(packId, reason = '') {
+    if (!reason && !confirm('이 팩을 거부하시겠습니까?')) return;
+    
+    try {
+        const response = await fetch('/api/admin/reject-pack', {
+            method: 'POST',
+            headers: {
+                'Authorization': \`Bearer \${adminToken}\`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ packId, reason })
+        });
+        
+        if (!response.ok) throw new Error('거부 실패');
+        
+        alert('팩이 거부되었습니다.');
+        await loadPendingPacks();
+        closePackModal();
+        
+    } catch (error) {
+        console.error('팩 거부 실패:', error);
+        alert('팩 거부에 실패했습니다.');
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     // 캐시 버전 체크 먼저 실행
     checkCacheVersion();
@@ -128,6 +348,8 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (path === '/upload') {
         setupUploadForm();
         loadUploadLimitStatus();
+    } else if (path === '/admin') {
+        // 관리자 페이지는 별도 초기화가 필요하지 않음 (사용자가 로그인 버튼을 클릭해야 함)
     }
 });
 
@@ -637,7 +859,7 @@ function setupUploadForm() {
         }
         
         // 최종 확인
-        const confirmed = confirm('업로드하시겠습니까?\\n\\n제목: ' + title + '\\n제작자: ' + creator + '\\n이미지 개수: ' + selectedEmoticons.length + '개\\n\\n모든 이미지는 검열을 거칩니다 (1-2분 소요)\\n업로드 후에는 수정할 수 없습니다.');
+        const confirmed = confirm('업로드하시겠습니까?\\n\\n제목: ' + title + '\\n제작자: ' + creator + '\\n이미지 개수: ' + selectedEmoticons.length + '개\\n\\n업로드 후 관리자 승인을 거쳐 공개됩니다.\\n업로드 후에는 수정할 수 없습니다.');
         if (!confirmed) {
             return;
         }
@@ -678,12 +900,8 @@ function setupUploadForm() {
                 // 업로드 성공 후 제한 상태 업데이트
                 loadUploadLimitStatus();
                 
-                // 검증 정보가 있으면 상세 정보 표시
-                if (result.validationInfo && result.validationInfo.rejected > 0) {
-                    showUploadResult(true, message, result.validationInfo, result.id);
-                } else {
-                    showUploadResult(true, message, null, result.id);
-                }
+                // 성공 메시지 표시
+                showUploadResult(true, message, null, result.id);
             } else {
                 alert('업로드 실패: ' + (result.error || '알 수 없는 오류'));
             }
@@ -795,7 +1013,7 @@ function setupUploadForm() {
         const modal = document.createElement('div');
         modal.className = 'upload-result-modal';
         
-        let modalHTML = '<div class="modal-backdrop" ' + (isSuccess && packId ? '' : 'onclick="closeUploadModal()"') + '></div>' +
+        let modalHTML = '<div class="modal-backdrop" onclick="closeUploadModal()"></div>' +
             '<div class="modal-content">' +
                 '<div class="modal-header ' + (isSuccess ? 'success' : 'error') + '">' +
                     '<span class="modal-icon"></span>' +
@@ -804,57 +1022,23 @@ function setupUploadForm() {
                 '<div class="modal-body">' +
                     '<p class="main-message">' + message + '</p>';
         
-        if (validationInfo) {
-            modalHTML += '<div class="validation-summary">' +
-                '<h4>검열 결과</h4>' +
-                '<div class="validation-stats">' +
-                    '<div class="stat-item">' +
-                        '<span class="stat-label">제출된 이미지:</span>' +
-                        '<span class="stat-value">' + validationInfo.totalSubmitted + '개</span>' +
-                    '</div>' +
-                    '<div class="stat-item">' +
-                        '<span class="stat-label">승인된 이미지:</span>' +
-                        '<span class="stat-value success">' + validationInfo.approved + '개</span>' +
-                    '</div>' +
-                    '<div class="stat-item">' +
-                        '<span class="stat-label">거부된 이미지:</span>' +
-                        '<span class="stat-value error">' + validationInfo.rejected + '개</span>' +
-                    '</div>' +
+        if (isSuccess) {
+            modalHTML += '<div class="approval-notice">' +
+                '<p><strong>알림:</strong> 업로드된 팩은 관리자 승인 후 공개됩니다. 승인까지 시간이 걸릴 수 있습니다.</p>' +
                 '</div>';
-            
-            if (validationInfo.rejected > 0 && validationInfo.rejectedItems) {
-                modalHTML += '<div class="rejected-details">' +
-                    '<h5>거부된 이미지 상세</h5>' +
-                    '<ul class="rejected-list">';
-                
-                validationInfo.rejectedItems.forEach(function(item) {
-                    modalHTML += '<li><strong>' + item.fileName + ':</strong> ' + item.reason + '</li>';
-                });
-                
-                modalHTML += '</ul></div>';
-            }
-            
-            modalHTML += '</div>';
         }
         
         modalHTML += '</div>' +
             '<div class="modal-footer">';
         
-        if (isSuccess && packId) {
-            modalHTML += createHTMLElement('button', { 
-                    class: 'btn btn-primary', 
-                    onclick: 'location.href=\\'/pack/' + packId + '\\'' 
-                }, '업로드된 이모티콘 보기') +
-                createHTMLElement('button', { 
-                    class: 'btn btn-secondary', 
-                    onclick: 'location.href=\\'/\\'' 
-                }, '홈으로 이동');
-        } else {
-            modalHTML += createHTMLElement('button', { 
-                class: 'btn btn-primary', 
-                onclick: 'closeUploadModal()' 
-            }, '확인');
-        }
+        modalHTML += createHTMLElement('button', { 
+            class: 'btn btn-primary', 
+            onclick: 'closeUploadModal()' 
+        }, '확인') +
+        createHTMLElement('button', { 
+            class: 'btn btn-secondary', 
+            onclick: 'location.href=\\'/\\'' 
+        }, '홈으로 이동');
         
         modalHTML += '</div></div>';
         

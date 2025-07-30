@@ -6,7 +6,6 @@ import {
     convertPackToAbsoluteUrls,
     generateId,
     resizeImage,
-    validateEmoticonWithQwen,
     getClientIP,
     checkUploadLimit,
     incrementUploadCount,
@@ -31,6 +30,12 @@ export async function handleAPI(request, env, path) {
         response = await handleUpload(request, env);
     } else if (path === '/api/upload-limit' && request.method === 'GET') {
         response = await handleUploadLimitStatus(request, env);
+    } else if (path === '/api/admin/pending-packs' && request.method === 'GET') {
+        response = await handleGetPendingPacks(request, env);
+    } else if (path === '/api/admin/approve-pack' && request.method === 'POST') {
+        response = await handleApprovePack(request, env);
+    } else if (path === '/api/admin/reject-pack' && request.method === 'POST') {
+        response = await handleRejectPack(request, env);
     } else if (path.startsWith('/api/pack/')) {
         const packId = path.split('/')[3];
         response = await handleGetPack(packId, env, request);
@@ -78,6 +83,7 @@ export async function handleGetPacks(request, env) {
         
         const allPacks = (await Promise.all(packPromises))
             .filter(pack => pack !== null) // null 제거 (로드 실패한 팩들)
+            .filter(pack => pack.status === 'approved') // 승인된 팩만 표시
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // 최신순 정렬
         
         // 페이지네이션 적용
@@ -121,6 +127,14 @@ export async function handleGetPack(packId, env, request) {
         const pack = await env.PLAKKER_KV.get(`pack_${packId}`, 'json');
         
         if (!pack) {
+            return new Response(JSON.stringify({ error: '팩을 찾을 수 없습니다' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        // 승인되지 않은 팩은 접근 불가
+        if (pack.status !== 'approved') {
             return new Response(JSON.stringify({ error: '팩을 찾을 수 없습니다' }), {
                 status: 404,
                 headers: { 'Content-Type': 'application/json' }
@@ -233,35 +247,11 @@ export async function handleUpload(request, env) {
             }
         }
         
-        // Hugging Face 토큰 확인 (필수)
-        const hfToken = env.HF_TOKEN;
-        
-        if (!hfToken) {
-            return new Response(JSON.stringify({ 
-                error: '이미지 검증 시스템이 활성화되어 있지 않습니다 (Hugging Face 토큰 누락). 관리자에게 문의해주세요.' 
-            }), {
-                status: 503,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-        
+        // 팩 정보 저장 (AI 검증 없이 저장)
         const packId = generateId();
         
         // 썸네일 처리
         let thumbnailBuffer = await thumbnail.arrayBuffer();
-        
-        // 썸네일 Qwen 검증 (필수)
-        const thumbnailValidation = await validateEmoticonWithQwen(thumbnailBuffer, hfToken, env);
-        if (!thumbnailValidation.isValid) {
-            const errorDetail = thumbnailValidation.error ? 
-                ' (상세: ' + thumbnailValidation.error + ')' : '';
-            return new Response(JSON.stringify({ 
-                error: '썸네일 검증 실패: ' + thumbnailValidation.reason + errorDetail
-            }), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
         
         // 썸네일 리사이즈 및 업로드 (애니메이션 파일은 원본 유지)
         const { isAnimatedImage } = await import('./utils.js');
@@ -273,25 +263,12 @@ export async function handleUpload(request, env) {
             httpMetadata: { contentType: thumbnail.type }
         });
         
-        // 이모티콘들 처리
+        // 이모티콘들 처리 (AI 검증 없이 모든 파일 처리)
         const emoticonUrls = [];
-        const rejectedEmoticons = [];
         
         for (let i = 0; i < emoticons.length; i++) {
             const emoticon = emoticons[i];
             let emoticonBuffer = await emoticon.arrayBuffer();
-            
-            // Qwen 검증 (필수)
-            const validation = await validateEmoticonWithQwen(emoticonBuffer, hfToken, env);
-            if (!validation.isValid) {
-                const errorDetail = validation.error ? 
-                    ' (' + validation.error + ')' : '';
-                rejectedEmoticons.push({
-                    fileName: emoticon.name || `이미지 ${i + 1}`,
-                    reason: validation.reason + errorDetail
-                });
-                continue; // 다음 이모티콘으로 건너뛰기
-            }
             
             // 이모티콘 리사이즈 (150x150, 애니메이션 파일은 원본 유지)
             if (!isAnimatedImage(emoticon, emoticonBuffer)) {
@@ -299,28 +276,12 @@ export async function handleUpload(request, env) {
             }
             
             // R2에 업로드
-            const emoticonKey = `emoticons/${packId}_${emoticonUrls.length}`;
+            const emoticonKey = `emoticons/${packId}_${i}`;
             await env.PLAKKER_R2.put(emoticonKey, emoticonBuffer, {
                 httpMetadata: { contentType: emoticon.type }
             });
             
             emoticonUrls.push(`/r2/${emoticonKey}`);
-        }
-        
-        // 검증 후 최소 개수 확인
-        if (emoticonUrls.length < 3) {
-            let errorMessage = `유효한 이미지가 ${emoticonUrls.length}개뿐입니다. 최소 3개가 필요합니다.`;
-            if (rejectedEmoticons.length > 0) {
-                errorMessage += '\\n\\n거부된 이미지들:\\n';
-                rejectedEmoticons.forEach(rejected => {
-                    errorMessage += `- ${rejected.fileName}: ${rejected.reason}\\n`;
-                });
-            }
-            
-            return new Response(JSON.stringify({ error: errorMessage }), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
-            });
         }
         
         // 팩 정보 저장
@@ -331,12 +292,8 @@ export async function handleUpload(request, env) {
             creatorLink,
             thumbnail: `/r2/${thumbnailKey}`,
             emoticons: emoticonUrls,
-            validationInfo: {
-                totalSubmitted: emoticons.length,
-                approved: emoticonUrls.length,
-                rejected: rejectedEmoticons.length,
-                rejectedItems: rejectedEmoticons
-            },
+            totalEmoticons: emoticons.length,
+            status: 'pending', // 업로드 시 대기 상태로 설정 (관리자 승인 필요)
             createdAt: new Date().toISOString()
         };
         
@@ -346,16 +303,14 @@ export async function handleUpload(request, env) {
         // 업로드 성공 시 IP별 카운트 증가
         await incrementUploadCount(env, clientIP);
         
-        let successMessage = '이모티콘 팩이 성공적으로 업로드되었습니다!';
-        if (rejectedEmoticons.length > 0) {
-            successMessage += ` (${rejectedEmoticons.length}개 이미지가 검증을 통과하지 못했습니다)`;
-        }
+        const successMessage = '이모티콘 팩이 성공적으로 업로드되었습니다! 관리자 승인 후 공개됩니다.';
         
         return new Response(JSON.stringify({ 
             success: true, 
             id: packId,
             message: successMessage,
-            validationInfo: pack.validationInfo
+            status: 'pending',
+            totalEmoticons: emoticons.length
         }), {
             headers: { 'Content-Type': 'application/json' }
         });
@@ -419,5 +374,205 @@ export async function handlePackDetail(packId, env, request) {
         return safePack;
     } catch (error) {
         return null;
+    }
+} 
+
+// 관리자 API: 대기 중인 팩 리스트 조회
+export async function handleGetPendingPacks(request, env) {
+    try {
+        // 간단한 인증 체크 (실제 프로덕션에서는 더 강화된 인증 필요)
+        const authHeader = request.headers.get('Authorization');
+        const adminPassword = env.ADMIN_PASSWORD;
+        
+        if (!adminPassword || authHeader !== `Bearer ${adminPassword}`) {
+            return new Response(JSON.stringify({ error: '관리자 권한이 필요합니다' }), {
+                status: 401,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        const url = new URL(request.url);
+        const baseUrl = `${url.protocol}//${url.host}`;
+        
+        // KV에서 pack_ prefix로 모든 팩 키 조회
+        const packKeys = await env.PLAKKER_KV.list({ prefix: 'pack_' });
+        
+        if (!packKeys.keys || packKeys.keys.length === 0) {
+            return new Response(JSON.stringify({
+                packs: [],
+                total: 0
+            }), {
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        // 모든 팩 데이터를 조회하고 대기 중인 것만 필터링
+        const packPromises = packKeys.keys.map(async (key) => {
+            try {
+                const pack = await env.PLAKKER_KV.get(key.name, 'json');
+                return pack;
+            } catch (error) {
+                console.error(`Failed to load pack ${key.name}:`, error);
+                return null;
+            }
+        });
+        
+        const pendingPacks = (await Promise.all(packPromises))
+            .filter(pack => pack !== null && pack.status === 'pending')
+            .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)) // 오래된 것부터
+            .map(pack => ({
+                id: pack.id,
+                title: convertToSafeUnicode(pack.title || ''),
+                creator: convertToSafeUnicode(pack.creator || ''),
+                creatorLink: pack.creatorLink,
+                thumbnail: toAbsoluteUrl(pack.thumbnail, baseUrl),
+                totalEmoticons: pack.totalEmoticons,
+                createdAt: pack.createdAt,
+                status: pack.status
+            }));
+        
+        return new Response(JSON.stringify({
+            packs: pendingPacks,
+            total: pendingPacks.length
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        console.error('대기 중인 팩 리스트 조회 오류:', error);
+        return new Response(JSON.stringify({ error: '팩 리스트 조회 실패' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// 관리자 API: 팩 승인
+export async function handleApprovePack(request, env) {
+    try {
+        // 간단한 인증 체크
+        const authHeader = request.headers.get('Authorization');
+        const adminPassword = env.ADMIN_PASSWORD;
+        
+        if (!adminPassword || authHeader !== `Bearer ${adminPassword}`) {
+            return new Response(JSON.stringify({ error: '관리자 권한이 필요합니다' }), {
+                status: 401,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        const { packId } = await request.json();
+        
+        if (!packId) {
+            return new Response(JSON.stringify({ error: 'packId가 필요합니다' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        // 팩 정보 조회
+        const pack = await env.PLAKKER_KV.get(`pack_${packId}`, 'json');
+        
+        if (!pack) {
+            return new Response(JSON.stringify({ error: '팩을 찾을 수 없습니다' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        if (pack.status !== 'pending') {
+            return new Response(JSON.stringify({ error: '대기 상태가 아닌 팩입니다' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        // 상태를 승인으로 변경
+        pack.status = 'approved';
+        pack.approvedAt = new Date().toISOString();
+        
+        // KV에 업데이트된 팩 정보 저장
+        await env.PLAKKER_KV.put(`pack_${packId}`, JSON.stringify(pack));
+        
+        return new Response(JSON.stringify({ 
+            success: true, 
+            message: '팩이 승인되었습니다',
+            packId: packId
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+    } catch (error) {
+        console.error('팩 승인 오류:', error);
+        return new Response(JSON.stringify({ error: '팩 승인 처리 중 오류가 발생했습니다' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// 관리자 API: 팩 거부
+export async function handleRejectPack(request, env) {
+    try {
+        // 간단한 인증 체크
+        const authHeader = request.headers.get('Authorization');
+        const adminPassword = env.ADMIN_PASSWORD;
+        
+        if (!adminPassword || authHeader !== `Bearer ${adminPassword}`) {
+            return new Response(JSON.stringify({ error: '관리자 권한이 필요합니다' }), {
+                status: 401,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        const { packId, reason } = await request.json();
+        
+        if (!packId) {
+            return new Response(JSON.stringify({ error: 'packId가 필요합니다' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        // 팩 정보 조회
+        const pack = await env.PLAKKER_KV.get(`pack_${packId}`, 'json');
+        
+        if (!pack) {
+            return new Response(JSON.stringify({ error: '팩을 찾을 수 없습니다' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        if (pack.status !== 'pending') {
+            return new Response(JSON.stringify({ error: '대기 상태가 아닌 팩입니다' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        // 상태를 거부로 변경
+        pack.status = 'rejected';
+        pack.rejectedAt = new Date().toISOString();
+        pack.rejectionReason = reason || '승인 기준에 맞지 않음';
+        
+        // KV에 업데이트된 팩 정보 저장
+        await env.PLAKKER_KV.put(`pack_${packId}`, JSON.stringify(pack));
+        
+        // 선택적으로 R2에서 파일들을 삭제할 수도 있음 (여기서는 보관)
+        
+        return new Response(JSON.stringify({ 
+            success: true, 
+            message: '팩이 거부되었습니다',
+            packId: packId
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+    } catch (error) {
+        console.error('팩 거부 오류:', error);
+        return new Response(JSON.stringify({ error: '팩 거부 처리 중 오류가 발생했습니다' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 } 
