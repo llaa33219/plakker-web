@@ -709,8 +709,8 @@ function setupUploadForm() {
             '<div class="modal-footer">';
         
         if (isSuccess && packId) {
-            modalHTML += '<button class="btn btn-primary" onclick="location.href='/pack/' + packId">업로드된 이모티콘 보기</button>' +
-                '<button class="btn btn-secondary" onclick="location.href='/'">홈으로 이동</button>';
+            modalHTML += '<button class="btn btn-primary" onclick="location.href=\'/pack/\' + packId">업로드된 이모티콘 보기</button>' +
+                '<button class="btn btn-secondary" onclick="location.href=\'/\'">홈으로 이동</button>';
         } else {
             modalHTML += '<button class="btn btn-primary" onclick="closeUploadModal()">확인</button>';
         }
