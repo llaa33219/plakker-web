@@ -125,7 +125,7 @@ function setupUploadForm() {
             if (value && value.length > 0) {
                 try {
                     let testUrl = value;
-                    if (!testUrl.match(/^https?:\\\\/\\\\/i)) {
+                    if (!testUrl.match(/^https?:\\/\\//i)) {
                         testUrl = 'https://' + testUrl;
                     }
                     new URL(testUrl);
@@ -330,7 +330,7 @@ function setupUploadForm() {
         if (validImageFiles.length !== files.length) {
             const invalidFiles = files.filter(file => !isValidImageType(file));
             if (invalidFiles.length > 0) {
-                alert('지원되지 않는 파일 형식이 포함되어 있습니다.\\\\n지원되는 형식: PNG, JPG, JPEG, WebP, GIF');
+                alert('지원되지 않는 파일 형식이 포함되어 있습니다.\\n지원되는 형식: PNG, JPG, JPEG, WebP, GIF');
                 e.target.value = '';
                 return;
             }
@@ -391,9 +391,9 @@ function setupUploadForm() {
             
             // 실패한 파일들이 있으면 알림
             if (failedFiles.length > 0) {
-                let errorMessage = '다음 파일들이 처리되지 않았습니다:\\\\n';
+                let errorMessage = '다음 파일들이 처리되지 않았습니다:\\n';
                 failedFiles.forEach(failed => {
-                    errorMessage += '- ' + failed.name + ': ' + failed.error + '\\\\n';
+                    errorMessage += '- ' + failed.name + ': ' + failed.error + '\\n';
                 });
                 alert(errorMessage);
             }
@@ -462,7 +462,7 @@ function setupUploadForm() {
             try {
                 // 프로토콜이 없으면 https:// 추가
                 let testUrl = creatorLink;
-                if (!testUrl.match(/^https?:\\\\/\\\\/i)) {
+                if (!testUrl.match(/^https?:\\/\\//i)) {
                     testUrl = 'https://' + testUrl;
                 }
                 new URL(testUrl); // URL 유효성 검사
@@ -483,7 +483,7 @@ function setupUploadForm() {
         }
         
         // 최종 확인
-        const confirmed = confirm('업로드하시겠습니까?\\\\n\\\\n제목: ' + title + '\\\\n제작자: ' + creator + '\\\\n이미지 개수: ' + selectedEmoticons.length + '개\\\\n\\\\n모든 이미지는 검열을 거칩니다 (1-2분 소요)\\\\n업로드 후에는 수정할 수 없습니다.');
+        const confirmed = confirm('업로드하시겠습니까?\\n\\n제목: ' + title + '\\n제작자: ' + creator + '\\n이미지 개수: ' + selectedEmoticons.length + '개\\n\\n모든 이미지는 검열을 거칩니다 (1-2분 소요)\\n업로드 후에는 수정할 수 없습니다.');
         if (!confirmed) {
             return;
         }
@@ -762,7 +762,7 @@ function setupContactForm() {
         }
         
         // 최종 확인
-        const confirmed = confirm('문의를 전송하시겠습니까?\\\\n\\\\n제목: ' + subject + '\\\\n이메일: ' + email);
+        const confirmed = confirm('문의를 전송하시겠습니까?\n\n제목: ' + subject + '\n이메일: ' + email);
         if (!confirmed) {
             return;
         }
@@ -813,7 +813,7 @@ function setupContactForm() {
 
 // 이메일 유효성 검사 함수
 function isValidEmail(email) {
-    const emailPattern = /^[^\\\\s@]+@[^\\\\s@]+\\\\.[^\\\\s@]+$/;
+    const emailPattern = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
     return emailPattern.test(email);
 }
 
