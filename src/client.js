@@ -123,7 +123,7 @@ function setupUploadForm() {
             if (value && value.length > 0) {
                 try {
                     let testUrl = value;
-                    if (!testUrl.match(/^https?:\\/\\//i)) {
+                    if (!testUrl.match(/^https?:\\/\//i)) {
                         testUrl = 'https://' + testUrl;
                     }
                     new URL(testUrl);
@@ -460,7 +460,7 @@ function setupUploadForm() {
             try {
                 // 프로토콜이 없으면 https:// 추가
                 let testUrl = creatorLink;
-                if (!testUrl.match(/^https?:\\/\\//i)) {
+                if (!testUrl.match(/^https?:\\/\//i)) {
                     testUrl = 'https://' + testUrl;
                 }
                 new URL(testUrl); // URL 유효성 검사
