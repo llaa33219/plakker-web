@@ -83,7 +83,7 @@ export async function handleGetPacks(request, env) {
         
         const allPacks = (await Promise.all(packPromises))
             .filter(pack => pack !== null) // null 제거 (로드 실패한 팩들)
-            .filter(pack => pack.status === 'approved') // 승인된 팩만 표시
+            .filter(pack => pack.status === 'approved' || !pack.status) // 승인된 팩 + 기존 팩들(status 없음) 표시
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // 최신순 정렬
         
         // 페이지네이션 적용
@@ -133,8 +133,8 @@ export async function handleGetPack(packId, env, request) {
             });
         }
         
-        // 승인되지 않은 팩은 접근 불가
-        if (pack.status !== 'approved') {
+        // 승인되지 않은 팩은 접근 불가 (기존 팩들은 status가 없으므로 승인된 것으로 간주)
+        if (pack.status && pack.status !== 'approved') {
             return new Response(JSON.stringify({ error: '팩을 찾을 수 없습니다' }), {
                 status: 404,
                 headers: { 'Content-Type': 'application/json' }
