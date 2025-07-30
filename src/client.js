@@ -242,10 +242,16 @@ function setupUploadForm() {
             try {
                 // 썸네일 리사이즈 (200x200)
                 const resizedFile = await resizeImage(file, 200, 200);
-                selectedThumbnail = new File([resizedFile], file.name, { 
-                    type: file.type, 
-                    lastModified: Date.now() 
-                });
+                
+                // GIF 파일의 경우 원본을 그대로 사용 (애니메이션 보존)
+                if (file.type.toLowerCase() === 'image/gif') {
+                    selectedThumbnail = resizedFile; // 원본 GIF 파일 그대로 사용
+                } else {
+                    selectedThumbnail = new File([resizedFile], file.name, { 
+                        type: file.type, 
+                        lastModified: Date.now() 
+                    });
+                }
                 updateThumbnailPreview();
             } catch (error) {
                 console.error('이미지 처리 오류:', error);
@@ -296,10 +302,15 @@ function setupUploadForm() {
                         console.log('이미지 처리 중... ' + processedFiles + '/' + totalFiles);
                     }
                     
-                    return new File([resizedFile], file.name, { 
-                        type: file.type, 
-                        lastModified: Date.now() 
-                    });
+                    // GIF 파일의 경우 원본을 그대로 사용 (애니메이션 보존)
+                    if (file.type.toLowerCase() === 'image/gif') {
+                        return resizedFile; // 원본 GIF 파일 그대로 사용
+                    } else {
+                        return new File([resizedFile], file.name, { 
+                            type: file.type, 
+                            lastModified: Date.now() 
+                        });
+                    }
                 })
             );
             
