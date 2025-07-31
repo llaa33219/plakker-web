@@ -12,6 +12,7 @@ export async function onRequest(context) {
     
     console.log('[ADMIN-DEBUG] 요청 경로:', requestPath);
     console.log('[ADMIN-DEBUG] 설정된 관리자 경로:', secretAdminPath !== '/admin' ? '비밀 경로 사용중' : '기본 경로 사용중');
+    console.log('[ADMIN-DEBUG] ADMIN_URL_PATH 환경변수:', env.ADMIN_URL_PATH || '설정되지 않음');
     
     // 🔒 SECURITY: 잘못된 경로로 접근 시 404 또는 가짜 페이지 반환
     if (requestPath !== secretAdminPath) {
@@ -72,12 +73,19 @@ export async function onRequest(context) {
                         
                         <!-- 🔒 SECURITY: 비밀 경로 사용중임을 표시 -->
                         ${secretAdminPath !== '/admin' ? `<div style="background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 5px; padding: 10px; margin-bottom: 20px; font-size: 14px; color: #0c5460;">
-                            🛡️ 보안 강화: 비밀 관리자 경로 사용중
+                            🛡️ 보안 강화: 비밀 관리자 경로 사용중<br/>
+                            현재 경로: ${secretAdminPath}
                         </div>` : ''}
                         
+                        <!-- 🔒 DEBUG: 환경변수 상태 표시 -->
+                        <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 10px; margin-bottom: 20px; font-size: 12px; color: #856404;">
+                            DEBUG: 환경변수 ADMIN_URL_PATH = "${env.ADMIN_URL_PATH || '설정되지 않음'}"<br/>
+                            현재 사용중인 경로: ${secretAdminPath}
+                        </div>
+                        
                         <!-- 🔒 DEBUG: 인증 오류 표시 -->
-                        ${authError ? `<div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 10px; margin-bottom: 20px; font-size: 14px; color: #856404;">
-                            디버그: ${authError}
+                        ${authError ? `<div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 10px; margin-bottom: 20px; font-size: 14px; color: #721c24;">
+                            인증 오류: ${authError}
                         </div>` : ''}
                         
                         <div style="margin-bottom: 20px;">
@@ -198,7 +206,6 @@ export async function onRequest(context) {
                     });
                 </script>
             </div>
-        
         `));
     }
     
