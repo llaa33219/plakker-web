@@ -5,6 +5,39 @@ import { verifyAdminToken } from '../src/api.js'; // 🔒 FIX: 누락된 import 
 export async function onRequest(context) {
     const { request, env } = context;
     
+    // 🔒 SECURITY ENHANCEMENT: 동적 관리자 URL 경로 확인
+    const url = new URL(request.url);
+    const requestPath = url.pathname;
+    const secretAdminPath = env.ADMIN_URL_PATH || '/admin'; // 환경변수에서 비밀 경로 가져오기
+    
+    console.log('[ADMIN-DEBUG] 요청 경로:', requestPath);
+    console.log('[ADMIN-DEBUG] 설정된 관리자 경로:', secretAdminPath !== '/admin' ? '비밀 경로 사용중' : '기본 경로 사용중');
+    
+    // 🔒 SECURITY: 잘못된 경로로 접근 시 404 또는 가짜 페이지 반환
+    if (requestPath !== secretAdminPath) {
+        console.log('[ADMIN-DEBUG] 잘못된 관리자 경로 접근 시도:', requestPath);
+        
+        // 기본 /admin 경로 접근시 가짜 404 페이지 반환 (보안 강화)
+        if (requestPath === '/admin' && secretAdminPath !== '/admin') {
+            return new Response(`
+                <!DOCTYPE html>
+                <html>
+                <head><title>404 Not Found</title></head>
+                <body>
+                    <h1>404 Not Found</h1>
+                    <p>The requested URL was not found on this server.</p>
+                </body>
+                </html>
+            `, {
+                status: 404,
+                headers: { 'Content-Type': 'text/html' }
+            });
+        }
+        
+        // 다른 잘못된 경로는 일반적인 404
+        return new Response('Not Found', { status: 404 });
+    }
+    
     // Authorization 헤더 확인
     const authHeader = request.headers.get('Authorization');
     let isAuthenticated = false;
@@ -36,6 +69,11 @@ export async function onRequest(context) {
                     <div style="background: #f8f9fa; border-radius: 10px; padding: 40px; max-width: 400px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                         <h2 style="color: #495057; margin-bottom: 10px;">🔒 관리자 인증</h2>
                         <p style="color: #6c757d; margin-bottom: 30px;">관리자만 접근할 수 있습니다</p>
+                        
+                        <!-- 🔒 SECURITY: 비밀 경로 사용중임을 표시 -->
+                        ${secretAdminPath !== '/admin' ? `<div style="background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 5px; padding: 10px; margin-bottom: 20px; font-size: 14px; color: #0c5460;">
+                            🛡️ 보안 강화: 비밀 관리자 경로 사용중
+                        </div>` : ''}
                         
                         <!-- 🔒 DEBUG: 인증 오류 표시 -->
                         ${authError ? `<div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 10px; margin-bottom: 20px; font-size: 14px; color: #856404;">
