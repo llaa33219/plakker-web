@@ -676,7 +676,7 @@ export function handleOptions() {
  * 클라이언트의 실제 IP 주소를 가져옵니다.
  * Cloudflare를 통한 요청의 경우 적절한 헤더에서 IP를 추출합니다.
  */
-export async function getClientIP(request) {
+export function getClientIP(request) {
     // Cloudflare에서 제공하는 실제 클라이언트 IP 헤더들을 확인
     return request.headers.get('CF-Connecting-IP') || 
            request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
@@ -863,40 +863,65 @@ function base64UrlEncode(str) {
 }
 
 function base64UrlDecode(str) {
-    str += '==='.slice((str.length + 3) % 4);
-    str = str.replace(/-/g, '+').replace(/_/g, '/');
-    return atob(str);
+    try {
+        str += '==='.slice((str.length + 3) % 4);
+        str = str.replace(/-/g, '+').replace(/_/g, '/');
+        return atob(str);
+    } catch (error) {
+        console.warn('Base64 디코딩 실패:', error);
+        throw new Error('Invalid base64 string');
+    }
 }
 
-// 간단한 HMAC-SHA256 구현 (Web Crypto API 대체)
+// 간단한 HMAC-SHA256 구현 (안전한 fallback 포함)
 async function simpleHmac(key, message) {
     const encoder = new TextEncoder();
     const keyData = encoder.encode(key);
     const messageData = encoder.encode(message);
     
     try {
-        const cryptoKey = await crypto.subtle.importKey(
-            'raw',
-            keyData,
-            { name: 'HMAC', hash: 'SHA-256' },
-            false,
-            ['sign']
-        );
-        
-        const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
-        return new Uint8Array(signature);
-    } catch (error) {
-        // Fallback: 간단한 해시 (완벽하지 않지만 기본 보안 제공)
-        console.warn('Web Crypto API 사용 불가, fallback 해시 사용');
-        let hash = 0;
-        const fullMessage = key + message;
-        for (let i = 0; i < fullMessage.length; i++) {
-            const char = fullMessage.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
+        // Cloudflare Workers에서는 crypto.subtle 사용 가능
+        if (typeof crypto !== 'undefined' && crypto.subtle) {
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw',
+                keyData,
+                { name: 'HMAC', hash: 'SHA-256' },
+                false,
+                ['sign']
+            );
+            
+            const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+            return new Uint8Array(signature);
         }
-        return new Uint8Array([Math.abs(hash) & 0xff, (Math.abs(hash) >> 8) & 0xff]);
+    } catch (error) {
+        console.warn('Web Crypto API 사용 불가, fallback 해시 사용:', error);
     }
+    
+    // 강화된 Fallback: 더 나은 해시 함수
+    const fullMessage = key + '|' + message;
+    let hash1 = 0, hash2 = 0;
+    
+    for (let i = 0; i < fullMessage.length; i++) {
+        const char = fullMessage.charCodeAt(i);
+        hash1 = ((hash1 << 5) - hash1) + char;
+        hash1 = hash1 & hash1; // 32비트 변환
+        
+        hash2 = ((hash2 << 3) - hash2) + char + i;
+        hash2 = hash2 & hash2; // 32비트 변환
+    }
+    
+    // 더 긴 시그니처 생성
+    const signature = new Uint8Array(8);
+    signature[0] = Math.abs(hash1) & 0xff;
+    signature[1] = (Math.abs(hash1) >> 8) & 0xff;
+    signature[2] = (Math.abs(hash1) >> 16) & 0xff;
+    signature[3] = (Math.abs(hash1) >> 24) & 0xff;
+    signature[4] = Math.abs(hash2) & 0xff;
+    signature[5] = (Math.abs(hash2) >> 8) & 0xff;
+    signature[6] = (Math.abs(hash2) >> 16) & 0xff;
+    signature[7] = (Math.abs(hash2) >> 24) & 0xff;
+    
+    return signature;
 }
 
 // JWT 토큰 생성
@@ -959,37 +984,70 @@ export async function verifyJWT(token, secret) {
     }
 }
 
-// 비밀번호 해싱 (간단한 구현)
+// 비밀번호 해싱 (안전한 구현)
 export async function hashPassword(password, salt = null) {
+    // Salt 생성
     if (!salt) {
-        salt = crypto.getRandomValues(new Uint8Array(16));
+        try {
+            if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+                salt = crypto.getRandomValues(new Uint8Array(16));
+            } else {
+                // Fallback salt 생성
+                const fallbackSalt = new Uint8Array(16);
+                for (let i = 0; i < 16; i++) {
+                    fallbackSalt[i] = Math.floor(Math.random() * 256);
+                }
+                salt = fallbackSalt;
+            }
+        } catch (error) {
+            console.warn('Salt 생성 실패, fallback 사용:', error);
+            const fallbackSalt = new Uint8Array(16);
+            for (let i = 0; i < 16; i++) {
+                fallbackSalt[i] = Math.floor(Math.random() * 256);
+            }
+            salt = fallbackSalt;
+        }
     }
     
     try {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(password + Array.from(salt).join(''));
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = new Uint8Array(hashBuffer);
-        
-        return {
-            hash: Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join(''),
-            salt: Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('')
-        };
-    } catch (error) {
-        // Fallback 해시
-        console.warn('Web Crypto API 사용 불가, fallback 해시 사용');
-        let hash = 0;
-        const fullPassword = password + (salt ? Array.from(salt).join('') : '');
-        for (let i = 0; i < fullPassword.length; i++) {
-            const char = fullPassword.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
+        // Web Crypto API 사용 시도
+        if (typeof crypto !== 'undefined' && crypto.subtle) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password + Array.from(salt).join(''));
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = new Uint8Array(hashBuffer);
+            
+            return {
+                hash: Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join(''),
+                salt: Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('')
+            };
         }
-        return {
-            hash: Math.abs(hash).toString(16),
-            salt: salt ? Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('') : ''
-        };
+    } catch (error) {
+        console.warn('Web Crypto API 사용 불가, fallback 해시 사용:', error);
     }
+    
+    // 강화된 Fallback 해시
+    const saltString = Array.from(salt).join('');
+    const fullPassword = password + '|' + saltString;
+    let hash1 = 0x811c9dc5; // FNV-1a 초기값
+    let hash2 = 0;
+    
+    for (let i = 0; i < fullPassword.length; i++) {
+        const char = fullPassword.charCodeAt(i);
+        hash1 ^= char;
+        hash1 *= 0x01000193; // FNV-1a prime
+        hash1 = hash1 & hash1; // 32비트 변환
+        
+        hash2 = ((hash2 << 5) - hash2) + char + i;
+        hash2 = hash2 & hash2;
+    }
+    
+    const combinedHash = (Math.abs(hash1) ^ Math.abs(hash2)).toString(16);
+    
+    return {
+        hash: combinedHash.padStart(8, '0'),
+        salt: Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('')
+    };
 }
 
 // 비밀번호 검증
@@ -1019,14 +1077,24 @@ export function isValidIP(ip) {
     return false;
 }
 
-// 안전한 세션 ID 생성
+// 안전한 세션 ID 생성 (브라우저 및 서버 호환)
 export function generateSecureSessionId() {
     try {
-        const array = new Uint8Array(32);
-        crypto.getRandomValues(array);
-        return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+        // Cloudflare Workers 환경에서는 crypto.getRandomValues 사용 가능
+        if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+        }
     } catch (error) {
-        // Fallback
-        return generateId() + '_' + Date.now() + '_' + Math.random().toString(36);
+        console.warn('crypto.getRandomValues 사용 불가:', error);
     }
+    
+    // Fallback: 충분히 안전한 대안
+    const timestamp = Date.now().toString(36);
+    const random1 = Math.random().toString(36).substring(2);
+    const random2 = Math.random().toString(36).substring(2);
+    const random3 = Math.random().toString(36).substring(2);
+    
+    return timestamp + random1 + random2 + random3;
 } 

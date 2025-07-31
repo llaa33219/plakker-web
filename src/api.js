@@ -201,7 +201,7 @@ export async function handleUpload(request, env) {
         const baseUrl = `${url.protocol}//${url.host}`;
         
         // IP 기반 업로드 제한 확인
-        const clientIP = await getClientIP(request);
+        const clientIP = getClientIP(request);
         const uploadLimitCheck = await checkUploadLimit(env, clientIP, 5);
         
         if (!uploadLimitCheck.allowed) {
@@ -360,7 +360,7 @@ export async function handleUpload(request, env) {
 // 업로드 제한 상태 확인 API
 export async function handleUploadLimitStatus(request, env) {
     try {
-        const clientIP = await getClientIP(request);
+        const clientIP = getClientIP(request);
         const uploadLimitCheck = await checkUploadLimit(env, clientIP, 5);
         
         return new Response(JSON.stringify({
@@ -372,7 +372,7 @@ export async function handleUploadLimitStatus(request, env) {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
-        const clientIP = await getClientIP(request);
+        const clientIP = getClientIP(request);
         console.error('업로드 제한 상태 확인 오류 (IP:', maskIP(clientIP), '):', error.message);
         return new Response(JSON.stringify({ 
             error: '제한 상태를 확인할 수 없습니다' 
@@ -805,7 +805,7 @@ function cleanupAdminSessions() {
     }
 }
 
-// 관리자 API 호출 전 추가 보안 검증
+// 관리자 API 호출 전 추가 보안 검증 (브라우저 친화적)
 async function validateAdminRequest(request, env) {
     // 세션 정리 먼저 실행
     cleanupAdminSessions();
@@ -813,30 +813,73 @@ async function validateAdminRequest(request, env) {
     const clientIP = getClientIP(request);
     const userAgent = request.headers.get('User-Agent') || '';
     
-    // 1. 기본 헤더 검증
-    const requiredHeaders = ['User-Agent', 'Accept'];
-    for (const header of requiredHeaders) {
-        if (!request.headers.get(header)) {
-            logSecurityEvent('MISSING_REQUIRED_HEADER', clientIP, userAgent, `Missing: ${header}`);
+    // 1. 기본 User-Agent 검증 (봇 차단)
+    if (!userAgent || userAgent.length < 10) {
+        logSecurityEvent('SUSPICIOUS_USER_AGENT', clientIP, userAgent);
+        return { valid: false, error: '잘못된 요청입니다' };
+    }
+    
+    // 2. 명백히 의심스러운 User-Agent 패턴 차단
+    const suspiciousPatterns = [
+        'curl', 'wget', 'python', 'bot', 'crawler', 'spider', 
+        'scraper', 'automated', 'test', 'postman'
+    ];
+    
+    const lowerUserAgent = userAgent.toLowerCase();
+    for (const pattern of suspiciousPatterns) {
+        if (lowerUserAgent.includes(pattern)) {
+            logSecurityEvent('BLOCKED_USER_AGENT', clientIP, userAgent, `Pattern: ${pattern}`);
             return { valid: false, error: '잘못된 요청입니다' };
         }
     }
     
-    // 2. 의심스러운 요청 패턴 검증
-    const acceptHeader = request.headers.get('Accept') || '';
-    if (!acceptHeader.includes('application/json') && !acceptHeader.includes('*/*')) {
-        logSecurityEvent('INVALID_ACCEPT_HEADER', clientIP, userAgent);
-        return { valid: false, error: '잘못된 요청입니다' };
+    // 3. Content-Type 검증 (POST 요청의 경우)
+    if (request.method === 'POST') {
+        const contentType = request.headers.get('Content-Type') || '';
+        if (!contentType.includes('application/json')) {
+            logSecurityEvent('INVALID_CONTENT_TYPE', clientIP, userAgent);
+            return { valid: false, error: '잘못된 요청입니다' };
+        }
     }
     
-    // 3. Rate limiting 재확인
-    const rateLimit = checkRateLimit(clientIP);
-    if (!rateLimit.allowed) {
-        logSecurityEvent('RATE_LIMIT_VIOLATION', clientIP, userAgent);
-        return { valid: false, error: '요청이 제한되었습니다' };
+    // 4. Rate limiting 확인 (관리자 전용 제한은 별도로)
+    const adminRateLimit = checkAdminRateLimit(clientIP);
+    if (!adminRateLimit.allowed) {
+        logSecurityEvent('ADMIN_RATE_LIMIT_VIOLATION', clientIP, userAgent);
+        return { valid: false, error: '너무 많은 요청입니다. 잠시 후 다시 시도해주세요.' };
     }
     
     return { valid: true };
+}
+
+// 관리자 전용 Rate Limiting (일반 업로드와 별도)
+function checkAdminRateLimit(clientIP) {
+    const now = Date.now();
+    const adminKey = `admin_rate_${clientIP}`;
+    
+    if (!loginAttempts.has(adminKey)) {
+        loginAttempts.set(adminKey, { requests: 1, firstRequest: now });
+        return { allowed: true, remaining: 99 };
+    }
+    
+    const record = loginAttempts.get(adminKey);
+    
+    // 1분 윈도우에서 100개 요청 제한
+    const windowMs = 60 * 1000;
+    const maxRequests = 100;
+    
+    if ((now - record.firstRequest) > windowMs) {
+        record.requests = 1;
+        record.firstRequest = now;
+        return { allowed: true, remaining: maxRequests - 1 };
+    }
+    
+    if (record.requests >= maxRequests) {
+        return { allowed: false, remaining: 0 };
+    }
+    
+    record.requests++;
+    return { allowed: true, remaining: maxRequests - record.requests };
 }
 
 // 관리자 토큰 검증 API (강화된 보안)

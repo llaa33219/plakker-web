@@ -121,46 +121,63 @@ let adminToken = null;
 let sessionTimeout = null;
 let securityFingerprint = null; // 클라이언트 보안 핑거프린트
 
-// 보안 핑거프린트 생성 (서버 검증용)
+// 보안 핑거프린트 생성 (안전한 버전)
 function generateSecurityFingerprint() {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    ctx.textBaseline = 'top';
-    ctx.font = '14px Arial';
-    ctx.fillText('Security Check', 2, 2);
-    
-    const fingerprint = {
-        screen: screen.width + 'x' + screen.height,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        language: navigator.language,
-        platform: navigator.platform,
-        canvas: canvas.toDataURL().slice(-50), // 캔버스 핑거프린트 일부
-        timestamp: Date.now()
-    };
-    
-    return btoa(JSON.stringify(fingerprint)).slice(0, 32);
+    try {
+        // 기본 브라우저 정보만 사용 (캔버스 제외)
+        const fingerprint = {
+            screen: screen.width + 'x' + screen.height,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+            language: navigator.language || 'en',
+            platform: navigator.platform || 'unknown',
+            timestamp: Date.now()
+        };
+        
+        // 안전한 인코딩 (유니코드 문제 방지)
+        const jsonString = JSON.stringify(fingerprint);
+        let encoded = '';
+        for (let i = 0; i < jsonString.length; i++) {
+            encoded += jsonString.charCodeAt(i).toString(16);
+        }
+        
+        return encoded.slice(0, 32);
+    } catch (error) {
+        console.warn('보안 핑거프린트 생성 실패:', error);
+        // 폴백: 간단한 타임스탬프 기반 핑거프린트
+        return Date.now().toString(36) + Math.random().toString(36).substring(2);
+    }
 }
 
-// 개발자 도구 감지 (완벽하지는 않지만 기본 보안)
+// 개발자 도구 감지 (관리자 페이지 전용)
 function detectDevTools() {
+    // 관리자 페이지에서만 활성화
+    if (window.location.pathname !== '/admin') {
+        return;
+    }
+    
     let devtools = false;
     const threshold = 160;
     
-    setInterval(() => {
+    const checkInterval = setInterval(() => {
+        // 관리자 페이지를 벗어나면 감지 중단
+        if (window.location.pathname !== '/admin') {
+            clearInterval(checkInterval);
+            return;
+        }
+        
         if (window.outerHeight - window.innerHeight > threshold || 
             window.outerWidth - window.innerWidth > threshold) {
             if (!devtools) {
                 devtools = true;
-                console.warn('[SECURITY] 개발자 도구 사용이 감지되었습니다.');
-                // 실제로는 보안 알림을 서버에 전송할 수 있음
+                console.warn('[SECURITY] 관리자 페이지에서 개발자 도구 사용이 감지되었습니다.');
             }
         } else {
             devtools = false;
         }
-    }, 1000);
+    }, 2000); // 2초마다 체크 (성능 개선)
 }
 
-// 관리자 API 요청 시 보안 헤더 추가
+// 관리자 API 요청 시 보안 헤더 추가 (브라우저 호환)
 function createSecureAdminRequest(url, options = {}) {
     if (!adminToken) {
         throw new Error('인증이 필요합니다');
@@ -175,7 +192,7 @@ function createSecureAdminRequest(url, options = {}) {
             'Authorization': 'Bearer ' + adminToken,
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'User-Agent': navigator.userAgent,
+            // User-Agent는 브라우저에서 자동 설정됨 (직접 설정 불가)
             'X-Security-Fingerprint': currentFingerprint,
             'X-Request-Time': Date.now().toString(),
             'X-Client-Version': '1.0.0',
@@ -1293,10 +1310,21 @@ function setupAdminPage() {
     startSecurityMonitoring();
 }
 
-// 보안 모니터링 시작
+// 보안 모니터링 시작 (관리자 페이지 전용)
 function startSecurityMonitoring() {
+    // 관리자 페이지에서만 활성화
+    if (window.location.pathname !== '/admin') {
+        return;
+    }
+    
     // 10초마다 보안 상태 확인
-    setInterval(() => {
+    const monitorInterval = setInterval(() => {
+        // 관리자 페이지를 벗어나면 모니터링 중단
+        if (window.location.pathname !== '/admin') {
+            clearInterval(monitorInterval);
+            return;
+        }
+        
         if (adminToken) {
             // 토큰이 있지만 UI 상태가 일치하지 않는 경우 감지
             const authDiv = document.getElementById('admin-auth');
