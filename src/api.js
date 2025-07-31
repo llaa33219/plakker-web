@@ -394,54 +394,25 @@ export async function handleUpload(request, env) {
 export async function handleUploadLimitStatus(request, env) {
     try {
         const clientIP = await getClientIP(request);
-        const uploadLimitCheck = await checkUploadLimit(env, clientIP, 5);
+        const limitCheck = await checkUploadLimit(env, clientIP, 5);
         
         return new Response(JSON.stringify({
-            currentCount: uploadLimitCheck.currentCount,
-            limit: uploadLimitCheck.limit,
-            remaining: uploadLimitCheck.remaining,
-            allowed: uploadLimitCheck.allowed
+            allowed: limitCheck.allowed,
+            currentCount: limitCheck.currentCount,
+            limit: limitCheck.limit,
+            remaining: limitCheck.remaining
         }), {
             headers: { 'Content-Type': 'application/json' }
         });
+        
     } catch (error) {
-        const clientIP = await getClientIP(request);
-        console.error('업로드 제한 상태 확인 오류 (IP:', maskIP(clientIP), '):', error.message);
-        return new Response(JSON.stringify({ 
-            error: '제한 상태를 확인할 수 없습니다' 
-        }), {
+        console.error('업로드 제한 상태 확인 오류:', error);
+        return new Response(JSON.stringify({ error: '업로드 제한 상태를 확인할 수 없습니다' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
     }
 }
-
-
-// 팩 상세 페이지
-export async function handlePackDetail(packId, env, request) {
-    try {
-        const url = new URL(request.url);
-        const baseUrl = `${url.protocol}//${url.host}`;
-        const pack = await env.PLAKKER_KV.get(`pack_${packId}`, 'json');
-        
-        if (!pack) {
-            return null; // null을 반환하여 404 처리를 메인에서 하도록 함
-        }
-        
-        const convertedPack = convertPackToAbsoluteUrls(pack, baseUrl);
-        
-        // 출력 시 텍스트 필드를 안전하게 변환
-        const safePack = {
-            ...convertedPack,
-            title: convertToSafeUnicode(convertedPack.title || ''),
-            creator: convertToSafeUnicode(convertedPack.creator || '')
-        };
-        
-        return safePack;
-    } catch (error) {
-        return null;
-    }
-} 
 
 // 관리자 API들은 제거됨 - 이제 Cloudflare KV에서 직접 관리
 // 기존: handleGetPendingPacks, handleApprovePack, handleRejectPack 
