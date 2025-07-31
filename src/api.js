@@ -1170,6 +1170,7 @@ export async function handleAdminLogin(request, env) {
         };
         
         console.log('[DEBUG] 로그인 성공 응답 준비 완료');
+        console.log('[DEBUG] 응답 데이터:', JSON.stringify(response, null, 2));
         
         return new Response(JSON.stringify(response), {
             headers: { 

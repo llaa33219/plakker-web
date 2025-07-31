@@ -207,6 +207,13 @@ export async function onRequest(context) {
             const session = await env.PLAKKER_KV.get(sessionKey, 'json');
             if (session && session.csrfToken) {
                 csrfToken = session.csrfToken;
+                if (isDevelopment) {
+                    console.log('[ADMIN-DEBUG] CSRF 토큰 가져옴:', csrfToken.substring(0, 8) + '...');
+                }
+            } else {
+                if (isDevelopment) {
+                    console.warn('[ADMIN-DEBUG] 세션이나 CSRF 토큰이 없음:', { session: !!session, sessionId: authResult.payload.sessionId });
+                }
             }
         }
     } catch (error) {
