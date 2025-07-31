@@ -1058,43 +1058,21 @@ export async function handleAdminLogin(request, env) {
             });
         }
         
-        // 🔒 FIX: 환경변수 검증 개선
-        const jwtSecret = env.JWT_SECRET;
-        const adminPasswordHash = env.ADMIN_PASSWORD_HASH;
-        
-        if (!jwtSecret) {
-            console.error('[ERROR] JWT_SECRET 환경변수가 설정되지 않았습니다.');
-            return new Response(JSON.stringify({ 
-                error: '서버 설정 오류입니다. JWT_SECRET이 설정되지 않았습니다.' 
-            }), {
-                status: 500,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-        
-        if (!adminPasswordHash) {
-            console.error('[ERROR] ADMIN_PASSWORD_HASH 환경변수가 설정되지 않았습니다.');
-            return new Response(JSON.stringify({ 
-                error: '서버 설정 오류입니다. ADMIN_PASSWORD_HASH가 설정되지 않았습니다.' 
-            }), {
-                status: 500,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-        
         // 비밀번호 검증 (보안 강화: 해싱된 비밀번호만 사용)
         let isValidPassword = false;
         
         try {
-            const [storedHash, storedSalt] = adminPasswordHash.split(':');
+            const [storedHash, storedSalt] = env.ADMIN_PASSWORD_HASH.split(':');
             if (storedHash && storedSalt) {
                 isValidPassword = await verifyPassword(password, storedHash, storedSalt);
-                console.log('[DEBUG] 비밀번호 검증 결과:', isValidPassword);
+                if (env.ENVIRONMENT === 'development') {
+                    console.log('[DEBUG] 비밀번호 검증 결과:', isValidPassword);
+                }
             } else {
                 console.error('[ERROR] ADMIN_PASSWORD_HASH 형식이 올바르지 않습니다. hash:salt 형식이어야 합니다.');
                 // 🔒 FIX: 형식 오류시에도 명확한 응답 반환
                 return new Response(JSON.stringify({ 
-                    error: 'ADMIN_PASSWORD_HASH 형식이 올바르지 않습니다. hash:salt 형식으로 설정해주세요.' 
+                    error: '서버 설정 오류가 발생했습니다. 관리자에게 문의하세요.' 
                 }), {
                     status: 500,
                     headers: { 'Content-Type': 'application/json' }
@@ -1173,11 +1151,13 @@ export async function handleAdminLogin(request, env) {
                 loginTime: Date.now()
             };
             
-            token = await createJWT(tokenPayload, jwtSecret, 3600); // 1시간
-            console.log('[DEBUG] JWT 토큰 생성 성공, 길이:', token ? token.length : 0);
+            token = await createJWT(tokenPayload, env.JWT_SECRET, 3600); // 1시간
+            if (env.ENVIRONMENT === 'development') {
+                console.log('[DEBUG] JWT 토큰 생성 성공, 길이:', token ? token.length : 0);
+            }
         } catch (error) {
             console.error('[ERROR] 토큰 생성 실패:', error);
-            return new Response(JSON.stringify({ error: '토큰 생성에 실패했습니다: ' + error.message }), {
+            return new Response(JSON.stringify({ error: '토큰 생성에 실패했습니다' }), {
                 status: 500,
                 headers: { 'Content-Type': 'application/json' }
             });
