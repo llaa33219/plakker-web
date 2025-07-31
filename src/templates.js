@@ -187,32 +187,15 @@ export const HTML_TEMPLATES = {
     
     admin: () => `
         <div class="container">
-            <div id="auth-check-loading" style="text-align: center; padding: 50px;">
-                <div>인증 상태 확인 중...</div>
-            </div>
-            <div id="unauthorized-access" style="display: none; text-align: center; padding: 50px;">
-                <h2>🔒 관리자 인증 필요</h2>
-                <p>이 페이지는 관리자만 접근할 수 있습니다.</p>
-                <div style="margin-top: 20px;">
-                    <a href="/" style="color: #007bff; text-decoration: none;">← 메인페이지로 돌아가기</a>
+            <div class="admin-header">
+                <h1>관리자 패널</h1>
+                <div class="admin-controls">
+                    <button onclick="loadPendingPacks()">대기 목록 새로고침</button>
+                    <button onclick="adminLogout()">로그아웃</button>
                 </div>
             </div>
-            <div id="admin-panel" style="display: none;">
-                <div class="admin-header">
-                    <h1>관리자 패널</h1>
-                    <div class="admin-auth" id="admin-auth">
-                        <div class="login-form">
-                            <input type="password" id="admin-password" placeholder="관리자 비밀번호" />
-                            <button class="login-btn" onclick="adminLogin()">로그인</button>
-                        </div>
-                    </div>
-                    <div class="admin-controls" id="admin-controls" style="display: none;">
-                        <button onclick="loadPendingPacks()">대기 목록 새로고침</button>
-                        <button onclick="adminLogout()">로그아웃</button>
-                    </div>
-                </div>
             
-            <div class="admin-content" id="admin-content" style="display: none;">
+            <div class="admin-content">
                 <div class="pending-stats" id="pending-stats">
                     <div class="stat-item">
                         <span class="stat-label">대기 중인 팩:</span>
@@ -221,7 +204,7 @@ export const HTML_TEMPLATES = {
                 </div>
                 
                 <div class="pending-packs" id="pending-packs">
-                    <!-- 초기 상태에서는 빈 상태로 시작 -->
+                    <div class="loading">대기 중인 팩을 불러오는 중...</div>
                 </div>
             </div>
             
@@ -245,6 +228,23 @@ export const HTML_TEMPLATES = {
                 </div>
             </div>
         </div>
+        
+        <script>
+            // 서버 인증된 관리자 페이지 초기화
+            document.addEventListener('DOMContentLoaded', function() {
+                if (window.location.pathname === '/admin') {
+                    initializeAuthenticatedAdminPage();
+                }
+            });
+            
+            function initializeAuthenticatedAdminPage() {
+                // 저장된 토큰을 전역 변수에 설정
+                window.adminToken = sessionStorage.getItem('admin_token');
+                
+                // 대기 중인 팩 자동 로드
+                loadPendingPacks();
+            }
+        </script>
     `,
 
     apiDocs: () => `

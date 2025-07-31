@@ -287,28 +287,47 @@ window.adminLogin = async function() {
 window.adminLogout = async function() {
     try {
         // 서버에 보안 로그아웃 요청
-        if (adminToken) {
-            await createSecureAdminRequest('/api/admin/logout', {
-                method: 'POST'
+        const token = adminToken || sessionStorage.getItem('admin_token');
+        if (token) {
+            await fetch('/api/admin/logout', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                }
             });
         }
     } catch (error) {
         // 로그아웃 오류 무시
+        console.log('[ADMIN] 로그아웃 요청 실패 (무시):', error.message);
     } finally {
         // 클라이언트 측 정리
         adminToken = null;
-        sessionStorage.removeItem('admin_token'); // sessionStorage에서 토큰 제거
+        sessionStorage.removeItem('admin_token');
         
         if (sessionTimeout) {
             clearTimeout(sessionTimeout);
             sessionTimeout = null;
         }
         
-        document.getElementById('admin-auth').style.display = 'block';
-        document.getElementById('admin-controls').style.display = 'none';
-        document.getElementById('admin-content').style.display = 'none';
-        document.getElementById('admin-password').value = '';
-        document.getElementById('pending-packs').innerHTML = '';
+        // 서버 인증과 클라이언트 인증을 구분해서 처리
+        const authElement = document.getElementById('admin-auth');
+        const controlsElement = document.getElementById('admin-controls');
+        const contentElement = document.getElementById('admin-content');
+        const passwordElement = document.getElementById('admin-password');
+        const packsElement = document.getElementById('pending-packs');
+        
+        if (authElement && controlsElement && contentElement) {
+            // 클라이언트 인증 페이지의 경우
+            authElement.style.display = 'block';
+            controlsElement.style.display = 'none';
+            contentElement.style.display = 'none';
+            if (passwordElement) passwordElement.value = '';
+            if (packsElement) packsElement.innerHTML = '';
+        } else {
+            // 서버 인증 페이지의 경우 - 페이지 새로고침으로 로그인 페이지로 이동
+            window.location.reload();
+        }
     }
 };
 
@@ -1267,11 +1286,30 @@ async function loadUploadLimitStatus() {
 
 // 관리자 페이지 초기화 (보안 강화)
 function setupAdminPage() {
-    // 보안 핑거프린트 초기화
-    securityFingerprint = generateSecurityFingerprint();
+    // 관리자 페이지인지 확인
+    if (window.location.pathname !== '/admin') {
+        console.warn('[ADMIN] 관리자 페이지가 아닙니다. setupAdminPage 실행을 중단합니다.');
+        return;
+    }
     
-    // 페이지 로드 즉시 인증 체크
-    checkAdminAuthentication();
+    // 서버에서 이미 인증된 페이지인지 확인 (DOM 구조로 판단)
+    const authCheckLoading = document.getElementById('auth-check-loading');
+    const adminControls = document.querySelector('.admin-controls');
+    
+    if (!authCheckLoading && adminControls) {
+        // 서버에서 이미 인증된 관리자 페이지 - 추가 초기화 불필요
+        console.log('[ADMIN] 서버에서 인증된 관리자 페이지입니다.');
+        return;
+    }
+    
+    // 클라이언트 인증이 필요한 경우만 처리
+    if (authCheckLoading) {
+        // 보안 핑거프린트 초기화
+        securityFingerprint = generateSecurityFingerprint();
+        
+        // 페이지 로드 즉시 인증 체크
+        checkAdminAuthentication();
+    }
 }
 
 // 관리자 인증 체크 함수
@@ -1279,6 +1317,12 @@ async function checkAdminAuthentication() {
     const loadingElement = document.getElementById('auth-check-loading');
     const unauthorizedElement = document.getElementById('unauthorized-access');
     const adminPanelElement = document.getElementById('admin-panel');
+    
+    // DOM 요소 존재 확인
+    if (!loadingElement || !unauthorizedElement || !adminPanelElement) {
+        console.warn('[ADMIN] 관리자 페이지 DOM 요소를 찾을 수 없습니다. 관리자 페이지가 아닌 것 같습니다.');
+        return;
+    }
     
     try {
         // 저장된 토큰이 있는지 확인 (sessionStorage 사용)
@@ -1320,15 +1364,15 @@ async function checkAdminAuthentication() {
     }
     
     function showUnauthorizedAccess() {
-        loadingElement.style.display = 'none';
-        unauthorizedElement.style.display = 'block';
-        adminPanelElement.style.display = 'none';
+        if (loadingElement) loadingElement.style.display = 'none';
+        if (unauthorizedElement) unauthorizedElement.style.display = 'block';
+        if (adminPanelElement) adminPanelElement.style.display = 'none';
     }
     
     function showAdminPanel() {
-        loadingElement.style.display = 'none';
-        unauthorizedElement.style.display = 'none';
-        adminPanelElement.style.display = 'block';
+        if (loadingElement) loadingElement.style.display = 'none';
+        if (unauthorizedElement) unauthorizedElement.style.display = 'none';
+        if (adminPanelElement) adminPanelElement.style.display = 'block';
         
         // 관리자 패널 초기화
         initializeAdminPanel();
