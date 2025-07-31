@@ -41,17 +41,14 @@ function checkCacheVersion() {
         // 무한 새로고침 방지 - 새로고침 카운터 체크
         const reloadCount = parseInt(sessionStorage.getItem('plakker_reload_count') || '0');
         if (reloadCount >= 3) {
-            console.log('무한 새로고침 방지: 새로고침 횟수 초과, 캐시 체크 건너뜀');
             sessionStorage.removeItem('plakker_reload_count');
             return;
         }
         
         const storedVersion = localStorage.getItem(CACHE_VERSION_KEY);
-        console.log('현재 버전:', CURRENT_VERSION, '저장된 버전:', storedVersion);
         
         // 버전이 다르거나 처음 방문인 경우
         if (!storedVersion || storedVersion !== CURRENT_VERSION) {
-            console.log('캐시 버전 업데이트 감지, 캐시 정리 중...');
             
             // 새로고침 카운터 증가
             sessionStorage.setItem('plakker_reload_count', (reloadCount + 1).toString());
@@ -72,7 +69,6 @@ function checkCacheVersion() {
             
             // 이전 버전이 있었다면 한 번만 새로고침
             if (storedVersion && reloadCount === 0) {
-                console.log('캐시 정리 후 페이지 새로고침...');
                 setTimeout(() => {
                     window.location.reload(true);
                 }, 100);
@@ -84,7 +80,6 @@ function checkCacheVersion() {
         }
         
     } catch (error) {
-        console.warn('캐시 버전 체크 실패:', error);
         // 에러가 나도 무한 새로고침 방지
         const errorReloadCount = parseInt(sessionStorage.getItem('plakker_error_reload') || '0');
         if (errorReloadCount < 1) {
@@ -107,11 +102,9 @@ window.clearPlakkerCache = function() {
                 })
             );
         }).then(function() {
-            console.log('모든 캐시가 정리되었습니다.');
             window.location.reload(true);
         });
     } else {
-        console.log('캐시가 정리되었습니다.');
         window.location.reload(true);
     }
 };
@@ -142,7 +135,6 @@ function generateSecurityFingerprint() {
         
         return encoded.slice(0, 32);
     } catch (error) {
-        console.warn('보안 핑거프린트 생성 실패:', error);
         // 폴백: 간단한 타임스탬프 기반 핑거프린트
         return Date.now().toString(36) + Math.random().toString(36).substring(2);
     }
@@ -169,7 +161,7 @@ function detectDevTools() {
             window.outerWidth - window.innerWidth > threshold) {
             if (!devtools) {
                 devtools = true;
-                console.warn('[SECURITY] 관리자 페이지에서 개발자 도구 사용이 감지되었습니다.');
+                // 개발자 도구 감지 시 특별한 조치 없음
             }
         } else {
             devtools = false;
@@ -205,8 +197,6 @@ function createSecureAdminRequest(url, options = {}) {
 
 // 관리자 로그인 (단순화)
 window.adminLogin = async function() {
-    console.log('[CLIENT] 로그인 시작');
-    
     const passwordInput = document.getElementById('admin-password');
     const loginBtn = document.querySelector('.login-btn');
     const password = passwordInput.value;
@@ -222,8 +212,6 @@ window.adminLogin = async function() {
     loginBtn.textContent = '로그인 중...';
     
     try {
-        console.log('[CLIENT] API 요청 전송');
-        
         const response = await fetch('/api/admin/login', {
             method: 'POST',
             headers: {
@@ -232,20 +220,13 @@ window.adminLogin = async function() {
             body: JSON.stringify({ password })
         });
         
-        console.log('[CLIENT] API 응답 수신, 상태:', response.status);
-        console.log('[CLIENT] 응답 헤더:', Object.fromEntries(response.headers.entries()));
-        
         // 먼저 응답을 텍스트로 읽어서 확인
         const responseText = await response.text();
-        console.log('[CLIENT] 원본 응답 텍스트:', responseText);
         
         let result;
         try {
             result = JSON.parse(responseText);
-            console.log('[CLIENT] 응답 파싱 완료:', result);
         } catch (parseError) {
-            console.error('[CLIENT] 응답 파싱 실패:', parseError);
-            console.error('[CLIENT] 파싱 실패한 응답 내용:', responseText);
             
             // HTML 오류 페이지인지 확인
             if (responseText.includes('<html>') || responseText.includes('<!DOCTYPE')) {
@@ -258,7 +239,6 @@ window.adminLogin = async function() {
         }
         
         if (response.ok && result.success) {
-            console.log('[CLIENT] 로그인 성공');
             adminToken = result.token;
             
             // UI 업데이트
@@ -277,33 +257,26 @@ window.adminLogin = async function() {
                 }
             }
             
-            console.log('[CLIENT] 대기 중인 팩 로드 시작');
             await loadPendingPacks();
             passwordInput.value = ''; // 비밀번호 지우기
             
         } else {
-            console.log('[CLIENT] 로그인 실패:', result);
             
             if (response.status === 429) {
                 const blockTime = result.remainingTime ? Math.ceil(result.remainingTime / 60) : 5;
                 alert('보안을 위해 로그인이 일시적으로 제한되었습니다. ' + blockTime + '분 후 다시 시도해주세요.');
             } else if (response.status === 500) {
                 alert('서버 오류: ' + (result.error || '알 수 없는 오류'));
-                if (result.details) {
-                    console.error('[CLIENT] 서버 오류 상세:', result.details);
-                }
             } else {
                 alert(result.error || '로그인에 실패했습니다.');
             }
         }
     } catch (error) {
-        console.error('[CLIENT] 로그인 중 오류:', error);
         alert('로그인 중 오류가 발생했습니다: ' + error.message);
     } finally {
         // 로딩 상태 해제
         loginBtn.disabled = false;
         loginBtn.textContent = originalText;
-        console.log('[CLIENT] 로그인 프로세스 완료');
     }
 };
 
@@ -317,7 +290,7 @@ window.adminLogout = async function() {
             });
         }
     } catch (error) {
-        console.error('로그아웃 오류:', error);
+        // 로그아웃 오류 무시
     } finally {
         // 클라이언트 측 정리
         adminToken = null;
@@ -361,7 +334,6 @@ window.loadPendingPacks = async function() {
         document.getElementById('pending-count').textContent = data.total;
         
     } catch (error) {
-        console.error('대기 팩 로드 실패:', error);
         alert('대기 중인 팩을 불러오는데 실패했습니다.');
     }
 };
@@ -419,7 +391,6 @@ window.viewPackDetails = async function(packId) {
         showPackModal(pack);
         
     } catch (error) {
-        console.error('팩 상세보기 실패:', error);
         alert('팩 상세 정보를 불러오는데 실패했습니다.');
     }
 };
@@ -488,7 +459,6 @@ window.approvePack = async function(packId) {
         await loadPendingPacks();
         
     } catch (error) {
-        console.error('팩 승인 실패:', error);
         alert('팩 승인에 실패했습니다. 관리자에게 문의하세요.');
     }
 };
@@ -528,7 +498,6 @@ window.rejectPack = async function(packId, reason = '') {
         closePackModal();
         
     } catch (error) {
-        console.error('팩 거부 실패:', error);
         alert('팩 거부에 실패했습니다. 관리자에게 문의하세요.');
     }
 };
@@ -595,10 +564,9 @@ async function loadPackList(page = 1) {
         
         updatePagination(data.currentPage, data.hasNext);
         
-    } catch (error) {
-        console.error('팩 리스트 로드 실패:', error);
-        document.getElementById('pack-list').innerHTML = '<div class="error">팩 리스트를 불러오는데 실패했습니다.</div>';
-    }
+            } catch (error) {
+            document.getElementById('pack-list').innerHTML = '<div class="error">팩 리스트를 불러오는데 실패했습니다.</div>';
+        }
 }
 
 function setupPagination() {
@@ -894,7 +862,6 @@ function setupUploadForm() {
                 }
                 updateThumbnailPreview();
             } catch (error) {
-                console.error('이미지 처리 오류:', error);
                 alert(error || '이미지 처리 중 오류가 발생했습니다.');
                 e.target.value = '';
             }
@@ -938,9 +905,6 @@ function setupUploadForm() {
                     processedFiles++;
                     
                     // 진행률 표시 (선택적)
-                    if (totalFiles > 3) {
-                        console.log('이미지 처리 중... ' + processedFiles + '/' + totalFiles);
-                    }
                     
                     // 애니메이션 파일의 경우 원본을 그대로 사용 (애니메이션 보존)
                     const fileArrayBuffer = await file.arrayBuffer();
@@ -990,7 +954,6 @@ function setupUploadForm() {
             }
             
         } catch (error) {
-            console.error('이미지 처리 오류:', error);
             alert(error || '이미지 처리 중 오류가 발생했습니다.');
             // 미리보기 컨테이너 초기화
             const previewContainer = document.getElementById('emoticon-preview');
@@ -1104,7 +1067,6 @@ function setupUploadForm() {
                 alert('업로드 실패: ' + (result.error || '알 수 없는 오류'));
             }
         } catch (error) {
-            console.error('업로드 오류:', error);
             alert('업로드 중 오류가 발생했습니다.');
         } finally {
             // 로딩 상태 해제
@@ -1294,14 +1256,12 @@ async function loadUploadLimitStatus() {
              }
         }
     } catch (error) {
-        console.error('업로드 제한 상태 로드 실패:', error);
+        // 업로드 제한 상태 로드 실패 시 무시
     }
 }
 
 // 관리자 페이지 초기화 (단순화)
 function setupAdminPage() {
-    console.log('[ADMIN SETUP] 관리자 페이지 초기화 시작');
-    
     // 보안 핑거프린트 초기화
     securityFingerprint = generateSecurityFingerprint();
     
@@ -1321,32 +1281,19 @@ function setupAdminPage() {
         
         // 포커스 설정
         passwordInput.focus();
-        console.log('[ADMIN SETUP] 비밀번호 입력 필드 설정 완료');
-    } else {
-        console.error('[ADMIN SETUP] 비밀번호 입력 필드를 찾을 수 없음');
     }
-    
-    console.log('[ADMIN SETUP] 관리자 페이지 초기화 완료');
 }
 
 // 관리자 API 연결 테스트
 async function testAdminAPI() {
     try {
-        console.log('[API TEST] 관리자 API 연결 테스트 시작');
-        
         const response = await fetch('/api/admin/test');
         const responseText = await response.text();
         
-        console.log('[API TEST] 응답 상태:', response.status);
-        console.log('[API TEST] 응답 내용:', responseText);
-        
         if (response.ok) {
             const result = JSON.parse(responseText);
-            console.log('[API TEST] 관리자 API 연결 성공:', result);
             
             if (!result.hasAdminPassword) {
-                console.warn('[API TEST] ⚠️ ADMIN_PASSWORD 환경변수가 설정되지 않았습니다!');
-                
                 // 사용자에게 알림
                 const warningDiv = document.createElement('div');
                 warningDiv.style.cssText = 'background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin: 10px 0; border-radius: 5px; color: #856404;';
@@ -1357,11 +1304,9 @@ async function testAdminAPI() {
                     adminAuth.appendChild(warningDiv);
                 }
             }
-        } else {
-            console.error('[API TEST] 관리자 API 연결 실패:', response.status, responseText);
         }
     } catch (error) {
-        console.error('[API TEST] 관리자 API 테스트 중 오류:', error);
+        // API 테스트 실패 시 무시
     }
 }
 
@@ -1390,7 +1335,6 @@ function startSecurityMonitoring() {
                 const controlsVisible = controlsDiv.style.display !== 'none';
                 
                 if (authVisible && controlsVisible) {
-                    console.warn('[SECURITY] UI 상태 불일치 감지');
                     adminLogout();
                 }
             }

@@ -228,11 +228,6 @@ export async function testLlamaAPI(env) {
                 timestamp: new Date().toISOString()
             };
             
-            console.log('Llama 4 API 테스트 시작:', {
-                apiUrl,
-                tokenLength: hfToken.length
-            });
-            
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
@@ -257,12 +252,6 @@ export async function testLlamaAPI(env) {
                 headers: Object.fromEntries(response.headers.entries()),
                 body: responseText
             };
-            
-            console.log('Llama 4 API 응답:', {
-                status: response.status,
-                statusText: response.statusText,
-                bodyPreview: responseText.substring(0, 200)
-            });
             
             if (response.ok) {
                 result.test.success = true;
@@ -289,7 +278,6 @@ export async function testLlamaAPI(env) {
             }
             
         } catch (error) {
-            console.error('Llama 4 API 테스트 오류:', error);
             result.test = {
                 success: false,
                 message: `❌ API 호출 중 네트워크 오류 발생: ${error.message}
@@ -446,12 +434,6 @@ export async function validateEmoticonWithQwen(imageBuffer, hfToken, env) {
         // Hugging Face Qwen API 직접 호출
         const apiUrl = 'https://router.huggingface.co/v1/chat/completions';
         
-        // 디버깅 로그
-        console.log('Qwen API 호출:', {
-            apiUrl,
-            tokenLength: hfToken ? hfToken.length : 0
-        });
-        
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
@@ -484,12 +466,6 @@ export async function validateEmoticonWithQwen(imageBuffer, hfToken, env) {
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Qwen API 응답 오류:', {
-                status: response.status,
-                statusText: response.statusText,
-                headers: Object.fromEntries(response.headers.entries()),
-                body: errorText
-            });
             
             if (response.status === 401 || response.status === 403) {
                 return { 
@@ -550,7 +526,6 @@ export async function validateEmoticonWithQwen(imageBuffer, hfToken, env) {
         }
         
     } catch (error) {
-        console.error('Qwen API 검증 오류:', error);
         return { 
             isValid: false, 
             reason: 'AI 검증 중 오류가 발생했습니다',
@@ -778,7 +753,6 @@ export async function checkUploadLimit(env, ip, limit = 5) {
             remaining: Math.max(0, limit - count)
         };
     } catch (error) {
-        console.error('업로드 제한 확인 오류:', maskIP(ip), error.message);
         // 오류 시에는 업로드를 허용 (fail-open)
         return {
             allowed: true,
@@ -814,7 +788,6 @@ export async function incrementUploadCount(env, ip) {
         
         return newCount;
     } catch (error) {
-        console.error('업로드 카운트 증가 오류:', maskIP(ip), error.message);
         return 0;
     }
 }
@@ -868,7 +841,6 @@ function base64UrlDecode(str) {
         str = str.replace(/-/g, '+').replace(/_/g, '/');
         return atob(str);
     } catch (error) {
-        console.warn('Base64 디코딩 실패:', error);
         throw new Error('Invalid base64 string');
     }
 }
@@ -894,7 +866,7 @@ async function simpleHmac(key, message) {
             return new Uint8Array(signature);
         }
     } catch (error) {
-        console.warn('Web Crypto API 사용 불가, fallback 해시 사용:', error);
+        // Web Crypto API 사용 불가, fallback 해시 사용
     }
     
     // 강화된 Fallback: 더 나은 해시 함수
@@ -1000,7 +972,6 @@ export async function hashPassword(password, salt = null) {
                 salt = fallbackSalt;
             }
         } catch (error) {
-            console.warn('Salt 생성 실패, fallback 사용:', error);
             const fallbackSalt = new Uint8Array(16);
             for (let i = 0; i < 16; i++) {
                 fallbackSalt[i] = Math.floor(Math.random() * 256);
@@ -1023,7 +994,7 @@ export async function hashPassword(password, salt = null) {
             };
         }
     } catch (error) {
-        console.warn('Web Crypto API 사용 불가, fallback 해시 사용:', error);
+        // Web Crypto API 사용 불가, fallback 해시 사용
     }
     
     // 강화된 Fallback 해시
@@ -1057,7 +1028,6 @@ export async function verifyPassword(password, storedHash, storedSalt) {
         const { hash } = await hashPassword(password, saltBytes);
         return hash === storedHash;
     } catch (error) {
-        console.error('Password verification failed:', error);
         return false;
     }
 }
@@ -1087,7 +1057,7 @@ export function generateSecureSessionId() {
             return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
         }
     } catch (error) {
-        console.warn('crypto.getRandomValues 사용 불가:', error);
+        // crypto.getRandomValues 사용 불가, fallback 사용
     }
     
     // Fallback: 충분히 안전한 대안

@@ -565,7 +565,11 @@ async function verifyAdminToken(request, env) {
         }
         
         const token = authHeader.substring(7);
-        const jwtSecret = env.JWT_SECRET || env.ADMIN_PASSWORD || 'default-secret';
+        const jwtSecret = env.JWT_SECRET || env.ADMIN_PASSWORD;
+        
+        if (!jwtSecret) {
+            return { valid: false, error: '서버 설정 오류입니다' };
+        }
         
         const verification = await verifyJWT(token, jwtSecret);
         if (!verification.valid) {
@@ -688,7 +692,14 @@ export async function handleAdminLogin(request, env) {
         });
         
         // 간단한 JWT 토큰 생성
-        const jwtSecret = env.JWT_SECRET || adminPassword || 'default-secret';
+        const jwtSecret = env.JWT_SECRET || adminPassword;
+        
+        if (!jwtSecret) {
+            return new Response(JSON.stringify({ error: '서버 설정 오류입니다. 관리자에게 문의하세요.' }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
         
         let token;
         try {
