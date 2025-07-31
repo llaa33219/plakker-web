@@ -187,19 +187,30 @@ export const HTML_TEMPLATES = {
     
     admin: () => `
         <div class="container">
-            <div class="admin-header">
-                <h1>관리자 패널</h1>
-                <div class="admin-auth" id="admin-auth">
-                    <div class="login-form">
-                        <input type="password" id="admin-password" placeholder="관리자 비밀번호" />
-                        <button class="login-btn" onclick="adminLogin()">로그인</button>
-                    </div>
-                </div>
-                <div class="admin-controls" id="admin-controls" style="display: none;">
-                    <button onclick="loadPendingPacks()">대기 목록 새로고침</button>
-                    <button onclick="adminLogout()">로그아웃</button>
+            <div id="auth-check-loading" style="text-align: center; padding: 50px;">
+                <div>인증 상태 확인 중...</div>
+            </div>
+            <div id="unauthorized-access" style="display: none; text-align: center; padding: 50px;">
+                <h2>🔒 관리자 인증 필요</h2>
+                <p>이 페이지는 관리자만 접근할 수 있습니다.</p>
+                <div style="margin-top: 20px;">
+                    <a href="/" style="color: #007bff; text-decoration: none;">← 메인페이지로 돌아가기</a>
                 </div>
             </div>
+            <div id="admin-panel" style="display: none;">
+                <div class="admin-header">
+                    <h1>관리자 패널</h1>
+                    <div class="admin-auth" id="admin-auth">
+                        <div class="login-form">
+                            <input type="password" id="admin-password" placeholder="관리자 비밀번호" />
+                            <button class="login-btn" onclick="adminLogin()">로그인</button>
+                        </div>
+                    </div>
+                    <div class="admin-controls" id="admin-controls" style="display: none;">
+                        <button onclick="loadPendingPacks()">대기 목록 새로고침</button>
+                        <button onclick="adminLogout()">로그아웃</button>
+                    </div>
+                </div>
             
             <div class="admin-content" id="admin-content" style="display: none;">
                 <div class="pending-stats" id="pending-stats">

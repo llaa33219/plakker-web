@@ -241,6 +241,9 @@ window.adminLogin = async function() {
         if (response.ok && result.success) {
             adminToken = result.token;
             
+            // 토큰을 sessionStorage에 저장 (페이지 새로고침 시에도 유지)
+            sessionStorage.setItem('admin_token', result.token);
+            
             // UI 업데이트
             document.getElementById('admin-auth').style.display = 'none';
             document.getElementById('admin-controls').style.display = 'block';
@@ -294,6 +297,8 @@ window.adminLogout = async function() {
     } finally {
         // 클라이언트 측 정리
         adminToken = null;
+        sessionStorage.removeItem('admin_token'); // sessionStorage에서 토큰 제거
+        
         if (sessionTimeout) {
             clearTimeout(sessionTimeout);
             sessionTimeout = null;
@@ -1260,14 +1265,78 @@ async function loadUploadLimitStatus() {
     }
 }
 
-// 관리자 페이지 초기화 (단순화)
+// 관리자 페이지 초기화 (보안 강화)
 function setupAdminPage() {
     // 보안 핑거프린트 초기화
     securityFingerprint = generateSecurityFingerprint();
     
-    // API 연결 테스트
-    testAdminAPI();
+    // 페이지 로드 즉시 인증 체크
+    checkAdminAuthentication();
+}
+
+// 관리자 인증 체크 함수
+async function checkAdminAuthentication() {
+    const loadingElement = document.getElementById('auth-check-loading');
+    const unauthorizedElement = document.getElementById('unauthorized-access');
+    const adminPanelElement = document.getElementById('admin-panel');
     
+    try {
+        // 저장된 토큰이 있는지 확인 (sessionStorage 사용)
+        const storedToken = sessionStorage.getItem('admin_token');
+        
+        if (!storedToken) {
+            // 토큰이 없으면 인증 필요
+            showUnauthorizedAccess();
+            return;
+        }
+        
+        // 토큰이 있으면 서버에서 검증
+        const response = await fetch('/api/admin/verify', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + storedToken,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.valid) {
+                // 인증 성공 - 관리자 패널 표시
+                adminToken = storedToken;
+                showAdminPanel();
+                return;
+            }
+        }
+        
+        // 토큰이 유효하지 않음 - 저장된 토큰 제거
+        sessionStorage.removeItem('admin_token');
+        showUnauthorizedAccess();
+        
+    } catch (error) {
+        // 인증 체크 실패 - 접근 거부
+        sessionStorage.removeItem('admin_token');
+        showUnauthorizedAccess();
+    }
+    
+    function showUnauthorizedAccess() {
+        loadingElement.style.display = 'none';
+        unauthorizedElement.style.display = 'block';
+        adminPanelElement.style.display = 'none';
+    }
+    
+    function showAdminPanel() {
+        loadingElement.style.display = 'none';
+        unauthorizedElement.style.display = 'none';
+        adminPanelElement.style.display = 'block';
+        
+        // 관리자 패널 초기화
+        initializeAdminPanel();
+    }
+}
+
+// 관리자 패널 초기화
+function initializeAdminPanel() {
     const passwordInput = document.getElementById('admin-password');
     
     if (passwordInput) {
@@ -1282,24 +1351,17 @@ function setupAdminPage() {
         // 포커스 설정
         passwordInput.focus();
     }
-}
-
-// 관리자 API 연결 테스트
-async function testAdminAPI() {
-    try {
-        const response = await fetch('/api/admin/test');
-        const responseText = await response.text();
-        
-        if (response.ok) {
-            const result = JSON.parse(responseText);
-            console.log('[ADMIN] API 연결 테스트 성공:', result.message);
-            // hasAdminPassword 체크 제거 - 보안 강화
-        }
-    } catch (error) {
-        // API 테스트 실패 시 무시
-        console.log('[ADMIN] API 연결 테스트 실패 (정상적일 수 있음)');
+    
+    // 토큰이 이미 있으면 로그인된 상태로 UI 업데이트
+    if (adminToken) {
+        document.getElementById('admin-auth').style.display = 'none';
+        document.getElementById('admin-controls').style.display = 'block';
+        document.getElementById('admin-content').style.display = 'block';
+        loadPendingPacks();
     }
 }
+
+
 
 // 보안 모니터링 시작 (관리자 페이지 전용)
 function startSecurityMonitoring() {
