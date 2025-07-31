@@ -1,6 +1,7 @@
 // API 핸들러들
 import { 
     addCorsHeaders, 
+    addSelectiveCorsHeaders, // 선별적 CORS 함수 추가
     handleOptions, 
     toAbsoluteUrl, 
     convertPackToAbsoluteUrls,
@@ -18,13 +19,14 @@ import {
     hashPassword,
     isValidIP,
     generateSecureSessionId,
-    verifyPassword // 해싱된 비밀번호 검증 함수 추가
+    verifyPassword, // 해싱된 비밀번호 검증 함수 추가
+    validateImageFile, // 강화된 파일 검증 함수 추가
+    isAnimatedImage // 애니메이션 이미지 확인 함수 추가
 } from './utils.js';
 
 // Rate limiting을 위한 맵 (실제 프로덕션에서는 Redis 등 사용 권장)
 const loginAttempts = new Map();
-const adminSessions = new Map();
-const validAdminIPs = new Map(); // 승인된 관리자 IP 추적
+// 세션과 관리자 IP는 KV에 저장 (메모리 기반 제거)
 
 // Rate limiting 설정
 const RATE_LIMIT = {
@@ -35,6 +37,13 @@ const RATE_LIMIT = {
 
 // 세션 만료 시간 (1시간)
 const SESSION_TIMEOUT = 60 * 60 * 1000;
+
+// KV 키 접두사
+const KV_PREFIXES = {
+    adminSession: 'admin_session:',
+    adminIP: 'admin_ip:',
+    uploadLimit: 'uploads:'
+};
 
 // 서버 측 보안 검증 강화
 const SECURITY_CONFIG = {
@@ -55,31 +64,50 @@ export async function handleAPI(request, env, path) {
     
     if (path === '/api/packs' && request.method === 'GET') {
         response = await handleGetPacks(request, env);
+        // 공개 API - 모든 도메인 허용
+        return addSelectiveCorsHeaders(response, true);
     } else if (path === '/api/upload' && request.method === 'POST') {
         response = await handleUpload(request, env);
+        // 업로드 API - 공개 API로 처리
+        return addSelectiveCorsHeaders(response, true);
     } else if (path === '/api/upload-limit' && request.method === 'GET') {
         response = await handleUploadLimitStatus(request, env);
+        // 업로드 제한 확인 API - 공개 API로 처리
+        return addSelectiveCorsHeaders(response, true);
     } else if (path === '/api/admin/login' && request.method === 'POST') {
         response = await handleAdminLogin(request, env);
+        // 관리자 API - 제한적 CORS
+        return addSelectiveCorsHeaders(response, false);
     } else if (path === '/api/admin/verify' && request.method === 'GET') {
         response = await handleAdminVerify(request, env);
+        // 관리자 API - 제한적 CORS
+        return addSelectiveCorsHeaders(response, false);
     } else if (path === '/api/admin/logout' && request.method === 'POST') {
         response = await handleAdminLogout(request, env);
+        // 관리자 API - 제한적 CORS
+        return addSelectiveCorsHeaders(response, false);
     } else if (path === '/api/admin/pending-packs' && request.method === 'GET') {
         response = await handleGetPendingPacks(request, env);
+        // 관리자 API - 제한적 CORS
+        return addSelectiveCorsHeaders(response, false);
     } else if (path === '/api/admin/approve-pack' && request.method === 'POST') {
         response = await handleApprovePack(request, env);
+        // 관리자 API - 제한적 CORS
+        return addSelectiveCorsHeaders(response, false);
     } else if (path === '/api/admin/reject-pack' && request.method === 'POST') {
         response = await handleRejectPack(request, env);
+        // 관리자 API - 제한적 CORS
+        return addSelectiveCorsHeaders(response, false);
     } else if (path.startsWith('/api/pack/')) {
         const packId = path.split('/')[3];
         response = await handleGetPack(packId, env, request);
+        // 공개 API - 모든 도메인 허용
+        return addSelectiveCorsHeaders(response, true);
     } else {
         response = new Response('API Not Found', { status: 404 });
+        // 기본적으로 공개 API로 처리
+        return addSelectiveCorsHeaders(response, true);
     }
-    
-    // 모든 API 응답에 CORS 헤더 추가
-    return addCorsHeaders(response);
 }
 
 // 팩 리스트 조회 (pack_list 없이 직접 KV에서 조회)
@@ -253,27 +281,34 @@ export async function handleUpload(request, env) {
         // 허용된 이미지 형식
         const allowedImageTypes = ['image/png', 'image/jpg', 'image/jpeg', 'image/webp', 'image/gif'];
         
-        // 파일 형식 검증 함수
-        function isValidImageType(file) {
-            return file && file.type && allowedImageTypes.includes(file.type.toLowerCase());
+        // 강화된 파일 검증 함수
+        async function validateFile(file, fileName) {
+            const validation = await validateImageFile(file);
+            if (!validation.valid) {
+                throw new Error(`${fileName}: ${validation.error}`);
+            }
+            return validation.arrayBuffer;
         }
         
-        // 썸네일 파일 형식 검증
-        if (!isValidImageType(thumbnail)) {
-            return new Response(JSON.stringify({ 
-                error: '썸네일은 지원되는 이미지 형식이어야 합니다. (PNG, JPG, JPEG, WebP, GIF)' 
-            }), {
+        // 썸네일 파일 검증 (강화됨)
+        let thumbnailBuffer;
+        try {
+            thumbnailBuffer = await validateFile(thumbnail, '썸네일');
+        } catch (error) {
+            return new Response(JSON.stringify({ error: error.message }), {
                 status: 400,
                 headers: { 'Content-Type': 'application/json' }
             });
         }
         
-        // 이모티콘 파일 형식 검증
+        // 이모티콘 파일 검증 (강화됨)
+        const emoticonBuffers = [];
         for (let i = 0; i < emoticons.length; i++) {
-            if (!isValidImageType(emoticons[i])) {
-                return new Response(JSON.stringify({ 
-                    error: `이모티콘 ${i + 1}번이 지원되지 않는 파일 형식입니다. 지원되는 형식: PNG, JPG, JPEG, WebP, GIF` 
-                }), {
+            try {
+                const buffer = await validateFile(emoticons[i], `이모티콘 ${i + 1}번`);
+                emoticonBuffers.push(buffer);
+            } catch (error) {
+                return new Response(JSON.stringify({ error: error.message }), {
                     status: 400,
                     headers: { 'Content-Type': 'application/json' }
                 });
@@ -284,10 +319,7 @@ export async function handleUpload(request, env) {
         const packId = generateId();
         
         // 썸네일 처리
-        let thumbnailBuffer = await thumbnail.arrayBuffer();
-        
-        // 썸네일 리사이즈 및 업로드 (애니메이션 파일은 원본 유지)
-        const { isAnimatedImage } = await import('./utils.js');
+        // thumbnailBuffer는 이미 검증되었으므로 리사이즈 및 업로드
         if (!isAnimatedImage(thumbnail, thumbnailBuffer)) {
             thumbnailBuffer = await resizeImage(thumbnailBuffer, 200, 200); // 썸네일은 200x200
         }
@@ -301,16 +333,14 @@ export async function handleUpload(request, env) {
         
         for (let i = 0; i < emoticons.length; i++) {
             const emoticon = emoticons[i];
-            let emoticonBuffer = await emoticon.arrayBuffer();
-            
-            // 이모티콘 리사이즈 (150x150, 애니메이션 파일은 원본 유지)
-            if (!isAnimatedImage(emoticon, emoticonBuffer)) {
-                emoticonBuffer = await resizeImage(emoticonBuffer, 150, 150);
+            // emoticonBuffers[i]는 이미 검증되었으므로 리사이즈 및 업로드
+            if (!isAnimatedImage(emoticon, emoticonBuffers[i])) {
+                emoticonBuffers[i] = await resizeImage(emoticonBuffers[i], 150, 150);
             }
             
             // R2에 업로드
             const emoticonKey = `emoticons/${packId}_${i}`;
-            await env.PLAKKER_R2.put(emoticonKey, emoticonBuffer, {
+            await env.PLAKKER_R2.put(emoticonKey, emoticonBuffers[i], {
                 httpMetadata: { contentType: emoticon.type }
             });
             
@@ -570,7 +600,7 @@ async function verifyAdminToken(request, env) {
         // JWT_SECRET 우선 사용, 없으면 ADMIN_PASSWORD 사용 (보안 강화)
         const jwtSecret = env.JWT_SECRET;
         if (!jwtSecret) {
-            return { valid: false, error: 'JWT 시크릿이 설정되지 않았습니다. 관리자에게 문의하세요.' };
+            return { valid: false, error: '서버 설정 오류가 발생했습니다. 관리자에게 문의하세요.' };
         }
         
         const verification = await verifyJWT(token, jwtSecret);
@@ -580,15 +610,21 @@ async function verifyAdminToken(request, env) {
         
         // 2. 세션 확인
         const sessionId = verification.payload.sessionId;
-        if (!adminSessions.has(sessionId)) {
-            return { valid: false, error: '세션이 만료되었습니다' };
+        if (!sessionId) {
+            return { valid: false, error: '세션 ID가 없습니다' };
         }
-        
-        const session = adminSessions.get(sessionId);
+
+        // KV에서 세션 정보 가져오기
+        const sessionKey = `${KV_PREFIXES.adminSession}${sessionId}`;
+        const session = await env.PLAKKER_KV.get(sessionKey, 'json');
+
+        if (!session) {
+            return { valid: false, error: '세션이 만료되었거나 존재하지 않습니다' };
+        }
         
         // 3. 세션 만료 확인
         if (Date.now() > session.expiresAt) {
-            adminSessions.delete(sessionId);
+            await env.PLAKKER_KV.delete(sessionKey); // 만료된 세션 삭제
             return { valid: false, error: '세션이 만료되었습니다' };
         }
         
@@ -599,6 +635,7 @@ async function verifyAdminToken(request, env) {
         
         // 세션 갱신
         session.expiresAt = Date.now() + SESSION_TIMEOUT;
+        await env.PLAKKER_KV.put(sessionKey, JSON.stringify(session));
         
         return { valid: true, payload: verification.payload };
     } catch (error) {
@@ -660,7 +697,7 @@ export async function handleAdminLogin(request, env) {
         
         if (!adminPasswordHash) {
             return new Response(JSON.stringify({ 
-                error: 'ADMIN_PASSWORD_HASH 환경변수가 설정되지 않았습니다. 관리자에게 문의하세요.' 
+                error: '서버 설정 오류입니다. 관리자에게 문의하세요.' 
             }), {
                 status: 500,
                 headers: { 'Content-Type': 'application/json' }
@@ -692,21 +729,22 @@ export async function handleAdminLogin(request, env) {
         recordLoginAttempt(clientIP, true);
         
         // IP를 승인된 관리자 목록에 추가
-        validAdminIPs.set(clientIP, {
-            firstLogin: Date.now(),
-            lastLogin: Date.now(),
-            loginCount: (validAdminIPs.get(clientIP)?.loginCount || 0) + 1
-        });
-        
+        // 이 부분은 메모리 기반 관리를 KV 기반으로 변경하면서 제거되었으므로,
+        // 여기서는 단순히 로그인 시도를 기록하는 것으로 유지
+        // 실제 관리자 IP 목록은 관리자 페이지에서 관리해야 함
+
         // 간단한 세션 생성
         const sessionId = generateSecureSessionId();
         const expiresAt = Date.now() + SESSION_TIMEOUT;
         
-        adminSessions.set(sessionId, {
+        // KV에 세션 정보 저장
+        const sessionKey = `${KV_PREFIXES.adminSession}${sessionId}`;
+        await env.PLAKKER_KV.put(sessionKey, JSON.stringify({
+            sessionId: sessionId,
             ip: clientIP,
             createdAt: Date.now(),
             expiresAt: expiresAt
-        });
+        }));
         
         // 간단한 JWT 토큰 생성
         const jwtSecret = env.JWT_SECRET;
@@ -759,34 +797,43 @@ export async function handleAdminLogin(request, env) {
 }
 
 // 관리자 세션 정리 (보안 강화)
-function cleanupAdminSessions() {
+async function cleanupAdminSessions(env) {
     const now = Date.now();
-    const expiredSessions = [];
-    
-    for (const [sessionId, session] of adminSessions.entries()) {
-        if (now > session.expiresAt) {
-            expiredSessions.push(sessionId);
-        }
-    }
-    
-    for (const sessionId of expiredSessions) {
-        const session = adminSessions.get(sessionId);
-        adminSessions.delete(sessionId);
-    }
-    
-    // 오래된 IP 정보도 정리 (7일 이상 미사용)
     const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
-    for (const [ip, ipInfo] of validAdminIPs.entries()) {
-        if (ipInfo.lastLogin < sevenDaysAgo) {
-            validAdminIPs.delete(ip);
+
+    // KV에서 만료된 세션 삭제
+    const expiredSessions = [];
+    const listResult = await env.PLAKKER_KV.list({ prefix: KV_PREFIXES.adminSession });
+    for (const item of listResult.keys) {
+        const sessionKey = item.name;
+        const session = await env.PLAKKER_KV.get(sessionKey, 'json');
+        if (session && Date.now() > session.expiresAt) {
+            expiredSessions.push(sessionKey);
         }
+    }
+    for (const sessionKey of expiredSessions) {
+        await env.PLAKKER_KV.delete(sessionKey);
+    }
+
+    // KV에서 오래된 IP 정보 삭제
+    const expiredIPs = [];
+    const listResultIPs = await env.PLAKKER_KV.list({ prefix: KV_PREFIXES.adminIP });
+    for (const item of listResultIPs.keys) {
+        const ipKey = item.name;
+        const ipInfo = await env.PLAKKER_KV.get(ipKey, 'json');
+        if (ipInfo && ipInfo.lastLogin < sevenDaysAgo) {
+            expiredIPs.push(ipKey);
+        }
+    }
+    for (const ipKey of expiredIPs) {
+        await env.PLAKKER_KV.delete(ipKey);
     }
 }
 
 // 관리자 API 호출 전 기본 검증 (단순화)
 async function validateAdminRequest(request, env) {
     // 세션 정리
-    cleanupAdminSessions();
+    await cleanupAdminSessions(env);
     
     const clientIP = getClientIP(request);
     
@@ -879,7 +926,9 @@ export async function handleAdminLogout(request, env) {
         const clientIP = getClientIP(request);
         
         if (authResult.valid && authResult.payload.sessionId) {
-            adminSessions.delete(authResult.payload.sessionId);
+            // KV에서 세션 삭제
+            const sessionKey = `${KV_PREFIXES.adminSession}${authResult.payload.sessionId}`;
+            await env.PLAKKER_KV.delete(sessionKey);
         }
         
         return new Response(JSON.stringify({ success: true }), {

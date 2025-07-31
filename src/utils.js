@@ -610,34 +610,48 @@ export function getPermissionsPolicyHeader() {
     ].join(', ');
 }
 
-// CORS 및 보안 헤더 추가 함수 (크롬 확장 프로그램 지원 개선)
-export function addCorsHeaders(response) {
-    const corsHeaders = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, HEAD',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, User-Agent, DNT, Cache-Control, X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since',
-        'Access-Control-Expose-Headers': 'Content-Length, Content-Type, Date, Server, X-RateLimit-Limit, X-RateLimit-Remaining',
-        'Access-Control-Max-Age': '86400', // 24시간
-        'Access-Control-Allow-Credentials': 'false',
-        'Permissions-Policy': getPermissionsPolicyHeader(),
-        'Vary': 'Origin'
-    };
-    
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-        response.headers.set(key, value);
-    });
-    
-    // Content-Type이 설정되지 않았다면 JSON으로 설정
-    if (!response.headers.get('Content-Type') && response.body) {
-        try {
-            JSON.parse(response.body);
-            response.headers.set('Content-Type', 'application/json; charset=utf-8');
-        } catch (e) {
-            // JSON이 아니면 그대로 둠
-        }
+// 선별적 CORS 헤더 추가 함수 (보안 강화)
+export function addSelectiveCorsHeaders(response, isPublicAPI = false) {
+    if (isPublicAPI) {
+        // 공개 API (이모티콘 목록/상세): 모든 도메인 허용 (확장 프로그램 지원)
+        const publicCorsHeaders = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, X-Requested-With, If-Modified-Since',
+            'Access-Control-Expose-Headers': 'Content-Length, Content-Type, Date, Server',
+            'Access-Control-Max-Age': '86400', // 24시간
+            'Access-Control-Allow-Credentials': 'false',
+            'Vary': 'Origin'
+        };
+        
+        Object.entries(publicCorsHeaders).forEach(([key, value]) => {
+            response.headers.set(key, value);
+        });
+    } else {
+        // 관리자 API: 제한적 CORS (같은 도메인만)
+        const restrictedCorsHeaders = {
+            'Access-Control-Allow-Origin': 'null', // 제한적 허용
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept',
+            'Access-Control-Allow-Credentials': 'true',
+            'X-Content-Type-Options': 'nosniff',
+            'X-Frame-Options': 'DENY'
+        };
+        
+        Object.entries(restrictedCorsHeaders).forEach(([key, value]) => {
+            response.headers.set(key, value);
+        });
     }
     
+    // 공통 보안 헤더
+    response.headers.set('Permissions-Policy', getPermissionsPolicyHeader());
+    
     return response;
+}
+
+// CORS 및 보안 헤더 추가 함수 (크롬 확장 프로그램 지원 개선) - 기존 함수는 유지하되 공개 API 전용으로 사용
+export function addCorsHeaders(response) {
+    return addSelectiveCorsHeaders(response, true); // 기본적으로 공개 API로 처리
 }
 
 // OPTIONS preflight 요청 처리
@@ -845,55 +859,27 @@ function base64UrlDecode(str) {
     }
 }
 
-// 간단한 HMAC-SHA256 구현 (안전한 fallback 포함)
+// 간단한 HMAC-SHA256 구현 (Web Crypto API 전용)
 async function simpleHmac(key, message) {
     const encoder = new TextEncoder();
     const keyData = encoder.encode(key);
     const messageData = encoder.encode(message);
     
-    try {
-        // Cloudflare Workers에서는 crypto.subtle 사용 가능
-        if (typeof crypto !== 'undefined' && crypto.subtle) {
-            const cryptoKey = await crypto.subtle.importKey(
-                'raw',
-                keyData,
-                { name: 'HMAC', hash: 'SHA-256' },
-                false,
-                ['sign']
-            );
-            
-            const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
-            return new Uint8Array(signature);
-        }
-    } catch (error) {
-        // Web Crypto API 사용 불가, fallback 해시 사용
+    // Cloudflare Workers에서는 crypto.subtle이 항상 사용 가능해야 함
+    if (typeof crypto === 'undefined' || !crypto.subtle) {
+        throw new Error('Web Crypto API not available - secure cryptography is required');
     }
     
-    // 강화된 Fallback: 더 나은 해시 함수
-    const fullMessage = key + '|' + message;
-    let hash1 = 0, hash2 = 0;
+    const cryptoKey = await crypto.subtle.importKey(
+        'raw',
+        keyData,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+    );
     
-    for (let i = 0; i < fullMessage.length; i++) {
-        const char = fullMessage.charCodeAt(i);
-        hash1 = ((hash1 << 5) - hash1) + char;
-        hash1 = hash1 & hash1; // 32비트 변환
-        
-        hash2 = ((hash2 << 3) - hash2) + char + i;
-        hash2 = hash2 & hash2; // 32비트 변환
-    }
-    
-    // 더 긴 시그니처 생성
-    const signature = new Uint8Array(8);
-    signature[0] = Math.abs(hash1) & 0xff;
-    signature[1] = (Math.abs(hash1) >> 8) & 0xff;
-    signature[2] = (Math.abs(hash1) >> 16) & 0xff;
-    signature[3] = (Math.abs(hash1) >> 24) & 0xff;
-    signature[4] = Math.abs(hash2) & 0xff;
-    signature[5] = (Math.abs(hash2) >> 8) & 0xff;
-    signature[6] = (Math.abs(hash2) >> 16) & 0xff;
-    signature[7] = (Math.abs(hash2) >> 24) & 0xff;
-    
-    return signature;
+    const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+    return new Uint8Array(signature);
 }
 
 // JWT 토큰 생성
@@ -956,67 +942,25 @@ export async function verifyJWT(token, secret) {
     }
 }
 
-// 비밀번호 해싱 (안전한 구현)
+// 비밀번호 해싱 (Web Crypto API 전용)
 export async function hashPassword(password, salt = null) {
+    // Web Crypto API 필수 요구
+    if (typeof crypto === 'undefined' || !crypto.subtle || !crypto.getRandomValues) {
+        throw new Error('Web Crypto API not available - secure cryptography is required');
+    }
+    
     // Salt 생성
     if (!salt) {
-        try {
-            if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-                salt = crypto.getRandomValues(new Uint8Array(16));
-            } else {
-                // Fallback salt 생성
-                const fallbackSalt = new Uint8Array(16);
-                for (let i = 0; i < 16; i++) {
-                    fallbackSalt[i] = Math.floor(Math.random() * 256);
-                }
-                salt = fallbackSalt;
-            }
-        } catch (error) {
-            const fallbackSalt = new Uint8Array(16);
-            for (let i = 0; i < 16; i++) {
-                fallbackSalt[i] = Math.floor(Math.random() * 256);
-            }
-            salt = fallbackSalt;
-        }
+        salt = crypto.getRandomValues(new Uint8Array(16));
     }
     
-    try {
-        // Web Crypto API 사용 시도
-        if (typeof crypto !== 'undefined' && crypto.subtle) {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(password + Array.from(salt).join(''));
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            const hashArray = new Uint8Array(hashBuffer);
-            
-            return {
-                hash: Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join(''),
-                salt: Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('')
-            };
-        }
-    } catch (error) {
-        // Web Crypto API 사용 불가, fallback 해시 사용
-    }
-    
-    // 강화된 Fallback 해시
-    const saltString = Array.from(salt).join('');
-    const fullPassword = password + '|' + saltString;
-    let hash1 = 0x811c9dc5; // FNV-1a 초기값
-    let hash2 = 0;
-    
-    for (let i = 0; i < fullPassword.length; i++) {
-        const char = fullPassword.charCodeAt(i);
-        hash1 ^= char;
-        hash1 *= 0x01000193; // FNV-1a prime
-        hash1 = hash1 & hash1; // 32비트 변환
-        
-        hash2 = ((hash2 << 5) - hash2) + char + i;
-        hash2 = hash2 & hash2;
-    }
-    
-    const combinedHash = (Math.abs(hash1) ^ Math.abs(hash2)).toString(16);
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password + Array.from(salt).join(''));
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = new Uint8Array(hashBuffer);
     
     return {
-        hash: combinedHash.padStart(8, '0'),
+        hash: Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join(''),
         salt: Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('')
     };
 }
@@ -1078,24 +1022,81 @@ export function isValidIP(ip) {
     return false;
 }
 
-// 안전한 세션 ID 생성 (브라우저 및 서버 호환)
+// 안전한 세션 ID 생성 (Web Crypto API 전용)
 export function generateSecureSessionId() {
-    try {
-        // Cloudflare Workers 환경에서는 crypto.getRandomValues 사용 가능
-        if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-            const array = new Uint8Array(32);
-            crypto.getRandomValues(array);
-            return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-        }
-    } catch (error) {
-        // crypto.getRandomValues 사용 불가, fallback 사용
+    // Web Crypto API 필수 요구
+    if (typeof crypto === 'undefined' || !crypto.getRandomValues) {
+        throw new Error('Web Crypto API not available - secure random generation is required');
     }
     
-    // Fallback: 충분히 안전한 대안
-    const timestamp = Date.now().toString(36);
-    const random1 = Math.random().toString(36).substring(2);
-    const random2 = Math.random().toString(36).substring(2);
-    const random3 = Math.random().toString(36).substring(2);
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+} 
+
+// 매직 바이트를 통한 파일 타입 검증 (보안 강화)
+export function validateFileByMagicBytes(arrayBuffer, expectedType) {
+    const uint8Array = new Uint8Array(arrayBuffer);
     
-    return timestamp + random1 + random2 + random3;
+    if (uint8Array.length < 4) {
+        return false;
+    }
+    
+    // 각 이미지 타입의 매직 바이트 검증
+    switch (expectedType.toLowerCase()) {
+        case 'image/jpeg':
+        case 'image/jpg':
+            // JPEG: FF D8 FF
+            return uint8Array[0] === 0xFF && uint8Array[1] === 0xD8 && uint8Array[2] === 0xFF;
+            
+        case 'image/png':
+            // PNG: 89 50 4E 47 0D 0A 1A 0A
+            return uint8Array[0] === 0x89 && uint8Array[1] === 0x50 && 
+                   uint8Array[2] === 0x4E && uint8Array[3] === 0x47;
+                   
+        case 'image/gif':
+            // GIF87a: 47 49 46 38 37 61 또는 GIF89a: 47 49 46 38 39 61
+            return uint8Array[0] === 0x47 && uint8Array[1] === 0x49 && 
+                   uint8Array[2] === 0x46 && uint8Array[3] === 0x38 &&
+                   (uint8Array[4] === 0x37 || uint8Array[4] === 0x39) &&
+                   uint8Array[5] === 0x61;
+                   
+        case 'image/webp':
+            // WebP: 52 49 46 46 ... 57 45 42 50
+            return uint8Array[0] === 0x52 && uint8Array[1] === 0x49 && 
+                   uint8Array[2] === 0x46 && uint8Array[3] === 0x46 &&
+                   uint8Array.length >= 12 &&
+                   uint8Array[8] === 0x57 && uint8Array[9] === 0x45 &&
+                   uint8Array[10] === 0x42 && uint8Array[11] === 0x50;
+                   
+        default:
+            return false;
+    }
+}
+
+// 강화된 이미지 파일 검증 (MIME 타입 + 매직 바이트)
+export async function validateImageFile(file) {
+    if (!file || !file.type) {
+        return { valid: false, error: '파일이 유효하지 않습니다.' };
+    }
+    
+    const allowedImageTypes = ['image/png', 'image/jpg', 'image/jpeg', 'image/webp', 'image/gif'];
+    
+    // MIME 타입 검증
+    if (!allowedImageTypes.includes(file.type.toLowerCase())) {
+        return { valid: false, error: '지원되지 않는 파일 형식입니다.' };
+    }
+    
+    // 매직 바이트 검증
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        
+        if (!validateFileByMagicBytes(arrayBuffer, file.type)) {
+            return { valid: false, error: '파일 내용이 형식과 일치하지 않습니다.' };
+        }
+        
+        return { valid: true, arrayBuffer };
+    } catch (error) {
+        return { valid: false, error: '파일을 읽을 수 없습니다.' };
+    }
 } 
