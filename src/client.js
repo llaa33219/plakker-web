@@ -41,14 +41,17 @@ function checkCacheVersion() {
         // 무한 새로고침 방지 - 새로고침 카운터 체크
         const reloadCount = parseInt(sessionStorage.getItem('plakker_reload_count') || '0');
         if (reloadCount >= 3) {
+            console.log('무한 새로고침 방지: 새로고침 횟수 초과, 캐시 체크 건너뜀');
             sessionStorage.removeItem('plakker_reload_count');
             return;
         }
         
         const storedVersion = localStorage.getItem(CACHE_VERSION_KEY);
+        console.log('현재 버전:', CURRENT_VERSION, '저장된 버전:', storedVersion);
         
         // 버전이 다르거나 처음 방문인 경우
         if (!storedVersion || storedVersion !== CURRENT_VERSION) {
+            console.log('캐시 버전 업데이트 감지, 캐시 정리 중...');
             
             // 새로고침 카운터 증가
             sessionStorage.setItem('plakker_reload_count', (reloadCount + 1).toString());
@@ -69,6 +72,7 @@ function checkCacheVersion() {
             
             // 이전 버전이 있었다면 한 번만 새로고침
             if (storedVersion && reloadCount === 0) {
+                console.log('캐시 정리 후 페이지 새로고침...');
                 setTimeout(() => {
                     window.location.reload(true);
                 }, 100);
@@ -80,6 +84,7 @@ function checkCacheVersion() {
         }
         
     } catch (error) {
+        console.warn('캐시 버전 체크 실패:', error);
         // 에러가 나도 무한 새로고침 방지
         const errorReloadCount = parseInt(sessionStorage.getItem('plakker_error_reload') || '0');
         if (errorReloadCount < 1) {
@@ -102,349 +107,73 @@ window.clearPlakkerCache = function() {
                 })
             );
         }).then(function() {
+            console.log('모든 캐시가 정리되었습니다.');
             window.location.reload(true);
         });
     } else {
+        console.log('캐시가 정리되었습니다.');
         window.location.reload(true);
     }
 };
 
 // 관리자 기능들
 let adminToken = null;
-let sessionTimeout = null;
-let securityFingerprint = null; // 클라이언트 보안 핑거프린트
 
-// 보안 핑거프린트 생성 (안전한 버전)
-function generateSecurityFingerprint() {
-    try {
-        // 기본 브라우저 정보만 사용 (캔버스 제외)
-        const fingerprint = {
-            screen: screen.width + 'x' + screen.height,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-            language: navigator.language || 'en',
-            platform: navigator.platform || 'unknown',
-            timestamp: Date.now()
-        };
-        
-        // 안전한 인코딩 (유니코드 문제 방지)
-        const jsonString = JSON.stringify(fingerprint);
-        let encoded = '';
-        for (let i = 0; i < jsonString.length; i++) {
-            encoded += jsonString.charCodeAt(i).toString(16);
-        }
-        
-        return encoded.slice(0, 32);
-    } catch (error) {
-        // 폴백: 간단한 타임스탬프 기반 핑거프린트
-        return Date.now().toString(36) + Math.random().toString(36).substring(2);
-    }
-}
-
-// 개발자 도구 감지 (관리자 페이지 전용)
-function detectDevTools() {
-    // 관리자 페이지에서만 활성화
-    if (window.location.pathname !== '/admin') {
-        return;
-    }
-    
-    let devtools = false;
-    const threshold = 160;
-    
-    const checkInterval = setInterval(() => {
-        // 관리자 페이지를 벗어나면 감지 중단
-        if (window.location.pathname !== '/admin') {
-            clearInterval(checkInterval);
-            return;
-        }
-        
-        if (window.outerHeight - window.innerHeight > threshold || 
-            window.outerWidth - window.innerWidth > threshold) {
-            if (!devtools) {
-                devtools = true;
-                // 개발자 도구 감지 시 특별한 조치 없음
-            }
-        } else {
-            devtools = false;
-        }
-    }, 2000); // 2초마다 체크 (성능 개선)
-}
-
-// 🔒 SECURITY ENHANCEMENT: 안전한 관리자 API 요청 함수 (CSRF 토큰 포함)
-async function secureAdminRequest(url, options = {}) {
-    const token = adminToken || sessionStorage.getItem('admin_token');
-    
-    if (!token) {
-        throw new Error('관리자 인증이 필요합니다');
-    }
-    
-    // 🔒 SECURITY: CSRF 토큰 자동 추가
-    const headers = {
-        'Authorization': 'Bearer ' + token,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...options.headers
-    };
-    
-    // POST, PUT, DELETE 요청에는 CSRF 토큰 필수
-    if (options.method && options.method !== 'GET' && window.CSRF_TOKEN) {
-        headers['X-CSRF-Token'] = window.CSRF_TOKEN;
-    }
-    
-    const secureOptions = {
-        ...options,
-        headers
-    };
-    
-    return fetch(url, secureOptions);
-}
-
-// 🔒 SECURITY ENHANCEMENT: 관리자 로그인 (보안 강화)
+// 관리자 로그인
 window.adminLogin = async function() {
-    const passwordInput = document.getElementById('admin-password');
-    const loginBtn = document.querySelector('.login-btn');
-    const password = passwordInput.value;
-    
+    const password = document.getElementById('admin-password').value;
     if (!password) {
-        showSecureError('비밀번호를 입력해주세요.');
+        alert('비밀번호를 입력해주세요.');
         return;
     }
     
-    // 로딩 상태 설정
-    const originalText = loginBtn.textContent;
-    loginBtn.disabled = true;
-    loginBtn.textContent = '로그인 중...';
+    adminToken = password;
+    document.getElementById('admin-auth').style.display = 'none';
+    document.getElementById('admin-controls').style.display = 'block';
+    document.getElementById('admin-content').style.display = 'block';
     
-    try {
-        const response = await fetch('/api/admin/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ password })
-        });
-        
-        const responseText = await response.text();
-        
-        let result;
-        try {
-            result = JSON.parse(responseText);
-        } catch (parseError) {
-            if (responseText.includes('<html>') || responseText.includes('<!DOCTYPE')) {
-                throw new Error('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
-            } else if (responseText.trim() === '') {
-                throw new Error('서버 연결에 실패했습니다.');
-            } else {
-                throw new Error('로그인 처리 중 오류가 발생했습니다.');
-            }
-        }
-        
-        if (response.ok && result.success) {
-            adminToken = result.token;
-            sessionStorage.setItem('admin_token', result.token);
-            
-            // UI 업데이트
-            const authElement = document.getElementById('admin-auth');
-            const controlsElement = document.getElementById('admin-controls');
-            const contentElement = document.getElementById('admin-content');
-            
-            if (authElement) authElement.style.display = 'none';
-            if (controlsElement) controlsElement.style.display = 'block';
-            if (contentElement) contentElement.style.display = 'block';
-            
-            // 🔒 SECURITY: 세션 타임아웃 30분으로 설정
-            if (result.expiresAt) {
-                const expiresIn = (result.expiresAt - Date.now()) - (5 * 60 * 1000); // 5분 전 경고
-                if (expiresIn > 0) {
-                    sessionTimeout = setTimeout(() => {
-                        showSecureError('세션이 곧 만료됩니다. 다시 로그인해주세요.');
-                        setTimeout(() => adminLogout(), 3000);
-                    }, expiresIn);
-                }
-            }
-            
-            await loadPendingPacks();
-            passwordInput.value = ''; // 비밀번호 즉시 지우기
-            
-        } else {
-            if (response.status === 429) {
-                const blockTime = result.remainingTime ? Math.ceil(result.remainingTime / 60) : 5;
-                showSecureError('보안상 ' + blockTime + '분간 로그인이 제한되었습니다.');
-            } else if (response.status === 500) {
-                showSecureError('서버 오류가 발생했습니다. 관리자에게 문의하세요.');
-            } else {
-                showSecureError('인증에 실패했습니다.');
-            }
-        }
-    } catch (error) {
-        showSecureError('로그인 중 오류가 발생했습니다.');
-    } finally {
-        loginBtn.disabled = false;
-        loginBtn.textContent = originalText;
-    }
+    await loadPendingPacks();
 };
 
-// 🔒 SECURITY ENHANCEMENT: 안전한 오류 메시지 표시
-function showSecureError(message) {
-    // 기존 오류 메시지 제거
-    const existingError = document.querySelector('.admin-error-message');
-    if (existingError) {
-        existingError.remove();
-    }
-    
-    // 새 오류 메시지 생성
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'admin-error-message';
-    errorDiv.style.cssText = 'background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 10px; margin-bottom: 15px; color: #721c24; font-size: 14px; text-align: center;';
-    errorDiv.textContent = message;
-    
-    // 적절한 위치에 삽입
-    const authDiv = document.getElementById('admin-auth') || document.querySelector('.container');
-    if (authDiv) {
-        authDiv.insertBefore(errorDiv, authDiv.firstChild);
-        
-        // 5초 후 자동 제거
-        setTimeout(() => {
-            if (errorDiv.parentNode) {
-                errorDiv.remove();
-            }
-        }, 5000);
-    }
-}
-
-// 🔒 SECURITY ENHANCEMENT: 관리자 로그아웃 (보안 강화)
-window.adminLogout = async function() {
-    try {
-        const token = adminToken || sessionStorage.getItem('admin_token');
-        if (token) {
-            // 🔒 SECURITY: CSRF 토큰 포함하여 로그아웃 요청
-            await secureAdminRequest('/api/admin/logout', {
-                method: 'POST'
-            });
-        }
-    } catch (error) {
-        // 로그아웃 오류는 무시하고 클라이언트 측 정리 진행
-    } finally {
-        // 🔒 SECURITY: 모든 인증 정보 완전 삭제
-        adminToken = null;
-        sessionStorage.removeItem('admin_token');
-        
-        if (sessionTimeout) {
-            clearTimeout(sessionTimeout);
-            sessionTimeout = null;
-        }
-        
-        // CSRF 토큰도 제거
-        if (window.CSRF_TOKEN) {
-            window.CSRF_TOKEN = null;
-        }
-        
-        const authElement = document.getElementById('admin-auth');
-        const controlsElement = document.getElementById('admin-controls');
-        const contentElement = document.getElementById('admin-content');
-        const passwordElement = document.getElementById('admin-password');
-        
-        if (authElement && controlsElement && contentElement) {
-            authElement.style.display = 'block';
-            controlsElement.style.display = 'none';
-            contentElement.style.display = 'none';
-            if (passwordElement) passwordElement.value = '';
-            
-            const packsElement = document.getElementById('pending-packs');
-            if (packsElement) packsElement.innerHTML = '';
-        } else {
-            // 서버 인증 페이지의 경우 홈으로 리다이렉트
-            window.location.href = '/';
-        }
-    }
+// 관리자 로그아웃
+window.adminLogout = function() {
+    adminToken = null;
+    document.getElementById('admin-auth').style.display = 'block';
+    document.getElementById('admin-controls').style.display = 'none';
+    document.getElementById('admin-content').style.display = 'none';
+    document.getElementById('admin-password').value = '';
 };
 
-// 🔒 SECURITY ENHANCEMENT: 대기 중인 팩 로드 (보안 강화)
+// 대기 중인 팩 로드
 window.loadPendingPacks = async function() {
-    const token = adminToken || sessionStorage.getItem('admin_token');
-    
-    if (!token) {
-        showSecureError('로그인이 필요합니다.');
+    if (!adminToken) {
+        alert('로그인이 필요합니다.');
         return;
     }
     
-    if (!adminToken && token) {
-        adminToken = token;
-    }
-    
     try {
-        const response = await secureAdminRequest('/api/admin/pending-packs', {
-            method: 'GET'
+        const response = await fetch('/api/admin/pending-packs', {
+            headers: {
+                'Authorization': \`Bearer \${adminToken}\`
+            }
         });
         
         if (!response.ok) {
             if (response.status === 401) {
-                showSecureError('세션이 만료되었습니다. 다시 로그인해주세요.');
-                setTimeout(() => adminLogout(), 2000);
+                alert('잘못된 비밀번호입니다.');
+                adminLogout();
                 return;
             }
-            throw new Error('권한이 없습니다.');
+            throw new Error('API 호출 실패');
         }
         
         const data = await response.json();
-        const pendingPacks = data.packs || [];
-        
-        // UI 업데이트
-        const pendingCountElement = document.getElementById('pending-count');
-        if (pendingCountElement) {
-            pendingCountElement.textContent = pendingPacks.length;
-        }
-        
-        const packsContainer = document.getElementById('pending-packs');
-        if (!packsContainer) return;
-        
-        if (pendingPacks.length === 0) {
-            packsContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #6c757d;"><p>대기 중인 팩이 없습니다.</p></div>';
-            return;
-        }
-        
-        // 팩 목록 렌더링 (안전한 방식)
-        const packElements = pendingPacks.map(pack => {
-            const packDiv = document.createElement('div');
-            packDiv.className = 'pack-item';
-            packDiv.onclick = () => openPackModal(pack.id);
-            
-            // 텍스트 내용 안전하게 설정
-            const titleSpan = document.createElement('span');
-            titleSpan.className = 'pack-title';
-            titleSpan.textContent = pack.title || '제목 없음';
-            
-            const creatorSpan = document.createElement('span');
-            creatorSpan.className = 'pack-creator';
-            creatorSpan.textContent = pack.creator || '제작자 미상';
-            
-            const dateSpan = document.createElement('span');
-            dateSpan.className = 'pack-date';
-            dateSpan.textContent = formatKoreanDate(pack.createdAt);
-            
-            const infoDiv = document.createElement('div');
-            infoDiv.className = 'pack-info';
-            infoDiv.appendChild(titleSpan);
-            infoDiv.appendChild(creatorSpan);
-            infoDiv.appendChild(dateSpan);
-            
-            if (pack.thumbnail) {
-                const thumbnailImg = document.createElement('img');
-                thumbnailImg.src = pack.thumbnail;
-                thumbnailImg.alt = '썸네일';
-                thumbnailImg.className = 'pack-thumbnail';
-                packDiv.appendChild(thumbnailImg);
-            }
-            
-            packDiv.appendChild(infoDiv);
-            return packDiv;
-        });
-        
-        // 기존 내용 제거하고 새 요소들 추가
-        packsContainer.innerHTML = '';
-        packElements.forEach(element => packsContainer.appendChild(element));
+        displayPendingPacks(data.packs);
+        document.getElementById('pending-count').textContent = data.total;
         
     } catch (error) {
-        showSecureError('팩 목록을 불러오는데 실패했습니다.');
+        console.error('대기 팩 로드 실패:', error);
+        alert('대기 중인 팩을 불러오는데 실패했습니다.');
     }
 };
 
@@ -484,19 +213,11 @@ function displayPendingPacks(packs) {
 
 // 팩 상세보기
 window.viewPackDetails = async function(packId) {
-    const token = adminToken || sessionStorage.getItem('admin_token');
-    if (!token) {
-        alert('로그인이 필요합니다.');
-        return;
-    }
-    
     try {
-        // 대기 중인 팩의 상세 정보를 가져오기 위해 보안 요청 사용
+        // 대기 중인 팩의 상세 정보를 가져오기 위해 KV에서 직접 조회
         const response = await fetch('/api/admin/pending-packs', {
-            method: 'GET',
             headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json'
+                'Authorization': \`Bearer \${adminToken}\`
             }
         });
         
@@ -513,98 +234,40 @@ window.viewPackDetails = async function(packId) {
         showPackModal(pack);
         
     } catch (error) {
+        console.error('팩 상세보기 실패:', error);
         alert('팩 상세 정보를 불러오는데 실패했습니다.');
     }
 };
 
-// 🔒 SECURITY ENHANCEMENT: 팩 상세 모달 표시 (안전한 DOM 조작)
+// 팩 상세 모달 표시
 function showPackModal(pack) {
     const modal = document.getElementById('pack-modal');
     const modalBody = document.getElementById('pack-modal-body');
     const modalFooter = document.getElementById('pack-modal-footer');
     
-    // 안전한 DOM 생성
-    const modalDiv = document.createElement('div');
-    modalDiv.className = 'pack-detail-modal';
+    modalBody.innerHTML = \`
+        <div class="pack-detail-modal">
+            <div class="pack-header">
+                <img src="\${pack.thumbnail}" alt="\${pack.title}" class="pack-thumbnail-large" />
+                <div class="pack-meta">
+                    <h3>\${pack.title}</h3>
+                    <p><strong>제작자:</strong> \${pack.creator}</p>
+                    \${pack.creatorLink ? \`<p><strong>제작자 링크:</strong> <a href="\${pack.creatorLink}" target="_blank">\${pack.creatorLink}</a></p>\` : ''}
+                    <p><strong>업로드 시간:</strong> \${new Date(pack.createdAt).toLocaleString('ko-KR')}</p>
+                    <p><strong>이모티콘 개수:</strong> \${pack.totalEmoticons}개</p>
+                </div>
+            </div>
+            <div class="pack-emoticons">
+                <p>이모티콘들이 실제로는 여기에 표시되어야 하지만, 승인 전이므로 미리보기는 제한됩니다.</p>
+            </div>
+        </div>
+    \`;
     
-    const headerDiv = document.createElement('div');
-    headerDiv.className = 'pack-header';
-    
-    const img = document.createElement('img');
-    img.src = pack.thumbnail;
-    img.alt = pack.title;
-    img.className = 'pack-thumbnail-large';
-    
-    const metaDiv = document.createElement('div');
-    metaDiv.className = 'pack-meta';
-    
-    const titleH3 = document.createElement('h3');
-    titleH3.textContent = pack.title;
-    
-    const creatorP = document.createElement('p');
-    creatorP.innerHTML = '<strong>제작자:</strong> ';
-    creatorP.appendChild(document.createTextNode(pack.creator));
-    
-    const timeP = document.createElement('p');
-    timeP.innerHTML = '<strong>업로드 시간:</strong> ';
-    timeP.appendChild(document.createTextNode(new Date(pack.createdAt).toLocaleString('ko-KR')));
-    
-    const countP = document.createElement('p');
-    countP.innerHTML = '<strong>이모티콘 개수:</strong> ';
-    countP.appendChild(document.createTextNode(pack.totalEmoticons + '개'));
-    
-    metaDiv.appendChild(titleH3);
-    metaDiv.appendChild(creatorP);
-    
-    if (pack.creatorLink) {
-        const linkP = document.createElement('p');
-        linkP.innerHTML = '<strong>제작자 링크:</strong> ';
-        const linkA = document.createElement('a');
-        linkA.href = pack.creatorLink;
-        linkA.target = '_blank';
-        linkA.textContent = pack.creatorLink;
-        linkP.appendChild(linkA);
-        metaDiv.appendChild(linkP);
-    }
-    
-    metaDiv.appendChild(timeP);
-    metaDiv.appendChild(countP);
-    
-    headerDiv.appendChild(img);
-    headerDiv.appendChild(metaDiv);
-    
-    const emoticonsDiv = document.createElement('div');
-    emoticonsDiv.className = 'pack-emoticons';
-    const emoticonP = document.createElement('p');
-    emoticonP.textContent = '이모티콘들이 실제로는 여기에 표시되어야 하지만, 승인 전이므로 미리보기는 제한됩니다.';
-    emoticonsDiv.appendChild(emoticonP);
-    
-    modalDiv.appendChild(headerDiv);
-    modalDiv.appendChild(emoticonsDiv);
-    
-    modalBody.innerHTML = '';
-    modalBody.appendChild(modalDiv);
-    
-    // 안전한 버튼 생성
-    const approveBtn = document.createElement('button');
-    approveBtn.className = 'btn btn-success';
-    approveBtn.textContent = '승인';
-    approveBtn.onclick = () => { approvePack(pack.id); closePackModal(); };
-    
-    const rejectBtn = document.createElement('button');
-    rejectBtn.className = 'btn btn-danger';
-    rejectBtn.textContent = '거부';
-    rejectBtn.onclick = () => showRejectModal(pack.id);
-    
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'btn btn-secondary';
-    closeBtn.textContent = '닫기';
-    closeBtn.onclick = closePackModal;
-    
-    modalFooter.innerHTML = '';
-    modalFooter.appendChild(approveBtn);
-    modalFooter.appendChild(rejectBtn);
-    modalFooter.appendChild(closeBtn);
+    modalFooter.innerHTML = \`
+        <button class="btn btn-success" onclick="approvePack('\${pack.id}'); closePackModal();">승인</button>
+        <button class="btn btn-danger" onclick="showRejectModal('\${pack.id}')">거부</button>
+        <button class="btn btn-secondary" onclick="closePackModal()">닫기</button>
+    \`;
     
     modal.style.display = 'block';
 }
@@ -614,43 +277,28 @@ window.closePackModal = function() {
     document.getElementById('pack-modal').style.display = 'none';
 };
 
-// 🔒 SECURITY ENHANCEMENT: 팩 승인 (보안 강화)
+// 팩 승인
 window.approvePack = async function(packId) {
-    if (!packId) {
-        showSecureError('팩 ID가 없습니다.');
-        return;
-    }
-    
-    if (!confirm('이 팩을 승인하시겠습니까?')) {
-        return;
-    }
+    if (!confirm('이 팩을 승인하시겠습니까?')) return;
     
     try {
-        const response = await secureAdminRequest('/api/admin/approve-pack', {
+        const response = await fetch('/api/admin/approve-pack', {
             method: 'POST',
+            headers: {
+                'Authorization': \`Bearer \${adminToken}\`,
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({ packId })
         });
         
-        if (!response.ok) {
-            if (response.status === 401) {
-                showSecureError('권한이 없습니다. 다시 로그인해주세요.');
-                setTimeout(() => adminLogout(), 2000);
-                return;
-            }
-            throw new Error('승인 처리에 실패했습니다.');
-        }
+        if (!response.ok) throw new Error('승인 실패');
         
-        const result = await response.json();
-        if (result.success) {
-            alert('팩이 승인되었습니다.');
-            closePackModal();
-            await loadPendingPacks(); // 목록 새로고침
-        } else {
-            throw new Error(result.error || '승인에 실패했습니다.');
-        }
+        alert('팩이 승인되었습니다.');
+        await loadPendingPacks();
         
     } catch (error) {
-        showSecureError('승인 처리 중 오류가 발생했습니다.');
+        console.error('팩 승인 실패:', error);
+        alert('팩 승인에 실패했습니다.');
     }
 };
 
@@ -662,46 +310,29 @@ window.showRejectModal = function(packId) {
     }
 };
 
-// 🔒 SECURITY ENHANCEMENT: 팩 거부 (보안 강화)
-window.rejectPack = async function(packId) {
-    if (!packId) {
-        showSecureError('팩 ID가 없습니다.');
-        return;
-    }
-    
-    const reason = prompt('거부 사유를 입력하세요 (선택사항):');
-    if (reason === null) return; // 취소한 경우
-    
-    if (!confirm('이 팩을 거부하시겠습니까? 모든 데이터가 삭제됩니다.')) {
-        return;
-    }
+// 팩 거부
+window.rejectPack = async function(packId, reason = '') {
+    if (!reason && !confirm('이 팩을 거부하시겠습니까?')) return;
     
     try {
-        const response = await secureAdminRequest('/api/admin/reject-pack', {
+        const response = await fetch('/api/admin/reject-pack', {
             method: 'POST',
+            headers: {
+                'Authorization': \`Bearer \${adminToken}\`,
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({ packId, reason })
         });
         
-        if (!response.ok) {
-            if (response.status === 401) {
-                showSecureError('권한이 없습니다. 다시 로그인해주세요.');
-                setTimeout(() => adminLogout(), 2000);
-                return;
-            }
-            throw new Error('거부 처리에 실패했습니다.');
-        }
+        if (!response.ok) throw new Error('거부 실패');
         
-        const result = await response.json();
-        if (result.success) {
-            alert('팩이 거부되어 삭제되었습니다.');
-            closePackModal();
-            await loadPendingPacks(); // 목록 새로고침
-        } else {
-            throw new Error(result.error || '거부에 실패했습니다.');
-        }
+        alert('팩이 거부되었습니다.');
+        await loadPendingPacks();
+        closePackModal();
         
     } catch (error) {
-        showSecureError('거부 처리 중 오류가 발생했습니다.');
+        console.error('팩 거부 실패:', error);
+        alert('팩 거부에 실패했습니다.');
     }
 };
 
@@ -718,8 +349,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setupUploadForm();
         loadUploadLimitStatus();
     } else if (path === '/admin') {
-        // 관리자 페이지 초기화
-        setupAdminPage();
+        // 관리자 페이지는 별도 초기화가 필요하지 않음 (사용자가 로그인 버튼을 클릭해야 함)
     }
 });
 
@@ -767,9 +397,10 @@ async function loadPackList(page = 1) {
         
         updatePagination(data.currentPage, data.hasNext);
         
-            } catch (error) {
-            document.getElementById('pack-list').innerHTML = '<div class="error">팩 리스트를 불러오는데 실패했습니다.</div>';
-        }
+    } catch (error) {
+        console.error('팩 리스트 로드 실패:', error);
+        document.getElementById('pack-list').innerHTML = '<div class="error">팩 리스트를 불러오는데 실패했습니다.</div>';
+    }
 }
 
 function setupPagination() {
@@ -1065,6 +696,7 @@ function setupUploadForm() {
                 }
                 updateThumbnailPreview();
             } catch (error) {
+                console.error('이미지 처리 오류:', error);
                 alert(error || '이미지 처리 중 오류가 발생했습니다.');
                 e.target.value = '';
             }
@@ -1108,6 +740,9 @@ function setupUploadForm() {
                     processedFiles++;
                     
                     // 진행률 표시 (선택적)
+                    if (totalFiles > 3) {
+                        console.log('이미지 처리 중... ' + processedFiles + '/' + totalFiles);
+                    }
                     
                     // 애니메이션 파일의 경우 원본을 그대로 사용 (애니메이션 보존)
                     const fileArrayBuffer = await file.arrayBuffer();
@@ -1157,6 +792,7 @@ function setupUploadForm() {
             }
             
         } catch (error) {
+            console.error('이미지 처리 오류:', error);
             alert(error || '이미지 처리 중 오류가 발생했습니다.');
             // 미리보기 컨테이너 초기화
             const previewContainer = document.getElementById('emoticon-preview');
@@ -1270,6 +906,7 @@ function setupUploadForm() {
                 alert('업로드 실패: ' + (result.error || '알 수 없는 오류'));
             }
         } catch (error) {
+            console.error('업로드 오류:', error);
             alert('업로드 중 오류가 발생했습니다.');
         } finally {
             // 로딩 상태 해제
@@ -1459,169 +1096,8 @@ async function loadUploadLimitStatus() {
              }
         }
     } catch (error) {
-        // 업로드 제한 상태 로드 실패 시 무시
+        console.error('업로드 제한 상태 로드 실패:', error);
     }
-}
-
-// 관리자 페이지 초기화 (보안 강화)
-function setupAdminPage() {
-    // 관리자 페이지인지 확인
-    if (window.location.pathname !== '/admin') {
-        console.warn('[ADMIN] 관리자 페이지가 아닙니다. setupAdminPage 실행을 중단합니다.');
-        return;
-    }
-    
-    // 서버에서 이미 인증된 페이지인지 확인 (DOM 구조로 판단)
-    const authCheckLoading = document.getElementById('auth-check-loading');
-    const adminControls = document.querySelector('.admin-controls');
-    
-    if (!authCheckLoading && adminControls) {
-        // 서버에서 이미 인증된 관리자 페이지 - 추가 초기화 불필요
-        console.log('[ADMIN] 서버에서 인증된 관리자 페이지입니다.');
-        return;
-    }
-    
-    // 클라이언트 인증이 필요한 경우만 처리
-    if (authCheckLoading) {
-        // 보안 핑거프린트 초기화
-        securityFingerprint = generateSecurityFingerprint();
-        
-        // 페이지 로드 즉시 인증 체크
-        checkAdminAuthentication();
-    }
-}
-
-// 관리자 인증 체크 함수
-async function checkAdminAuthentication() {
-    const loadingElement = document.getElementById('auth-check-loading');
-    const unauthorizedElement = document.getElementById('unauthorized-access');
-    const adminPanelElement = document.getElementById('admin-panel');
-    
-    // DOM 요소 존재 확인
-    if (!loadingElement || !unauthorizedElement || !adminPanelElement) {
-        console.warn('[ADMIN] 관리자 페이지 DOM 요소를 찾을 수 없습니다. 관리자 페이지가 아닌 것 같습니다.');
-        return;
-    }
-    
-    try {
-        // 저장된 토큰이 있는지 확인 (sessionStorage 사용)
-        const storedToken = sessionStorage.getItem('admin_token');
-        
-        if (!storedToken) {
-            // 토큰이 없으면 인증 필요
-            showUnauthorizedAccess();
-            return;
-        }
-        
-        // 토큰이 있으면 서버에서 검증
-        const response = await fetch('/api/admin/verify', {
-            method: 'GET',
-            headers: {
-                'Authorization': 'Bearer ' + storedToken,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (response.ok) {
-            const result = await response.json();
-            if (result.valid) {
-                // 인증 성공 - 관리자 패널 표시
-                adminToken = storedToken;
-                showAdminPanel();
-                return;
-            }
-        }
-        
-        // 토큰이 유효하지 않음 - 저장된 토큰 제거
-        sessionStorage.removeItem('admin_token');
-        showUnauthorizedAccess();
-        
-    } catch (error) {
-        // 인증 체크 실패 - 접근 거부
-        sessionStorage.removeItem('admin_token');
-        showUnauthorizedAccess();
-    }
-    
-    function showUnauthorizedAccess() {
-        if (loadingElement) loadingElement.style.display = 'none';
-        if (unauthorizedElement) unauthorizedElement.style.display = 'block';
-        if (adminPanelElement) adminPanelElement.style.display = 'none';
-    }
-    
-    function showAdminPanel() {
-        if (loadingElement) loadingElement.style.display = 'none';
-        if (unauthorizedElement) unauthorizedElement.style.display = 'none';
-        if (adminPanelElement) adminPanelElement.style.display = 'block';
-        
-        // 관리자 패널 초기화
-        initializeAdminPanel();
-    }
-}
-
-// 관리자 패널 초기화
-function initializeAdminPanel() {
-    const passwordInput = document.getElementById('admin-password');
-    
-    if (passwordInput) {
-        // Enter 키로 로그인
-        passwordInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                adminLogin();
-            }
-        });
-        
-        // 포커스 설정
-        passwordInput.focus();
-    }
-    
-    // 토큰이 이미 있으면 로그인된 상태로 UI 업데이트
-    if (adminToken) {
-        document.getElementById('admin-auth').style.display = 'none';
-        document.getElementById('admin-controls').style.display = 'block';
-        document.getElementById('admin-content').style.display = 'block';
-        loadPendingPacks();
-    }
-}
-
-
-
-// 보안 모니터링 시작 (관리자 페이지 전용)
-function startSecurityMonitoring() {
-    // 관리자 페이지에서만 활성화
-    if (window.location.pathname !== '/admin') {
-        return;
-    }
-    
-    // 10초마다 보안 상태 확인
-    const monitorInterval = setInterval(() => {
-        // 관리자 페이지를 벗어나면 모니터링 중단
-        if (window.location.pathname !== '/admin') {
-            clearInterval(monitorInterval);
-            return;
-        }
-        
-        if (adminToken) {
-            // 토큰이 있지만 UI 상태가 일치하지 않는 경우 감지
-            const authDiv = document.getElementById('admin-auth');
-            const controlsDiv = document.getElementById('admin-controls');
-            
-            if (authDiv && controlsDiv) {
-                const authVisible = authDiv.style.display !== 'none';
-                const controlsVisible = controlsDiv.style.display !== 'none';
-                
-                if (authVisible && controlsVisible) {
-                    adminLogout();
-                }
-            }
-        }
-    }, 10000);
-}
-
-// 기존 세션 확인 (쿠키나 로컬 스토리지 기반)
-async function checkExistingSession() {
-    // 향후 확장 가능한 기능 - 현재는 보안상 구현하지 않음
-    // 세션 토큰이 있어도 매번 새로 로그인하도록 함
 }
 
 `; 

@@ -228,6 +228,11 @@ export async function testLlamaAPI(env) {
                 timestamp: new Date().toISOString()
             };
             
+            console.log('Llama 4 API 테스트 시작:', {
+                apiUrl,
+                tokenLength: hfToken.length
+            });
+            
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
@@ -252,6 +257,12 @@ export async function testLlamaAPI(env) {
                 headers: Object.fromEntries(response.headers.entries()),
                 body: responseText
             };
+            
+            console.log('Llama 4 API 응답:', {
+                status: response.status,
+                statusText: response.statusText,
+                bodyPreview: responseText.substring(0, 200)
+            });
             
             if (response.ok) {
                 result.test.success = true;
@@ -278,6 +289,7 @@ export async function testLlamaAPI(env) {
             }
             
         } catch (error) {
+            console.error('Llama 4 API 테스트 오류:', error);
             result.test = {
                 success: false,
                 message: `❌ API 호출 중 네트워크 오류 발생: ${error.message}
@@ -434,6 +446,12 @@ export async function validateEmoticonWithQwen(imageBuffer, hfToken, env) {
         // Hugging Face Qwen API 직접 호출
         const apiUrl = 'https://router.huggingface.co/v1/chat/completions';
         
+        // 디버깅 로그
+        console.log('Qwen API 호출:', {
+            apiUrl,
+            tokenLength: hfToken ? hfToken.length : 0
+        });
+        
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
@@ -466,6 +484,12 @@ export async function validateEmoticonWithQwen(imageBuffer, hfToken, env) {
         
         if (!response.ok) {
             const errorText = await response.text();
+            console.error('Qwen API 응답 오류:', {
+                status: response.status,
+                statusText: response.statusText,
+                headers: Object.fromEntries(response.headers.entries()),
+                body: errorText
+            });
             
             if (response.status === 401 || response.status === 403) {
                 return { 
@@ -526,6 +550,7 @@ export async function validateEmoticonWithQwen(imageBuffer, hfToken, env) {
         }
         
     } catch (error) {
+        console.error('Qwen API 검증 오류:', error);
         return { 
             isValid: false, 
             reason: 'AI 검증 중 오류가 발생했습니다',
@@ -578,23 +603,6 @@ export function convertPackToAbsoluteUrls(pack, baseUrl) {
     return convertedPack;
 }
 
-// 🔒 SECURITY ENHANCEMENT: 관리자 페이지용 강화된 보안 헤더 적용
-export function createSecureAdminHtmlResponse(content, status = 200) {
-    const response = new Response(content, {
-        status,
-        headers: { 'Content-Type': 'text/html; charset=utf-8' }
-    });
-    
-    // 강화된 보안 헤더 적용
-    const securityHeaders = getEnhancedSecurityHeaders(true);
-    
-    Object.entries(securityHeaders).forEach(([key, value]) => {
-        response.headers.set(key, value);
-    });
-    
-    return response;
-}
-
 // HTML 응답에 보안 헤더 추가
 export function createHtmlResponse(content, status = 200) {
     const response = new Response(content, {
@@ -627,48 +635,34 @@ export function getPermissionsPolicyHeader() {
     ].join(', ');
 }
 
-// 선별적 CORS 헤더 추가 함수 (보안 강화)
-export function addSelectiveCorsHeaders(response, isPublicAPI = false) {
-    if (isPublicAPI) {
-        // 공개 API (이모티콘 목록/상세): 모든 도메인 허용 (확장 프로그램 지원)
-        const publicCorsHeaders = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, X-Requested-With, If-Modified-Since',
-            'Access-Control-Expose-Headers': 'Content-Length, Content-Type, Date, Server',
-            'Access-Control-Max-Age': '86400', // 24시간
-            'Access-Control-Allow-Credentials': 'false',
-            'Vary': 'Origin'
-        };
-        
-        Object.entries(publicCorsHeaders).forEach(([key, value]) => {
-            response.headers.set(key, value);
-        });
-    } else {
-        // 관리자 API: 제한적 CORS (같은 도메인만)
-        const restrictedCorsHeaders = {
-            'Access-Control-Allow-Origin': 'null', // 제한적 허용
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept',
-            'Access-Control-Allow-Credentials': 'true',
-            'X-Content-Type-Options': 'nosniff',
-            'X-Frame-Options': 'DENY'
-        };
-        
-        Object.entries(restrictedCorsHeaders).forEach(([key, value]) => {
-            response.headers.set(key, value);
-        });
+// CORS 및 보안 헤더 추가 함수 (크롬 확장 프로그램 지원 개선)
+export function addCorsHeaders(response) {
+    const corsHeaders = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, HEAD',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, User-Agent, DNT, Cache-Control, X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since',
+        'Access-Control-Expose-Headers': 'Content-Length, Content-Type, Date, Server, X-RateLimit-Limit, X-RateLimit-Remaining',
+        'Access-Control-Max-Age': '86400', // 24시간
+        'Access-Control-Allow-Credentials': 'false',
+        'Permissions-Policy': getPermissionsPolicyHeader(),
+        'Vary': 'Origin'
+    };
+    
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+    });
+    
+    // Content-Type이 설정되지 않았다면 JSON으로 설정
+    if (!response.headers.get('Content-Type') && response.body) {
+        try {
+            JSON.parse(response.body);
+            response.headers.set('Content-Type', 'application/json; charset=utf-8');
+        } catch (e) {
+            // JSON이 아니면 그대로 둠
+        }
     }
     
-    // 공통 보안 헤더
-    response.headers.set('Permissions-Policy', getPermissionsPolicyHeader());
-    
     return response;
-}
-
-// CORS 및 보안 헤더 추가 함수 (크롬 확장 프로그램 지원 개선) - 기존 함수는 유지하되 공개 API 전용으로 사용
-export function addCorsHeaders(response) {
-    return addSelectiveCorsHeaders(response, true); // 기본적으로 공개 API로 처리
 }
 
 // OPTIONS preflight 요청 처리
@@ -682,7 +676,7 @@ export function handleOptions() {
  * 클라이언트의 실제 IP 주소를 가져옵니다.
  * Cloudflare를 통한 요청의 경우 적절한 헤더에서 IP를 추출합니다.
  */
-export function getClientIP(request) {
+export async function getClientIP(request) {
     // Cloudflare에서 제공하는 실제 클라이언트 IP 헤더들을 확인
     return request.headers.get('CF-Connecting-IP') || 
            request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
@@ -784,6 +778,7 @@ export async function checkUploadLimit(env, ip, limit = 5) {
             remaining: Math.max(0, limit - count)
         };
     } catch (error) {
+        console.error('업로드 제한 확인 오류:', maskIP(ip), error.message);
         // 오류 시에는 업로드를 허용 (fail-open)
         return {
             allowed: true,
@@ -819,164 +814,8 @@ export async function incrementUploadCount(env, ip) {
         
         return newCount;
     } catch (error) {
+        console.error('업로드 카운트 증가 오류:', maskIP(ip), error.message);
         return 0;
-    }
-}
-
-// 🔒 SECURITY ENHANCEMENT: KV 기반 Rate Limiting (지속성 확보)
-export async function checkAdminRateLimitKV(env, clientIP) {
-    try {
-        const now = Date.now();
-        const windowMs = 60 * 1000; // 1분
-        const maxRequests = 50; // 1분에 50개 요청 제한
-        const rateLimitKey = `admin_rate:${await hashIP(clientIP)}`;
-        
-        const record = await env.PLAKKER_KV.get(rateLimitKey, 'json');
-        
-        if (!record) {
-            // 첫 요청
-            await env.PLAKKER_KV.put(rateLimitKey, JSON.stringify({
-                requests: 1,
-                firstRequest: now
-            }), { expirationTtl: Math.ceil(windowMs / 1000) });
-            
-            return { allowed: true, remaining: maxRequests - 1 };
-        }
-        
-        // 윈도우 만료 확인
-        if ((now - record.firstRequest) > windowMs) {
-            await env.PLAKKER_KV.put(rateLimitKey, JSON.stringify({
-                requests: 1,
-                firstRequest: now
-            }), { expirationTtl: Math.ceil(windowMs / 1000) });
-            
-            return { allowed: true, remaining: maxRequests - 1 };
-        }
-        
-        // 요청 횟수 확인
-        if (record.requests >= maxRequests) {
-            return { allowed: false, remaining: 0 };
-        }
-        
-        // 요청 수 증가
-        await env.PLAKKER_KV.put(rateLimitKey, JSON.stringify({
-            ...record,
-            requests: record.requests + 1
-        }), { expirationTtl: Math.ceil(windowMs / 1000) });
-        
-        return { 
-            allowed: true, 
-            remaining: maxRequests - record.requests - 1 
-        };
-        
-    } catch (error) {
-        // KV 오류 시 허용 (fail-open)
-        return { allowed: true, remaining: 0 };
-    }
-}
-
-// 🔒 SECURITY ENHANCEMENT: 강화된 환경변수 검증 (개선된 버전)
-export function validateSecurityEnvironment(env) {
-    const errors = [];
-    const warnings = [];
-    
-    // JWT_SECRET 검증 (더 관대하게)
-    if (!env.JWT_SECRET) {
-        errors.push('JWT_SECRET이 설정되지 않았습니다.');
-    } else {
-        if (env.JWT_SECRET.length < 16) { // 32 → 16으로 완화
-            warnings.push('JWT_SECRET이 짧습니다. 보안을 위해 32자 이상을 권장합니다.');
-        }
-        // 특수문자 체크 제거 - 더 관대하게
-    }
-    
-    // ADMIN_PASSWORD_HASH 검증 (더 관대하게)
-    if (!env.ADMIN_PASSWORD_HASH) {
-        errors.push('ADMIN_PASSWORD_HASH가 설정되지 않았습니다.');
-    } else {
-        const parts = env.ADMIN_PASSWORD_HASH.split(':');
-        if (parts.length !== 2) {
-            errors.push('ADMIN_PASSWORD_HASH는 hash:salt 형식이어야 합니다.');
-        } else if (parts[0].length < 16 || parts[1].length < 16) { // 32 → 16으로 완화
-            warnings.push('ADMIN_PASSWORD_HASH의 해시와 솔트가 짧습니다. 보안을 위해 32자 이상을 권장합니다.');
-        }
-    }
-    
-    // HF_TOKEN 검증 (선택사항) - 더 관대하게
-    if (env.HF_TOKEN && env.HF_TOKEN.length < 10) { // 20 → 10으로 완화
-        warnings.push('HF_TOKEN이 짧습니다.');
-    }
-    
-    // ADMIN_URL_PATH 검증 - 더 관대하게
-    if (env.ADMIN_URL_PATH) {
-        if (!env.ADMIN_URL_PATH.startsWith('/')) {
-            warnings.push('ADMIN_URL_PATH는 "/"로 시작하는 것을 권장합니다.');
-        }
-        if (env.ADMIN_URL_PATH === '/admin') {
-            warnings.push('ADMIN_URL_PATH가 기본 경로입니다. 보안을 위해 다른 경로를 사용하는 것을 권장합니다.');
-        }
-    }
-    
-    console.log('[DEBUG] 환경변수 검증 결과:', { 
-        valid: errors.length === 0, 
-        errorCount: errors.length, 
-        warningCount: warnings.length,
-        jwtLength: env.JWT_SECRET ? env.JWT_SECRET.length : 0,
-        hashExists: !!env.ADMIN_PASSWORD_HASH
-    });
-    
-    return {
-        valid: errors.length === 0,
-        errors,
-        warnings,
-        securityLevel: errors.length === 0 ? (warnings.length === 0 ? 'HIGH' : 'MEDIUM') : 'LOW'
-    };
-}
-
-// 🔒 SECURITY ENHANCEMENT: 향상된 보안 헤더 생성
-export function getEnhancedSecurityHeaders(isAdminPage = false) {
-    const baseHeaders = {
-        'X-Frame-Options': 'DENY',
-        'X-Content-Type-Options': 'nosniff',
-        'X-XSS-Protection': '1; mode=block',
-        'Referrer-Policy': 'strict-origin-when-cross-origin',
-        'Permissions-Policy': getPermissionsPolicyHeader()
-    };
-    
-    if (isAdminPage) {
-        // 관리자 페이지용 강화된 보안 헤더
-        return {
-            ...baseHeaders,
-            'Content-Security-Policy': `
-                default-src 'self';
-                script-src 'self' 'unsafe-inline';
-                style-src 'self' 'unsafe-inline';
-                img-src 'self' data: https:;
-                font-src 'self';
-                connect-src 'self';
-                frame-ancestors 'none';
-                base-uri 'self';
-                form-action 'self';
-                upgrade-insecure-requests;
-            `.replace(/\s+/g, ' ').trim(),
-            'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
-            'X-Admin-Page': 'true'
-        };
-    } else {
-        // 일반 페이지용 기본 보안 헤더
-        return {
-            ...baseHeaders,
-            'Content-Security-Policy': `
-                default-src 'self';
-                script-src 'self' 'unsafe-inline' 'unsafe-eval';
-                style-src 'self' 'unsafe-inline';
-                img-src 'self' data: https: http:;
-                font-src 'self' data:;
-                connect-src 'self';
-                frame-src 'none';
-                object-src 'none';
-            `.replace(/\s+/g, ' ').trim()
-        };
     }
 }
 
@@ -1011,312 +850,4 @@ export function getStaticResourceHeaders(contentType, isDevelopment = false) {
     headers.set('X-Content-Type-Options', 'nosniff');
     
     return headers;
-} 
-
-// 보안 관련 함수들
-
-// 간단한 Base64URL 인코딩/디코딩 (JWT용)
-function base64UrlEncode(str) {
-    return btoa(str)
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=/g, '');
-}
-
-function base64UrlDecode(str) {
-    try {
-        str += '==='.slice((str.length + 3) % 4);
-        str = str.replace(/-/g, '+').replace(/_/g, '/');
-        return atob(str);
-    } catch (error) {
-        throw new Error('Invalid base64 string');
-    }
-}
-
-// 간단한 HMAC-SHA256 구현 (Web Crypto API 전용)
-async function simpleHmac(key, message) {
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(key);
-    const messageData = encoder.encode(message);
-    
-    // Cloudflare Workers에서는 crypto.subtle이 항상 사용 가능해야 함
-    if (typeof crypto === 'undefined' || !crypto.subtle) {
-        throw new Error('Web Crypto API not available - secure cryptography is required');
-    }
-    
-    const cryptoKey = await crypto.subtle.importKey(
-        'raw',
-        keyData,
-        { name: 'HMAC', hash: 'SHA-256' },
-        false,
-        ['sign']
-    );
-    
-    const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
-    return new Uint8Array(signature);
-}
-
-// JWT 토큰 생성
-export async function createJWT(payload, secret, expiresInSeconds = 3600) {
-    const header = {
-        typ: 'JWT',
-        alg: 'HS256'
-    };
-    
-    const now = Math.floor(Date.now() / 1000);
-    const fullPayload = {
-        ...payload,
-        iat: now,
-        exp: now + expiresInSeconds
-    };
-    
-    const encodedHeader = base64UrlEncode(JSON.stringify(header));
-    const encodedPayload = base64UrlEncode(JSON.stringify(fullPayload));
-    
-    const message = `${encodedHeader}.${encodedPayload}`;
-    const signature = await simpleHmac(secret, message);
-    
-    // 시그니처를 base64url로 인코딩
-    const signatureBase64 = base64UrlEncode(String.fromCharCode(...signature));
-    
-    return `${message}.${signatureBase64}`;
-}
-
-// JWT 토큰 검증
-export async function verifyJWT(token, secret) {
-    try {
-        const parts = token.split('.');
-        if (parts.length !== 3) {
-            return { valid: false, error: 'Invalid token format' };
-        }
-        
-        const [encodedHeader, encodedPayload, encodedSignature] = parts;
-        
-        // 시그니처 검증
-        const message = `${encodedHeader}.${encodedPayload}`;
-        const expectedSignature = await simpleHmac(secret, message);
-        const expectedSignatureBase64 = base64UrlEncode(String.fromCharCode(...expectedSignature));
-        
-        if (encodedSignature !== expectedSignatureBase64) {
-            return { valid: false, error: 'Invalid signature' };
-        }
-        
-        // 페이로드 디코딩
-        const payload = JSON.parse(base64UrlDecode(encodedPayload));
-        
-        // 만료 시간 검증
-        const now = Math.floor(Date.now() / 1000);
-        if (payload.exp && payload.exp < now) {
-            return { valid: false, error: 'Token expired' };
-        }
-        
-        return { valid: true, payload };
-    } catch (error) {
-        return { valid: false, error: 'Token validation failed' };
-    }
-}
-
-// 비밀번호 해싱 (Web Crypto API 전용)
-export async function hashPassword(password, salt = null) {
-    // Web Crypto API 필수 요구
-    if (typeof crypto === 'undefined' || !crypto.subtle || !crypto.getRandomValues) {
-        throw new Error('Web Crypto API not available - secure cryptography is required');
-    }
-    
-    // Salt 생성
-    if (!salt) {
-        salt = crypto.getRandomValues(new Uint8Array(16));
-    }
-    
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password + Array.from(salt).join(''));
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = new Uint8Array(hashBuffer);
-    
-    return {
-        hash: Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join(''),
-        salt: Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('')
-    };
-}
-
-// 비밀번호 해시 검증 함수 (보안 강화) - 자세한 디버그 추가
-export async function verifyPassword(password, storedHash, storedSalt) {
-    try {
-        console.log('[DEBUG] verifyPassword 시작');
-        console.log('[DEBUG] 입력 파라미터 체크:', {
-            passwordExists: !!password,
-            passwordLength: password ? password.length : 0,
-            storedHashExists: !!storedHash,
-            storedHashLength: storedHash ? storedHash.length : 0,
-            storedSaltExists: !!storedSalt,
-            storedSaltLength: storedSalt ? storedSalt.length : 0
-        });
-        
-        if (!password || !storedHash || !storedSalt) {
-            console.log('[DEBUG] 필수 파라미터 누락');
-            return false;
-        }
-        
-        console.log('[DEBUG] 솔트 16진수 → 바이트 배열 변환 시작');
-        
-        // Salt를 바이트 배열로 복원
-        let saltBytes;
-        try {
-            const saltPairs = storedSalt.match(/.{2}/g);
-            if (!saltPairs) {
-                console.error('[DEBUG] 솔트 16진수 파싱 실패');
-                return false;
-            }
-            console.log('[DEBUG] 솔트 16진수 쌍 수:', saltPairs.length);
-            
-            saltBytes = new Uint8Array(
-                saltPairs.map(byte => parseInt(byte, 16))
-            );
-            console.log('[DEBUG] 솔트 바이트 배열 생성 완료, 길이:', saltBytes.length);
-        } catch (saltError) {
-            console.error('[DEBUG] 솔트 변환 오류:', saltError);
-            return false;
-        }
-        
-        console.log('[DEBUG] 비밀번호 해싱 시작');
-        
-        // 입력된 비밀번호를 같은 salt로 해싱
-        const { hash } = await hashPassword(password, saltBytes);
-        console.log('[DEBUG] 새로 생성된 해시 길이:', hash ? hash.length : 0);
-        console.log('[DEBUG] 저장된 해시 길이:', storedHash.length);
-        
-        if (!hash) {
-            console.error('[DEBUG] 해시 생성 실패');
-            return false;
-        }
-        
-        console.log('[DEBUG] 해시 비교 시작');
-        console.log('[DEBUG] 새 해시 처음 16자:', hash.substring(0, 16));
-        console.log('[DEBUG] 저장된 해시 처음 16자:', storedHash.substring(0, 16));
-        
-        // 타이밍 공격 방지를 위한 상수 시간 비교
-        if (hash.length !== storedHash.length) {
-            console.log('[DEBUG] 해시 길이 불일치');
-            return false;
-        }
-        
-        let result = 0;
-        for (let i = 0; i < hash.length; i++) {
-            result |= hash.charCodeAt(i) ^ storedHash.charCodeAt(i);
-        }
-        
-        const isMatch = result === 0;
-        console.log('[DEBUG] 비밀번호 검증 최종 결과:', isMatch);
-        
-        return isMatch;
-    } catch (error) {
-        console.error('[DEBUG] verifyPassword 예외 발생:', error);
-        console.error('[DEBUG] 스택 트레이스:', error.stack);
-        // 에러 발생 시 항상 false 반환
-        return false;
-    }
-}
-
-// 관리자 비밀번호 해시 생성 헬퍼 함수 (초기 설정용)
-export async function generateAdminPasswordHash(password) {
-    try {
-        const { hash, salt } = await hashPassword(password);
-        return `${hash}:${salt}`;
-    } catch (error) {
-        throw new Error('비밀번호 해시 생성 실패');
-    }
-}
-
-// IP 주소 유효성 검증
-export function isValidIP(ip) {
-    if (!ip || typeof ip !== 'string') return false;
-    
-    // IPv4 검증
-    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-    if (ipv4Regex.test(ip)) return true;
-    
-    // IPv6 간단 검증
-    const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
-    if (ipv6Regex.test(ip)) return true;
-    
-    return false;
-}
-
-// 안전한 세션 ID 생성 (Web Crypto API 전용)
-export function generateSecureSessionId() {
-    // Web Crypto API 필수 요구
-    if (typeof crypto === 'undefined' || !crypto.getRandomValues) {
-        throw new Error('Web Crypto API not available - secure random generation is required');
-    }
-    
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-} 
-
-// 매직 바이트를 통한 파일 타입 검증 (보안 강화)
-export function validateFileByMagicBytes(arrayBuffer, expectedType) {
-    const uint8Array = new Uint8Array(arrayBuffer);
-    
-    if (uint8Array.length < 4) {
-        return false;
-    }
-    
-    // 각 이미지 타입의 매직 바이트 검증
-    switch (expectedType.toLowerCase()) {
-        case 'image/jpeg':
-        case 'image/jpg':
-            // JPEG: FF D8 FF
-            return uint8Array[0] === 0xFF && uint8Array[1] === 0xD8 && uint8Array[2] === 0xFF;
-            
-        case 'image/png':
-            // PNG: 89 50 4E 47 0D 0A 1A 0A
-            return uint8Array[0] === 0x89 && uint8Array[1] === 0x50 && 
-                   uint8Array[2] === 0x4E && uint8Array[3] === 0x47;
-                   
-        case 'image/gif':
-            // GIF87a: 47 49 46 38 37 61 또는 GIF89a: 47 49 46 38 39 61
-            return uint8Array[0] === 0x47 && uint8Array[1] === 0x49 && 
-                   uint8Array[2] === 0x46 && uint8Array[3] === 0x38 &&
-                   (uint8Array[4] === 0x37 || uint8Array[4] === 0x39) &&
-                   uint8Array[5] === 0x61;
-                   
-        case 'image/webp':
-            // WebP: 52 49 46 46 ... 57 45 42 50
-            return uint8Array[0] === 0x52 && uint8Array[1] === 0x49 && 
-                   uint8Array[2] === 0x46 && uint8Array[3] === 0x46 &&
-                   uint8Array.length >= 12 &&
-                   uint8Array[8] === 0x57 && uint8Array[9] === 0x45 &&
-                   uint8Array[10] === 0x42 && uint8Array[11] === 0x50;
-                   
-        default:
-            return false;
-    }
-}
-
-// 강화된 이미지 파일 검증 (MIME 타입 + 매직 바이트)
-export async function validateImageFile(file) {
-    if (!file || !file.type) {
-        return { valid: false, error: '파일이 유효하지 않습니다.' };
-    }
-    
-    const allowedImageTypes = ['image/png', 'image/jpg', 'image/jpeg', 'image/webp', 'image/gif'];
-    
-    // MIME 타입 검증
-    if (!allowedImageTypes.includes(file.type.toLowerCase())) {
-        return { valid: false, error: '지원되지 않는 파일 형식입니다.' };
-    }
-    
-    // 매직 바이트 검증
-    try {
-        const arrayBuffer = await file.arrayBuffer();
-        
-        if (!validateFileByMagicBytes(arrayBuffer, file.type)) {
-            return { valid: false, error: '파일 내용이 형식과 일치하지 않습니다.' };
-        }
-        
-        return { valid: true, arrayBuffer };
-    } catch (error) {
-        return { valid: false, error: '파일을 읽을 수 없습니다.' };
-    }
 } 

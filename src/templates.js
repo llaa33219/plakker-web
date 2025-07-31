@@ -189,13 +189,17 @@ export const HTML_TEMPLATES = {
         <div class="container">
             <div class="admin-header">
                 <h1>관리자 패널</h1>
-                <div class="admin-controls">
+                <div class="admin-auth" id="admin-auth">
+                    <input type="password" id="admin-password" placeholder="관리자 비밀번호" />
+                    <button onclick="adminLogin()">로그인</button>
+                </div>
+                <div class="admin-controls" id="admin-controls" style="display: none;">
                     <button onclick="loadPendingPacks()">대기 목록 새로고침</button>
                     <button onclick="adminLogout()">로그아웃</button>
                 </div>
             </div>
             
-            <div class="admin-content">
+            <div class="admin-content" id="admin-content" style="display: none;">
                 <div class="pending-stats" id="pending-stats">
                     <div class="stat-item">
                         <span class="stat-label">대기 중인 팩:</span>
@@ -228,38 +232,6 @@ export const HTML_TEMPLATES = {
                 </div>
             </div>
         </div>
-        
-        <script>
-            // 서버 인증된 관리자 페이지 초기화
-            document.addEventListener('DOMContentLoaded', function() {
-                if (window.location.pathname === '/admin') {
-                    initializeAuthenticatedAdminPage();
-                }
-            });
-            
-            function initializeAuthenticatedAdminPage() {
-                console.log('[ADMIN] 서버 인증된 관리자 페이지 초기화 중...');
-                
-                // 저장된 토큰을 전역 변수에 설정
-                const storedToken = sessionStorage.getItem('admin_token');
-                if (storedToken) {
-                    window.adminToken = storedToken;
-                    console.log('[ADMIN] 토큰 설정 완료');
-                } else {
-                    console.warn('[ADMIN] sessionStorage에 토큰이 없습니다.');
-                }
-                
-                // 잠시 후 대기 중인 팩 자동 로드 (DOM이 완전히 로드된 후)
-                setTimeout(() => {
-                    if (typeof loadPendingPacks === 'function') {
-                        console.log('[ADMIN] 대기 중인 팩 로드 시작');
-                        loadPendingPacks();
-                    } else {
-                        console.error('[ADMIN] loadPendingPacks 함수를 찾을 수 없습니다.');
-                    }
-                }, 100);
-            }
-        </script>
     `,
 
     apiDocs: () => `
@@ -378,71 +350,5 @@ export const HTML_TEMPLATES = {
             </ul>
         </div>
     </div>
-</div>`,
-
-    packDetail: (pack) => `
-<div class="container">
-    <div class="pack-detail">
-        <div class="pack-header">
-            <img src="${pack.thumbnail}" alt="${escapeHtml(convertToSafeUnicode(pack.title))}" class="pack-thumbnail-large" />
-            <div class="pack-meta">
-                <h2>${escapeHtml(convertToSafeUnicode(pack.title))}</h2>
-                <p><strong>제작자:</strong> ${escapeHtml(convertToSafeUnicode(pack.creator))}</p>
-                ${pack.creatorLink ? `<p><strong>제작자 링크:</strong> <a href="${escapeHtml(pack.creatorLink)}" target="_blank" rel="noopener noreferrer">${escapeHtml(pack.creatorLink)}</a></p>` : ''}
-                <p><strong>업로드 시간:</strong> ${new Date(pack.createdAt).toLocaleString('ko-KR')}</p>
-                <p><strong>이모티콘 개수:</strong> ${pack.totalEmoticons || pack.emoticons?.length || 0}개</p>
-            </div>
-        </div>
-        
-        <div class="pack-emoticons">
-            <h3>이모티콘 목록</h3>
-            <div class="emoticon-grid">
-                ${pack.emoticons ? pack.emoticons.map((url, index) => `
-                    <div class="emoticon-item">
-                        <img src="${url}" alt="이모티콘 ${index + 1}" class="emoticon" />
-                        <div class="emoticon-actions">
-                            <button onclick="copyToClipboard('${url}')" class="copy-btn">복사</button>
-                            <button onclick="downloadEmoticon('${url}', '${escapeHtml(convertToSafeUnicode(pack.title))}_${index + 1}')" class="download-btn">다운로드</button>
-                        </div>
-                    </div>
-                `).join('') : '<p>이모티콘을 불러올 수 없습니다.</p>'}
-            </div>
-        </div>
-        
-        <div class="pack-actions">
-            <button onclick="downloadAllEmoticons()" class="btn btn-primary">전체 다운로드</button>
-            <a href="/" class="btn btn-secondary">← 목록으로 돌아가기</a>
-        </div>
-    </div>
-    
-    <script>
-        function copyToClipboard(url) {
-            navigator.clipboard.writeText(url).then(() => {
-                alert('URL이 클립보드에 복사되었습니다!');
-            }).catch(() => {
-                alert('복사에 실패했습니다.');
-            });
-        }
-        
-        function downloadEmoticon(url, filename) {
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-        
-        function downloadAllEmoticons() {
-            const emoticons = ${JSON.stringify(pack.emoticons || [])};
-            const packTitle = '${escapeHtml(convertToSafeUnicode(pack.title))}';
-            
-            emoticons.forEach((url, index) => {
-                setTimeout(() => {
-                    downloadEmoticon(url, packTitle + '_' + (index + 1));
-                }, index * 100);
-            });
-        }
-    </script>
 </div>`
 };
