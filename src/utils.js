@@ -578,6 +578,42 @@ export function convertPackToAbsoluteUrls(pack, baseUrl) {
     return convertedPack;
 }
 
+// 🔒 SECURITY FIX: 관리자 페이지용 강화된 보안 헤더
+export function createSecureAdminHtmlResponse(content, status = 200) {
+    const response = new Response(content, {
+        status,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    });
+    
+    // 강화된 보안 헤더 추가
+    const securityHeaders = {
+        'Permissions-Policy': getPermissionsPolicyHeader(),
+        'X-Frame-Options': 'DENY',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'X-XSS-Protection': '1; mode=block',
+        // 🔒 SECURITY FIX: 관리자 페이지용 엄격한 CSP
+        'Content-Security-Policy': `
+            default-src 'self';
+            script-src 'self' 'unsafe-inline';
+            style-src 'self' 'unsafe-inline';
+            img-src 'self' data: https:;
+            font-src 'self';
+            connect-src 'self';
+            frame-ancestors 'none';
+            base-uri 'self';
+            form-action 'self';
+        `.replace(/\s+/g, ' ').trim(),
+        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
+    };
+    
+    Object.entries(securityHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+    });
+    
+    return response;
+}
+
 // HTML 응답에 보안 헤더 추가
 export function createHtmlResponse(content, status = 200) {
     const response = new Response(content, {

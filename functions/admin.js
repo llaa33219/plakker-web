@@ -1,5 +1,5 @@
 import { HTML_TEMPLATES } from '../src/templates.js';
-import { createHtmlResponse } from '../src/utils.js';
+import { createSecureAdminHtmlResponse } from '../src/utils.js';
 import { verifyAdminToken } from '../src/api.js';
 
 export async function onRequest(context) {
@@ -18,9 +18,9 @@ export async function onRequest(context) {
         }
     }
     
-    // 인증되지 않은 경우 로그인 페이지 반환
+    // 인증되지 않은 경우 로그인 페이지 반환 (🔒 SECURITY FIX: 강화된 보안 헤더 적용)
     if (!isAuthenticated) {
-        return createHtmlResponse(HTML_TEMPLATES.base('관리자 인증', `
+        return createSecureAdminHtmlResponse(HTML_TEMPLATES.base('관리자 인증', `
             <div class="container">
                 <div style="text-align: center; padding: 80px 20px;">
                     <div style="background: #f8f9fa; border-radius: 10px; padding: 40px; max-width: 400px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
@@ -44,6 +44,7 @@ export async function onRequest(context) {
                 </div>
                 
                 <script>
+                    // 🔒 SECURITY FIX: XSS 방지를 위한 안전한 DOM 조작
                     async function performLogin() {
                         const passwordInput = document.getElementById('admin-password');
                         const loginBtn = document.getElementById('login-btn');
@@ -79,12 +80,9 @@ export async function onRequest(context) {
                                 });
                                 
                                 if (adminResponse.ok) {
-                                    // 성공 시 전체 페이지 교체
-                                    const adminPageHtml = await adminResponse.text();
-                                    document.documentElement.innerHTML = adminPageHtml;
-                                    
-                                    // 페이지 교체 후 토큰 저장
+                                    // 🔒 SECURITY FIX: innerHTML 대신 안전한 방법으로 페이지 교체
                                     sessionStorage.setItem('admin_token', token);
+                                    window.location.reload();
                                 } else {
                                     alert('관리자 페이지 로드에 실패했습니다.');
                                 }
@@ -112,7 +110,7 @@ export async function onRequest(context) {
                         }
                     });
                     
-                    // 페이지 로드 시 저장된 토큰으로 재시도
+                    // 페이지 로드 시 저장된 토큰으로 재시도 (🔒 SECURITY FIX: 안전한 자동 로그인)
                     window.addEventListener('load', function() {
                         const token = sessionStorage.getItem('admin_token');
                         if (token) {
@@ -121,9 +119,8 @@ export async function onRequest(context) {
                                 headers: { 'Authorization': 'Bearer ' + token }
                             }).then(response => {
                                 if (response.ok) {
-                                    response.text().then(html => {
-                                        document.documentElement.innerHTML = html;
-                                    });
+                                    // 성공하면 페이지 새로고침으로 안전하게 전환
+                                    window.location.reload();
                                 } else {
                                     // 토큰이 만료되었으면 제거
                                     sessionStorage.removeItem('admin_token');
@@ -141,9 +138,10 @@ export async function onRequest(context) {
                     });
                 </script>
             </div>
+        
         `));
     }
     
-    // 인증된 경우 관리자 페이지 반환
-    return createHtmlResponse(HTML_TEMPLATES.base('관리자 패널', HTML_TEMPLATES.admin()));
+    // 인증된 경우 관리자 페이지 반환 (🔒 SECURITY FIX: 강화된 보안 헤더 적용)
+    return createSecureAdminHtmlResponse(HTML_TEMPLATES.base('관리자 패널', HTML_TEMPLATES.admin()));
 } 
