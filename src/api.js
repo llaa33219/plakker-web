@@ -16,7 +16,8 @@ import {
     createJWT,
     verifyJWT,
     hashPassword,
-    isValidIP
+    isValidIP,
+    generateSecureSessionId
 } from './utils.js';
 
 // Rate limiting을 위한 맵 (실제 프로덕션에서는 Redis 등 사용 권장)
