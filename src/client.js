@@ -169,40 +169,43 @@ function detectDevTools() {
     }, 2000); // 2초마다 체크 (성능 개선)
 }
 
-// 관리자 API 요청 시 보안 헤더 추가 (브라우저 호환)
-function createSecureAdminRequest(url, options = {}) {
-    if (!adminToken) {
-        throw new Error('인증이 필요합니다');
+// 🔒 SECURITY ENHANCEMENT: 안전한 관리자 API 요청 함수 (CSRF 토큰 포함)
+async function secureAdminRequest(url, options = {}) {
+    const token = adminToken || sessionStorage.getItem('admin_token');
+    
+    if (!token) {
+        throw new Error('관리자 인증이 필요합니다');
     }
     
-    // 보안 핑거프린트 갱신
-    const currentFingerprint = generateSecurityFingerprint();
+    // 🔒 SECURITY: CSRF 토큰 자동 추가
+    const headers = {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...options.headers
+    };
+    
+    // POST, PUT, DELETE 요청에는 CSRF 토큰 필수
+    if (options.method && options.method !== 'GET' && window.CSRF_TOKEN) {
+        headers['X-CSRF-Token'] = window.CSRF_TOKEN;
+    }
     
     const secureOptions = {
         ...options,
-        headers: {
-            'Authorization': 'Bearer ' + adminToken,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            // User-Agent는 브라우저에서 자동 설정됨 (직접 설정 불가)
-            'X-Security-Fingerprint': currentFingerprint,
-            'X-Request-Time': Date.now().toString(),
-            'X-Client-Version': '1.0.0',
-            ...options.headers
-        }
+        headers
     };
     
     return fetch(url, secureOptions);
 }
 
-// 관리자 로그인 (단순화)
+// 🔒 SECURITY ENHANCEMENT: 관리자 로그인 (보안 강화)
 window.adminLogin = async function() {
     const passwordInput = document.getElementById('admin-password');
     const loginBtn = document.querySelector('.login-btn');
     const password = passwordInput.value;
     
     if (!password) {
-        alert('비밀번호를 입력해주세요.');
+        showSecureError('비밀번호를 입력해주세요.');
         return;
     }
     
@@ -220,88 +223,108 @@ window.adminLogin = async function() {
             body: JSON.stringify({ password })
         });
         
-        // 먼저 응답을 텍스트로 읽어서 확인
         const responseText = await response.text();
         
         let result;
         try {
             result = JSON.parse(responseText);
         } catch (parseError) {
-            
-            // HTML 오류 페이지인지 확인
             if (responseText.includes('<html>') || responseText.includes('<!DOCTYPE')) {
-                throw new Error('서버에서 HTML 오류 페이지를 반환했습니다. API 경로를 확인해주세요.');
+                throw new Error('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
             } else if (responseText.trim() === '') {
-                throw new Error('서버에서 빈 응답을 반환했습니다.');
+                throw new Error('서버 연결에 실패했습니다.');
             } else {
-                throw new Error('서버 응답 형식이 올바르지 않습니다: ' + responseText.substring(0, 100));
+                throw new Error('로그인 처리 중 오류가 발생했습니다.');
             }
         }
         
         if (response.ok && result.success) {
             adminToken = result.token;
-            
-            // 토큰을 sessionStorage에 저장 (페이지 새로고침 시에도 유지)
             sessionStorage.setItem('admin_token', result.token);
             
             // UI 업데이트
-            document.getElementById('admin-auth').style.display = 'none';
-            document.getElementById('admin-controls').style.display = 'block';
-            document.getElementById('admin-content').style.display = 'block';
+            const authElement = document.getElementById('admin-auth');
+            const controlsElement = document.getElementById('admin-controls');
+            const contentElement = document.getElementById('admin-content');
             
-            // 세션 타임아웃 설정
+            if (authElement) authElement.style.display = 'none';
+            if (controlsElement) controlsElement.style.display = 'block';
+            if (contentElement) contentElement.style.display = 'block';
+            
+            // 🔒 SECURITY: 세션 타임아웃 30분으로 설정
             if (result.expiresAt) {
-                const expiresIn = (result.expiresAt - Date.now()) - (5 * 60 * 1000);
+                const expiresIn = (result.expiresAt - Date.now()) - (5 * 60 * 1000); // 5분 전 경고
                 if (expiresIn > 0) {
                     sessionTimeout = setTimeout(() => {
-                        alert('세션이 곧 만료됩니다. 다시 로그인해주세요.');
-                        adminLogout();
+                        showSecureError('세션이 곧 만료됩니다. 다시 로그인해주세요.');
+                        setTimeout(() => adminLogout(), 3000);
                     }, expiresIn);
                 }
             }
             
             await loadPendingPacks();
-            passwordInput.value = ''; // 비밀번호 지우기
+            passwordInput.value = ''; // 비밀번호 즉시 지우기
             
         } else {
-            
             if (response.status === 429) {
                 const blockTime = result.remainingTime ? Math.ceil(result.remainingTime / 60) : 5;
-                alert('보안을 위해 로그인이 일시적으로 제한되었습니다. ' + blockTime + '분 후 다시 시도해주세요.');
+                showSecureError(`보안상 ${blockTime}분간 로그인이 제한되었습니다.`);
             } else if (response.status === 500) {
-                alert('서버 오류: ' + (result.error || '알 수 없는 오류'));
+                showSecureError('서버 오류가 발생했습니다. 관리자에게 문의하세요.');
             } else {
-                alert(result.error || '로그인에 실패했습니다.');
+                showSecureError('인증에 실패했습니다.');
             }
         }
     } catch (error) {
-        alert('로그인 중 오류가 발생했습니다: ' + error.message);
+        showSecureError('로그인 중 오류가 발생했습니다.');
     } finally {
-        // 로딩 상태 해제
         loginBtn.disabled = false;
         loginBtn.textContent = originalText;
     }
 };
 
-// 관리자 로그아웃
+// 🔒 SECURITY ENHANCEMENT: 안전한 오류 메시지 표시
+function showSecureError(message) {
+    // 기존 오류 메시지 제거
+    const existingError = document.querySelector('.admin-error-message');
+    if (existingError) {
+        existingError.remove();
+    }
+    
+    // 새 오류 메시지 생성
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'admin-error-message';
+    errorDiv.style.cssText = 'background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 10px; margin-bottom: 15px; color: #721c24; font-size: 14px; text-align: center;';
+    errorDiv.textContent = message;
+    
+    // 적절한 위치에 삽입
+    const authDiv = document.getElementById('admin-auth') || document.querySelector('.container');
+    if (authDiv) {
+        authDiv.insertBefore(errorDiv, authDiv.firstChild);
+        
+        // 5초 후 자동 제거
+        setTimeout(() => {
+            if (errorDiv.parentNode) {
+                errorDiv.remove();
+            }
+        }, 5000);
+    }
+}
+
+// 🔒 SECURITY ENHANCEMENT: 관리자 로그아웃 (보안 강화)
 window.adminLogout = async function() {
     try {
-        // 서버에 보안 로그아웃 요청
         const token = adminToken || sessionStorage.getItem('admin_token');
         if (token) {
-            await fetch('/api/admin/logout', {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json'
-                }
+            // 🔒 SECURITY: CSRF 토큰 포함하여 로그아웃 요청
+            await secureAdminRequest('/api/admin/logout', {
+                method: 'POST'
             });
         }
     } catch (error) {
-        // 로그아웃 오류 무시
-        console.log('[ADMIN] 로그아웃 요청 실패 (무시):', error.message);
+        // 로그아웃 오류는 무시하고 클라이언트 측 정리 진행
     } finally {
-        // 클라이언트 측 정리
+        // 🔒 SECURITY: 모든 인증 정보 완전 삭제
         adminToken = null;
         sessionStorage.removeItem('admin_token');
         
@@ -310,69 +333,122 @@ window.adminLogout = async function() {
             sessionTimeout = null;
         }
         
-        // 서버 인증과 클라이언트 인증을 구분해서 처리
+        // CSRF 토큰도 제거
+        if (window.CSRF_TOKEN) {
+            window.CSRF_TOKEN = null;
+        }
+        
         const authElement = document.getElementById('admin-auth');
         const controlsElement = document.getElementById('admin-controls');
         const contentElement = document.getElementById('admin-content');
         const passwordElement = document.getElementById('admin-password');
-        const packsElement = document.getElementById('pending-packs');
         
         if (authElement && controlsElement && contentElement) {
-            // 클라이언트 인증 페이지의 경우
             authElement.style.display = 'block';
             controlsElement.style.display = 'none';
             contentElement.style.display = 'none';
             if (passwordElement) passwordElement.value = '';
+            
+            const packsElement = document.getElementById('pending-packs');
             if (packsElement) packsElement.innerHTML = '';
         } else {
-            // 서버 인증 페이지의 경우 - 페이지 새로고침으로 로그인 페이지로 이동
-            window.location.reload();
+            // 서버 인증 페이지의 경우 홈으로 리다이렉트
+            window.location.href = '/';
         }
     }
 };
 
-// 대기 중인 팩 로드
+// 🔒 SECURITY ENHANCEMENT: 대기 중인 팩 로드 (보안 강화)
 window.loadPendingPacks = async function() {
-    // adminToken이 없으면 sessionStorage에서 가져오기
     const token = adminToken || sessionStorage.getItem('admin_token');
     
     if (!token) {
-        alert('로그인이 필요합니다.');
+        showSecureError('로그인이 필요합니다.');
         return;
     }
     
-    // adminToken 전역 변수가 없으면 설정
     if (!adminToken && token) {
         adminToken = token;
     }
     
     try {
-        const response = await fetch('/api/admin/pending-packs', {
-            method: 'GET',
-            headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json'
-            }
+        const response = await secureAdminRequest('/api/admin/pending-packs', {
+            method: 'GET'
         });
         
         if (!response.ok) {
             if (response.status === 401) {
-                alert('세션이 만료되었습니다. 다시 로그인해주세요.');
-                adminLogout();
-                return;
-            } else if (response.status === 400) {
-                alert('보안 검증에 실패했습니다. 페이지를 새로고침해주세요.');
+                showSecureError('세션이 만료되었습니다. 다시 로그인해주세요.');
+                setTimeout(() => adminLogout(), 2000);
                 return;
             }
-            throw new Error('API 호출 실패');
+            throw new Error('권한이 없습니다.');
         }
         
         const data = await response.json();
-        displayPendingPacks(data.packs);
-        document.getElementById('pending-count').textContent = data.total;
+        const pendingPacks = data.packs || [];
+        
+        // UI 업데이트
+        const pendingCountElement = document.getElementById('pending-count');
+        if (pendingCountElement) {
+            pendingCountElement.textContent = pendingPacks.length;
+        }
+        
+        const packsContainer = document.getElementById('pending-packs');
+        if (!packsContainer) return;
+        
+        if (pendingPacks.length === 0) {
+            packsContainer.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #6c757d;">
+                    <p>대기 중인 팩이 없습니다.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // 팩 목록 렌더링 (안전한 방식)
+        const packElements = pendingPacks.map(pack => {
+            const packDiv = document.createElement('div');
+            packDiv.className = 'pack-item';
+            packDiv.onclick = () => openPackModal(pack.id);
+            
+            // 텍스트 내용 안전하게 설정
+            const titleSpan = document.createElement('span');
+            titleSpan.className = 'pack-title';
+            titleSpan.textContent = pack.title || '제목 없음';
+            
+            const creatorSpan = document.createElement('span');
+            creatorSpan.className = 'pack-creator';
+            creatorSpan.textContent = pack.creator || '제작자 미상';
+            
+            const dateSpan = document.createElement('span');
+            dateSpan.className = 'pack-date';
+            dateSpan.textContent = formatKoreanDate(pack.createdAt);
+            
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'pack-info';
+            infoDiv.appendChild(titleSpan);
+            infoDiv.appendChild(creatorSpan);
+            infoDiv.appendChild(dateSpan);
+            
+            if (pack.thumbnail) {
+                const thumbnailImg = document.createElement('img');
+                thumbnailImg.src = pack.thumbnail;
+                thumbnailImg.alt = '썸네일';
+                thumbnailImg.className = 'pack-thumbnail';
+                packDiv.appendChild(thumbnailImg);
+            }
+            
+            packDiv.appendChild(infoDiv);
+            return packDiv;
+        });
+        
+        // 기존 내용 제거하고 새 요소들 추가
+        packsContainer.innerHTML = '';
+        packElements.forEach(element => packsContainer.appendChild(element));
         
     } catch (error) {
-        alert('대기 중인 팩을 불러오는데 실패했습니다.');
+        showSecureError('팩 목록을 불러오는데 실패했습니다.');
     }
 };
 
@@ -483,43 +559,43 @@ window.closePackModal = function() {
     document.getElementById('pack-modal').style.display = 'none';
 };
 
-// 팩 승인
+// 🔒 SECURITY ENHANCEMENT: 팩 승인 (보안 강화)
 window.approvePack = async function(packId) {
-    if (!confirm('이 팩을 승인하시겠습니까?')) return;
+    if (!packId) {
+        showSecureError('팩 ID가 없습니다.');
+        return;
+    }
     
-    const token = adminToken || sessionStorage.getItem('admin_token');
-    if (!token) {
-        alert('로그인이 필요합니다.');
+    if (!confirm('이 팩을 승인하시겠습니까?')) {
         return;
     }
     
     try {
-        const response = await fetch('/api/admin/approve-pack', {
+        const response = await secureAdminRequest('/api/admin/approve-pack', {
             method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify({ packId })
         });
         
         if (!response.ok) {
             if (response.status === 401) {
-                alert('세션이 만료되었습니다. 다시 로그인해주세요.');
-                adminLogout();
-                return;
-            } else if (response.status === 400) {
-                alert('보안 검증에 실패했습니다. 페이지를 새로고침해주세요.');
+                showSecureError('권한이 없습니다. 다시 로그인해주세요.');
+                setTimeout(() => adminLogout(), 2000);
                 return;
             }
-            throw new Error('승인 실패');
+            throw new Error('승인 처리에 실패했습니다.');
         }
         
-        alert('팩이 승인되었습니다.');
-        await loadPendingPacks();
+        const result = await response.json();
+        if (result.success) {
+            alert('팩이 승인되었습니다.');
+            closePackModal();
+            await loadPendingPacks(); // 목록 새로고침
+        } else {
+            throw new Error(result.error || '승인에 실패했습니다.');
+        }
         
     } catch (error) {
-        alert('팩 승인에 실패했습니다. 관리자에게 문의하세요.');
+        showSecureError('승인 처리 중 오류가 발생했습니다.');
     }
 };
 
@@ -531,44 +607,46 @@ window.showRejectModal = function(packId) {
     }
 };
 
-// 팩 거부
-window.rejectPack = async function(packId, reason = '') {
-    if (!reason && !confirm('이 팩을 거부하시겠습니까?')) return;
+// 🔒 SECURITY ENHANCEMENT: 팩 거부 (보안 강화)
+window.rejectPack = async function(packId) {
+    if (!packId) {
+        showSecureError('팩 ID가 없습니다.');
+        return;
+    }
     
-    const token = adminToken || sessionStorage.getItem('admin_token');
-    if (!token) {
-        alert('로그인이 필요합니다.');
+    const reason = prompt('거부 사유를 입력하세요 (선택사항):');
+    if (reason === null) return; // 취소한 경우
+    
+    if (!confirm('이 팩을 거부하시겠습니까? 모든 데이터가 삭제됩니다.')) {
         return;
     }
     
     try {
-        const response = await fetch('/api/admin/reject-pack', {
+        const response = await secureAdminRequest('/api/admin/reject-pack', {
             method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify({ packId, reason })
         });
         
         if (!response.ok) {
             if (response.status === 401) {
-                alert('세션이 만료되었습니다. 다시 로그인해주세요.');
-                adminLogout();
-                return;
-            } else if (response.status === 400) {
-                alert('보안 검증에 실패했습니다. 페이지를 새로고침해주세요.');
+                showSecureError('권한이 없습니다. 다시 로그인해주세요.');
+                setTimeout(() => adminLogout(), 2000);
                 return;
             }
-            throw new Error('거부 실패');
+            throw new Error('거부 처리에 실패했습니다.');
         }
         
-        alert('팩이 거부되었습니다.');
-        await loadPendingPacks();
-        closePackModal();
+        const result = await response.json();
+        if (result.success) {
+            alert('팩이 거부되어 삭제되었습니다.');
+            closePackModal();
+            await loadPendingPacks(); // 목록 새로고침
+        } else {
+            throw new Error(result.error || '거부에 실패했습니다.');
+        }
         
     } catch (error) {
-        alert('팩 거부에 실패했습니다. 관리자에게 문의하세요.');
+        showSecureError('거부 처리 중 오류가 발생했습니다.');
     }
 };
 

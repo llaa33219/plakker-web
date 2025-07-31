@@ -1,6 +1,6 @@
 import { HTML_TEMPLATES } from '../src/templates.js';
 import { createSecureAdminHtmlResponse } from '../src/utils.js';
-import { verifyAdminToken } from '../src/api.js'; // 🔒 FIX: 누락된 import 추가
+import { verifyAdminToken } from '../src/api.js';
 
 export async function onRequest(context) {
     const { request, env } = context;
@@ -8,17 +8,22 @@ export async function onRequest(context) {
     // 🔒 SECURITY ENHANCEMENT: 동적 관리자 URL 경로 확인
     const url = new URL(request.url);
     const requestPath = url.pathname;
-    const secretAdminPath = env.ADMIN_URL_PATH || '/admin'; // 환경변수에서 비밀 경로 가져오기
+    const secretAdminPath = env.ADMIN_URL_PATH || '/admin';
     
-    console.log('[ADMIN-DEBUG] 요청 경로:', requestPath);
-    console.log('[ADMIN-DEBUG] 설정된 관리자 경로:', secretAdminPath !== '/admin' ? '비밀 경로 사용중' : '기본 경로 사용중');
-    console.log('[ADMIN-DEBUG] ADMIN_URL_PATH 환경변수:', env.ADMIN_URL_PATH || '설정되지 않음');
+    // 프로덕션에서는 디버그 로그 제거
+    const isDevelopment = env.ENVIRONMENT === 'development';
+    if (isDevelopment) {
+        console.log('[ADMIN-DEBUG] 요청 경로:', requestPath);
+        console.log('[ADMIN-DEBUG] 설정된 관리자 경로:', secretAdminPath !== '/admin' ? '비밀 경로 사용중' : '기본 경로 사용중');
+    }
     
     // 🔒 SECURITY: 잘못된 경로로 접근 시 404 또는 가짜 페이지 반환
     if (requestPath !== secretAdminPath) {
-        console.log('[ADMIN-DEBUG] 잘못된 관리자 경로 접근 시도:', requestPath);
+        if (isDevelopment) {
+            console.log('[ADMIN-DEBUG] 잘못된 관리자 경로 접근 시도:', requestPath);
+        }
         
-        // 기본 /admin 경로 접근시 가짜 404 페이지 반환 (보안 강화)
+        // 기본 /admin 경로 접근시 가짜 404 페이지 반환
         if (requestPath === '/admin' && secretAdminPath !== '/admin') {
             return new Response(`
                 <!DOCTYPE html>
@@ -35,7 +40,6 @@ export async function onRequest(context) {
             });
         }
         
-        // 다른 잘못된 경로는 일반적인 404
         return new Response('Not Found', { status: 404 });
     }
     
@@ -44,26 +48,30 @@ export async function onRequest(context) {
     let isAuthenticated = false;
     let authError = null;
     
-    console.log('[ADMIN-DEBUG] Authorization 헤더:', authHeader ? '존재함' : '없음');
-    
     if (authHeader && authHeader.startsWith('Bearer ')) {
         try {
             const authResult = await verifyAdminToken(request, env);
             isAuthenticated = authResult.valid;
             authError = authResult.error;
-            console.log('[ADMIN-DEBUG] 토큰 검증 결과:', { valid: isAuthenticated, error: authError });
+            
+            if (isDevelopment) {
+                console.log('[ADMIN-DEBUG] 토큰 검증 결과:', { valid: isAuthenticated, error: authError });
+            }
         } catch (error) {
             isAuthenticated = false;
-            authError = error.message;
-            console.error('[ADMIN-DEBUG] 토큰 검증 중 예외:', error);
+            authError = '인증 처리 중 오류가 발생했습니다';
+            if (isDevelopment) {
+                console.error('[ADMIN-DEBUG] 토큰 검증 중 예외:', error);
+            }
         }
-    } else {
-        console.log('[ADMIN-DEBUG] Authorization 헤더가 없거나 형식이 잘못됨');
     }
     
-    // 인증되지 않은 경우 로그인 페이지 반환 (🔒 SECURITY FIX: 강화된 보안 헤더 적용)
+    // 인증되지 않은 경우 로그인 페이지 반환
     if (!isAuthenticated) {
-        console.log('[ADMIN-DEBUG] 인증 실패, 로그인 페이지 표시. 오류:', authError);
+        if (isDevelopment) {
+            console.log('[ADMIN-DEBUG] 인증 실패, 로그인 페이지 표시. 오류:', authError);
+        }
+        
         return createSecureAdminHtmlResponse(HTML_TEMPLATES.base('관리자 인증', `
             <div class="container">
                 <div style="text-align: center; padding: 80px 20px;">
@@ -71,21 +79,12 @@ export async function onRequest(context) {
                         <h2 style="color: #495057; margin-bottom: 10px;">🔒 관리자 인증</h2>
                         <p style="color: #6c757d; margin-bottom: 30px;">관리자만 접근할 수 있습니다</p>
                         
-                        <!-- 🔒 SECURITY: 비밀 경로 사용중임을 표시 -->
-                        ${secretAdminPath !== '/admin' ? `<div style="background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 5px; padding: 10px; margin-bottom: 20px; font-size: 14px; color: #0c5460;">
-                            🛡️ 보안 강화: 비밀 관리자 경로 사용중<br/>
-                            현재 경로: ${secretAdminPath}
+                        ${secretAdminPath !== '/admin' && isDevelopment ? `<div style="background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 5px; padding: 10px; margin-bottom: 20px; font-size: 14px; color: #0c5460;">
+                            🛡️ 보안 강화: 비밀 관리자 경로 사용중
                         </div>` : ''}
                         
-                        <!-- 🔒 DEBUG: 환경변수 상태 표시 -->
-                        <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 10px; margin-bottom: 20px; font-size: 12px; color: #856404;">
-                            DEBUG: 환경변수 ADMIN_URL_PATH = "${env.ADMIN_URL_PATH || '설정되지 않음'}"<br/>
-                            현재 사용중인 경로: ${secretAdminPath}
-                        </div>
-                        
-                        <!-- 🔒 DEBUG: 인증 오류 표시 -->
                         ${authError ? `<div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 10px; margin-bottom: 20px; font-size: 14px; color: #721c24;">
-                            인증 오류: ${authError}
+                            인증 오류: 다시 시도해주세요
                         </div>` : ''}
                         
                         <div style="margin-bottom: 20px;">
@@ -105,14 +104,16 @@ export async function onRequest(context) {
                 </div>
                 
                 <script>
-                    // 🔒 SECURITY FIX: XSS 방지를 위한 안전한 DOM 조작
+                    // 🔒 SECURITY ENHANCEMENT: 안전한 DOM 조작 및 CSRF 토큰 적용
+                    let csrfToken = null;
+                    
                     async function performLogin() {
                         const passwordInput = document.getElementById('admin-password');
                         const loginBtn = document.getElementById('login-btn');
                         const password = passwordInput.value;
                         
                         if (!password) {
-                            alert('비밀번호를 입력해주세요.');
+                            showError('비밀번호를 입력해주세요.');
                             passwordInput.focus();
                             return;
                         }
@@ -123,57 +124,54 @@ export async function onRequest(context) {
                         loginBtn.textContent = '로그인 중...';
                         
                         try {
-                            console.log('[CLIENT-DEBUG] 로그인 API 호출 시작');
-                            
                             const response = await fetch('/api/admin/login', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ password })
                             });
                             
-                            console.log('[CLIENT-DEBUG] 응답 상태:', response.status);
-                            
                             const result = await response.json();
-                            console.log('[CLIENT-DEBUG] 응답 내용:', result);
                             
                             if (response.ok && result.success) {
-                                // 토큰을 저장
                                 const token = result.token;
-                                console.log('[CLIENT-DEBUG] 토큰 저장:', token ? '성공' : '실패');
                                 sessionStorage.setItem('admin_token', token);
                                 
-                                // 🔒 FIX: 토큰과 함께 Authorization 헤더를 포함한 페이지 요청
-                                console.log('[CLIENT-DEBUG] Authorization 헤더를 포함한 페이지 요청');
+                                // 🔒 SECURITY ENHANCEMENT: 안전한 페이지 리로드
+                                window.location.reload();
                                 
-                                const adminResponse = await fetch(window.location.href, {
-                                    headers: { 'Authorization': 'Bearer ' + token }
-                                });
-                                
-                                if (adminResponse.ok) {
-                                    console.log('[CLIENT-DEBUG] 인증된 페이지 로드 성공, 페이지 교체');
-                                    const adminPageHtml = await adminResponse.text();
-                                    document.documentElement.innerHTML = adminPageHtml;
-                                } else {
-                                    console.error('[CLIENT-DEBUG] 인증된 페이지 로드 실패:', adminResponse.status);
-                                    alert('관리자 페이지 로드에 실패했습니다.');
-                                }
                             } else {
-                                console.error('[CLIENT-DEBUG] 로그인 실패:', result.error);
                                 if (response.status === 429) {
                                     const blockTime = result.remainingTime ? Math.ceil(result.remainingTime / 60) : 5;
-                                    alert('보안을 위해 로그인이 일시적으로 제한되었습니다. ' + blockTime + '분 후 다시 시도해주세요.');
+                                    showError('보안을 위해 로그인이 일시적으로 제한되었습니다. ' + blockTime + '분 후 다시 시도해주세요.');
                                 } else {
-                                    alert(result.error || '로그인에 실패했습니다.');
+                                    showError(result.error || '로그인에 실패했습니다.');
                                 }
                             }
                         } catch (error) {
-                            console.error('[CLIENT-DEBUG] 로그인 중 예외:', error);
-                            alert('로그인 중 오류가 발생했습니다: ' + error.message);
+                            showError('로그인 중 오류가 발생했습니다.');
                         } finally {
-                            // 로딩 상태 해제
                             loginBtn.disabled = false;
                             loginBtn.textContent = originalText;
                         }
+                    }
+                    
+                    // 🔒 SECURITY ENHANCEMENT: 안전한 오류 표시
+                    function showError(message) {
+                        // 기존 오류 메시지 제거
+                        const existingError = document.querySelector('.error-message');
+                        if (existingError) {
+                            existingError.remove();
+                        }
+                        
+                        // 새 오류 메시지 생성
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'error-message';
+                        errorDiv.style.cssText = 'background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 10px; margin-bottom: 20px; font-size: 14px; color: #721c24;';
+                        errorDiv.textContent = message;
+                        
+                        // 비밀번호 입력창 앞에 삽입
+                        const passwordDiv = document.getElementById('admin-password').parentElement;
+                        passwordDiv.parentElement.insertBefore(errorDiv, passwordDiv);
                     }
                     
                     // Enter 키로 로그인
@@ -183,33 +181,61 @@ export async function onRequest(context) {
                         }
                     });
                     
-                    // 🔒 FIX: 자동 새로고침 제거 - 무한 루프 방지
+                    // 페이지 로드 시 포커스 설정
                     window.addEventListener('load', function() {
-                        console.log('[CLIENT-DEBUG] 페이지 로드 완료');
-                        
-                        const token = sessionStorage.getItem('admin_token');
-                        console.log('[CLIENT-DEBUG] 저장된 토큰:', token ? '있음' : '없음');
-                        
-                        // 🔒 FIX: 토큰이 있어도 자동 새로고침 하지 않음 (무한 루프 방지)
-                        // 사용자가 수동으로 로그인 버튼을 눌러야 함
-                        
-                        if (token) {
-                            console.log('[CLIENT-DEBUG] 토큰이 있습니다. 로그인 버튼을 눌러주세요.');
-                            // 기존 토큰이 있다는 표시만 하고 자동 로그인은 하지 않음
+                        const passwordInput = document.getElementById('admin-password');
+                        if (passwordInput) {
+                            setTimeout(() => passwordInput.focus(), 100);
                         }
-                        
-                        // 포커스 설정
-                        setTimeout(() => {
-                            const passwordInput = document.getElementById('admin-password');
-                            if (passwordInput) passwordInput.focus();
-                        }, 100);
                     });
                 </script>
             </div>
         `));
     }
     
-    // 🔒 FIX: 인증된 경우 관리자 페이지 반환
-    console.log('[ADMIN-DEBUG] 인증 성공, 관리자 페이지 표시');
-    return createSecureAdminHtmlResponse(HTML_TEMPLATES.base('관리자 패널', HTML_TEMPLATES.admin()));
+    // 🔒 SECURITY ENHANCEMENT: 인증된 경우 관리자 페이지 반환 (CSRF 토큰 포함)
+    if (isDevelopment) {
+        console.log('[ADMIN-DEBUG] 인증 성공, 관리자 페이지 표시');
+    }
+    
+    // 세션에서 CSRF 토큰 가져오기
+    let csrfToken = '';
+    try {
+        const authResult = await verifyAdminToken(request, env);
+        if (authResult.valid && authResult.payload.sessionId) {
+            const sessionKey = `admin_session:${authResult.payload.sessionId}`;
+            const session = await env.PLAKKER_KV.get(sessionKey, 'json');
+            if (session && session.csrfToken) {
+                csrfToken = session.csrfToken;
+            }
+        }
+    } catch (error) {
+        if (isDevelopment) {
+            console.error('[ADMIN-DEBUG] CSRF 토큰 가져오기 실패:', error);
+        }
+    }
+    
+    return createSecureAdminHtmlResponse(HTML_TEMPLATES.base('관리자 패널', 
+        HTML_TEMPLATES.admin() + `
+        <script>
+            // 🔒 SECURITY ENHANCEMENT: CSRF 토큰 설정
+            window.CSRF_TOKEN = '${csrfToken}';
+            
+            // 모든 관리자 API 요청에 CSRF 토큰 자동 추가
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options = {}) {
+                if (url.startsWith('/api/admin/') && options.method && options.method !== 'GET') {
+                    options.headers = options.headers || {};
+                    options.headers['X-CSRF-Token'] = window.CSRF_TOKEN;
+                    
+                    const token = sessionStorage.getItem('admin_token');
+                    if (token) {
+                        options.headers['Authorization'] = 'Bearer ' + token;
+                    }
+                }
+                return originalFetch.call(this, url, options);
+            };
+        </script>
+        `
+    ));
 } 

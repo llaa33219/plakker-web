@@ -578,34 +578,15 @@ export function convertPackToAbsoluteUrls(pack, baseUrl) {
     return convertedPack;
 }
 
-// 🔒 SECURITY FIX: 관리자 페이지용 강화된 보안 헤더
+// 🔒 SECURITY ENHANCEMENT: 관리자 페이지용 강화된 보안 헤더 적용
 export function createSecureAdminHtmlResponse(content, status = 200) {
     const response = new Response(content, {
         status,
         headers: { 'Content-Type': 'text/html; charset=utf-8' }
     });
     
-    // 강화된 보안 헤더 추가
-    const securityHeaders = {
-        'Permissions-Policy': getPermissionsPolicyHeader(),
-        'X-Frame-Options': 'DENY',
-        'X-Content-Type-Options': 'nosniff',
-        'Referrer-Policy': 'strict-origin-when-cross-origin',
-        'X-XSS-Protection': '1; mode=block',
-        // 🔒 SECURITY FIX: 관리자 페이지용 엄격한 CSP
-        'Content-Security-Policy': `
-            default-src 'self';
-            script-src 'self' 'unsafe-inline';
-            style-src 'self' 'unsafe-inline';
-            img-src 'self' data: https:;
-            font-src 'self';
-            connect-src 'self';
-            frame-ancestors 'none';
-            base-uri 'self';
-            form-action 'self';
-        `.replace(/\s+/g, ' ').trim(),
-        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
-    };
+    // 강화된 보안 헤더 적용
+    const securityHeaders = getEnhancedSecurityHeaders(true);
     
     Object.entries(securityHeaders).forEach(([key, value]) => {
         response.headers.set(key, value);
@@ -839,6 +820,157 @@ export async function incrementUploadCount(env, ip) {
         return newCount;
     } catch (error) {
         return 0;
+    }
+}
+
+// 🔒 SECURITY ENHANCEMENT: KV 기반 Rate Limiting (지속성 확보)
+export async function checkAdminRateLimitKV(env, clientIP) {
+    try {
+        const now = Date.now();
+        const windowMs = 60 * 1000; // 1분
+        const maxRequests = 50; // 1분에 50개 요청 제한
+        const rateLimitKey = `admin_rate:${await hashIP(clientIP)}`;
+        
+        const record = await env.PLAKKER_KV.get(rateLimitKey, 'json');
+        
+        if (!record) {
+            // 첫 요청
+            await env.PLAKKER_KV.put(rateLimitKey, JSON.stringify({
+                requests: 1,
+                firstRequest: now
+            }), { expirationTtl: Math.ceil(windowMs / 1000) });
+            
+            return { allowed: true, remaining: maxRequests - 1 };
+        }
+        
+        // 윈도우 만료 확인
+        if ((now - record.firstRequest) > windowMs) {
+            await env.PLAKKER_KV.put(rateLimitKey, JSON.stringify({
+                requests: 1,
+                firstRequest: now
+            }), { expirationTtl: Math.ceil(windowMs / 1000) });
+            
+            return { allowed: true, remaining: maxRequests - 1 };
+        }
+        
+        // 요청 횟수 확인
+        if (record.requests >= maxRequests) {
+            return { allowed: false, remaining: 0 };
+        }
+        
+        // 요청 수 증가
+        await env.PLAKKER_KV.put(rateLimitKey, JSON.stringify({
+            ...record,
+            requests: record.requests + 1
+        }), { expirationTtl: Math.ceil(windowMs / 1000) });
+        
+        return { 
+            allowed: true, 
+            remaining: maxRequests - record.requests - 1 
+        };
+        
+    } catch (error) {
+        // KV 오류 시 허용 (fail-open)
+        return { allowed: true, remaining: 0 };
+    }
+}
+
+// 🔒 SECURITY ENHANCEMENT: 강화된 환경변수 검증
+export function validateSecurityEnvironment(env) {
+    const errors = [];
+    const warnings = [];
+    
+    // JWT_SECRET 검증
+    if (!env.JWT_SECRET) {
+        errors.push('JWT_SECRET이 설정되지 않았습니다.');
+    } else {
+        if (env.JWT_SECRET.length < 32) {
+            errors.push('JWT_SECRET은 최소 32자 이상이어야 합니다.');
+        }
+        if (!/^[A-Za-z0-9+/=]{32,}$/.test(env.JWT_SECRET)) {
+            warnings.push('JWT_SECRET에 특수문자가 포함되어 있습니다. Base64 문자만 사용하는 것을 권장합니다.');
+        }
+    }
+    
+    // ADMIN_PASSWORD_HASH 검증
+    if (!env.ADMIN_PASSWORD_HASH) {
+        errors.push('ADMIN_PASSWORD_HASH가 설정되지 않았습니다.');
+    } else {
+        const parts = env.ADMIN_PASSWORD_HASH.split(':');
+        if (parts.length !== 2) {
+            errors.push('ADMIN_PASSWORD_HASH는 hash:salt 형식이어야 합니다.');
+        } else if (parts[0].length < 32 || parts[1].length < 32) {
+            errors.push('ADMIN_PASSWORD_HASH의 해시와 솔트는 각각 32자 이상이어야 합니다.');
+        }
+    }
+    
+    // HF_TOKEN 검증 (선택사항)
+    if (env.HF_TOKEN && env.HF_TOKEN.length < 20) {
+        warnings.push('HF_TOKEN이 너무 짧습니다. 유효한 토큰인지 확인해주세요.');
+    }
+    
+    // ADMIN_URL_PATH 검증
+    if (env.ADMIN_URL_PATH) {
+        if (!env.ADMIN_URL_PATH.startsWith('/')) {
+            errors.push('ADMIN_URL_PATH는 "/"로 시작해야 합니다.');
+        }
+        if (env.ADMIN_URL_PATH === '/admin') {
+            warnings.push('ADMIN_URL_PATH가 기본 경로입니다. 보안을 위해 다른 경로를 사용하는 것을 권장합니다.');
+        }
+    }
+    
+    return {
+        valid: errors.length === 0,
+        errors,
+        warnings,
+        securityLevel: errors.length === 0 ? (warnings.length === 0 ? 'HIGH' : 'MEDIUM') : 'LOW'
+    };
+}
+
+// 🔒 SECURITY ENHANCEMENT: 향상된 보안 헤더 생성
+export function getEnhancedSecurityHeaders(isAdminPage = false) {
+    const baseHeaders = {
+        'X-Frame-Options': 'DENY',
+        'X-Content-Type-Options': 'nosniff',
+        'X-XSS-Protection': '1; mode=block',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Permissions-Policy': getPermissionsPolicyHeader()
+    };
+    
+    if (isAdminPage) {
+        // 관리자 페이지용 강화된 보안 헤더
+        return {
+            ...baseHeaders,
+            'Content-Security-Policy': `
+                default-src 'self';
+                script-src 'self' 'unsafe-inline';
+                style-src 'self' 'unsafe-inline';
+                img-src 'self' data: https:;
+                font-src 'self';
+                connect-src 'self';
+                frame-ancestors 'none';
+                base-uri 'self';
+                form-action 'self';
+                upgrade-insecure-requests;
+            `.replace(/\s+/g, ' ').trim(),
+            'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+            'X-Admin-Page': 'true'
+        };
+    } else {
+        // 일반 페이지용 기본 보안 헤더
+        return {
+            ...baseHeaders,
+            'Content-Security-Policy': `
+                default-src 'self';
+                script-src 'self' 'unsafe-inline' 'unsafe-eval';
+                style-src 'self' 'unsafe-inline';
+                img-src 'self' data: https: http:;
+                font-src 'self' data:;
+                connect-src 'self';
+                frame-src 'none';
+                object-src 'none';
+            `.replace(/\s+/g, ' ').trim()
+        };
     }
 }
 
