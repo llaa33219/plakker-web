@@ -655,12 +655,13 @@ export async function handleAdminLogin(request, env) {
             });
         }
         
-        // 비밀번호 검증 (보안 강화: 해싱된 비밀번호 우선 사용)
+        // 비밀번호 검증 (보안 강화: 해싱된 비밀번호만 사용)
         const adminPasswordHash = env.ADMIN_PASSWORD_HASH;
-        const adminPassword = env.ADMIN_PASSWORD;
         
-        if (!adminPasswordHash && !adminPassword) {
-            return new Response(JSON.stringify({ error: '서버 설정 오류입니다. 관리자에게 문의하세요.' }), {
+        if (!adminPasswordHash) {
+            return new Response(JSON.stringify({ 
+                error: 'ADMIN_PASSWORD_HASH 환경변수가 설정되지 않았습니다. 관리자에게 문의하세요.' 
+            }), {
                 status: 500,
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -668,22 +669,15 @@ export async function handleAdminLogin(request, env) {
         
         let isValidPassword = false;
         
-        // 해싱된 비밀번호가 설정되어 있으면 우선 사용
-        if (adminPasswordHash) {
-            try {
-                const [storedHash, storedSalt] = adminPasswordHash.split(':');
-                if (storedHash && storedSalt) {
-                    isValidPassword = await verifyPassword(password, storedHash, storedSalt);
-                }
-            } catch (error) {
-                console.error('해싱된 비밀번호 검증 오류:', error);
-                // 해시 검증 실패 시 fallback으로 평문 검증 시도
+        try {
+            const [storedHash, storedSalt] = adminPasswordHash.split(':');
+            if (storedHash && storedSalt) {
+                isValidPassword = await verifyPassword(password, storedHash, storedSalt);
+            } else {
+                console.error('ADMIN_PASSWORD_HASH 형식이 올바르지 않습니다. hash:salt 형식이어야 합니다.');
             }
-        }
-        
-        // 해시 검증이 실패했거나 해시가 없으면 평문 비교 (하위 호환성)
-        if (!isValidPassword && adminPassword) {
-            isValidPassword = (password === adminPassword);
+        } catch (error) {
+            console.error('해싱된 비밀번호 검증 오류:', error);
         }
         
         if (!isValidPassword) {
