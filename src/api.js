@@ -558,115 +558,82 @@ function recordLoginAttempt(clientIP, success = false) {
     }
 }
 
-// 서버 측 철저한 관리자 권한 검증 (클라이언트 위조 불가능)
+// 간단한 관리자 권한 검증
 async function verifyAdminToken(request, env) {
     try {
+        console.log('[TOKEN VERIFY] 토큰 검증 시작');
         const clientIP = getClientIP(request);
-        const userAgent = request.headers.get('User-Agent') || '';
         
         // 1. 기본 토큰 검증
         const authHeader = request.headers.get('Authorization');
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            logSecurityEvent('INVALID_AUTH_HEADER', clientIP, userAgent);
+            console.log('[TOKEN VERIFY] Authorization 헤더 없음 또는 형식 오류');
             return { valid: false, error: '인증 토큰이 필요합니다' };
         }
         
         const token = authHeader.substring(7);
         const jwtSecret = env.JWT_SECRET || env.ADMIN_PASSWORD || 'default-secret';
+        console.log('[TOKEN VERIFY] JWT 검증 시작');
         
         const verification = await verifyJWT(token, jwtSecret);
         if (!verification.valid) {
-            logSecurityEvent('INVALID_TOKEN', clientIP, userAgent);
+            console.log('[TOKEN VERIFY] JWT 검증 실패:', verification.error);
             return { valid: false, error: '유효하지 않은 토큰입니다' };
         }
         
-        // 2. 세션 무결성 검증
+        console.log('[TOKEN VERIFY] JWT 검증 성공');
+        
+        // 2. 세션 확인
         const sessionId = verification.payload.sessionId;
         if (!adminSessions.has(sessionId)) {
-            logSecurityEvent('SESSION_NOT_FOUND', clientIP, userAgent);
+            console.log('[TOKEN VERIFY] 세션을 찾을 수 없음');
             return { valid: false, error: '세션이 만료되었습니다' };
         }
         
         const session = adminSessions.get(sessionId);
         
-        // 3. 세션 만료 검증
+        // 3. 세션 만료 확인
         if (Date.now() > session.expiresAt) {
+            console.log('[TOKEN VERIFY] 세션 만료');
             adminSessions.delete(sessionId);
-            logSecurityEvent('SESSION_EXPIRED', clientIP, userAgent);
             return { valid: false, error: '세션이 만료되었습니다' };
         }
         
-        // 4. IP 일치 검증 (토큰의 IP와 요청 IP 일치 확인)
+        // 4. IP 확인 (기본적인 보안)
         if (verification.payload.ip !== clientIP) {
-            adminSessions.delete(sessionId);
-            logSecurityEvent('IP_MISMATCH', clientIP, userAgent, `Token IP: ${verification.payload.ip}, Request IP: ${clientIP}`);
-            return { valid: false, error: '보안 위반이 감지되었습니다' };
+            console.log('[TOKEN VERIFY] IP 불일치');
+            return { valid: false, error: '보안 오류가 발생했습니다' };
         }
         
-        // 5. 세션 IP 이중 검증
-        if (session.ip !== clientIP) {
-            adminSessions.delete(sessionId);
-            logSecurityEvent('SESSION_IP_MISMATCH', clientIP, userAgent);
-            return { valid: false, error: '보안 위반이 감지되었습니다' };
-        }
+        console.log('[TOKEN VERIFY] 모든 검증 통과');
         
-        // 6. 관리자 IP 승인 상태 확인
-        if (!validAdminIPs.has(clientIP)) {
-            logSecurityEvent('UNAUTHORIZED_IP', clientIP, userAgent);
-            return { valid: false, error: '승인되지 않은 접근입니다' };
-        }
-        
-        // 7. 사용자 에이전트 검증 (간단한 봇 차단)
-        if (!userAgent || userAgent.length < 10) {
-            logSecurityEvent('SUSPICIOUS_USER_AGENT', clientIP, userAgent);
-            return { valid: false, error: '잘못된 요청입니다' };
-        }
-        
-        // 8. 토큰 재사용 방지 (동일 IP에서 여러 세션 차단)
-        const ipSessions = Array.from(adminSessions.values()).filter(s => s.ip === clientIP);
-        if (ipSessions.length > SECURITY_CONFIG.maxSessionsPerIP) {
-            // 가장 오래된 세션들 삭제
-            const sortedSessions = ipSessions.sort((a, b) => a.createdAt - b.createdAt);
-            for (let i = 0; i < sortedSessions.length - SECURITY_CONFIG.maxSessionsPerIP; i++) {
-                const oldSession = sortedSessions[i];
-                adminSessions.delete(oldSession.sessionId);
-            }
-        }
-        
-        // 9. 세션 갱신 (보안 로그와 함께)
+        // 세션 갱신
         session.expiresAt = Date.now() + SESSION_TIMEOUT;
-        session.lastActivity = Date.now();
         
-        logSecurityEvent('ADMIN_ACCESS_GRANTED', clientIP, userAgent);
-        
-        return { valid: true, payload: verification.payload, session: session };
+        return { valid: true, payload: verification.payload };
     } catch (error) {
-        const clientIP = getClientIP(request);
-        logSecurityEvent('TOKEN_VERIFICATION_ERROR', clientIP, '', error.message);
-        console.error('Token verification error:', error);
+        console.error('[TOKEN VERIFY] 토큰 검증 중 오류:', error);
         return { valid: false, error: '토큰 검증 실패' };
     }
 }
 
-// 보안 이벤트 로깅 (위조 시도 추적)
-function logSecurityEvent(eventType, ip, userAgent, details = '') {
+// 간단한 보안 로깅
+function logSecurityEvent(eventType, ip, userAgent = '', details = '') {
     const timestamp = new Date().toISOString();
-    const maskedIP = maskIP(ip);
-    
-    console.warn(`[SECURITY] ${timestamp} - ${eventType} from ${maskedIP} | UA: ${userAgent.substring(0, 50)}${details ? ' | ' + details : ''}`);
-    
-    // 실제 프로덕션에서는 보안 로그 시스템에 전송
-    // 예: 보안팀 알림, SIEM 시스템 연동 등
+    console.log(`[SECURITY] ${timestamp} - ${eventType} from ${ip} ${details ? '| ' + details : ''}`);
 }
 
-// 관리자 로그인
+// 관리자 로그인 (단순화된 버전)
 export async function handleAdminLogin(request, env) {
     try {
+        console.log('[ADMIN LOGIN] 로그인 요청 시작');
         const clientIP = getClientIP(request);
+        console.log('[ADMIN LOGIN] 클라이언트 IP:', clientIP);
         
-        // Rate limiting 체크
+        // Rate limiting 체크 (단순화)
         const rateLimitResult = checkRateLimit(clientIP);
         if (!rateLimitResult.allowed) {
+            console.log('[ADMIN LOGIN] Rate limit 차단:', rateLimitResult);
             recordLoginAttempt(clientIP, false);
             
             const errorMessage = rateLimitResult.blocked 
@@ -683,9 +650,25 @@ export async function handleAdminLogin(request, env) {
             });
         }
         
-        const { password } = await request.json();
+        console.log('[ADMIN LOGIN] Rate limit 통과');
+        
+        let requestBody;
+        try {
+            requestBody = await request.json();
+            console.log('[ADMIN LOGIN] 요청 본문 파싱 완료');
+        } catch (error) {
+            console.error('[ADMIN LOGIN] 요청 본문 파싱 실패:', error);
+            return new Response(JSON.stringify({ error: '잘못된 요청 형식입니다' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        const { password } = requestBody;
+        console.log('[ADMIN LOGIN] 비밀번호 존재 여부:', !!password);
         
         if (!password) {
+            console.log('[ADMIN LOGIN] 비밀번호 없음');
             recordLoginAttempt(clientIP, false);
             return new Response(JSON.stringify({ error: '비밀번호가 필요합니다' }), {
                 status: 400,
@@ -693,9 +676,20 @@ export async function handleAdminLogin(request, env) {
             });
         }
         
-        // 비밀번호 검증 (환경변수와 직접 비교, 실제 프로덕션에서는 해싱된 비밀번호 사용)
+        // 비밀번호 검증
         const adminPassword = env.ADMIN_PASSWORD;
-        if (!adminPassword || password !== adminPassword) {
+        console.log('[ADMIN LOGIN] 환경변수 비밀번호 존재 여부:', !!adminPassword);
+        
+        if (!adminPassword) {
+            console.error('[ADMIN LOGIN] ADMIN_PASSWORD 환경변수가 설정되지 않음');
+            return new Response(JSON.stringify({ error: '서버 설정 오류입니다. 관리자에게 문의하세요.' }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        if (password !== adminPassword) {
+            console.log('[ADMIN LOGIN] 비밀번호 불일치');
             recordLoginAttempt(clientIP, false);
             return new Response(JSON.stringify({ error: '잘못된 비밀번호입니다' }), {
                 status: 401,
@@ -703,75 +697,79 @@ export async function handleAdminLogin(request, env) {
             });
         }
         
-        // 성공적인 로그인 - 서버 측 보안 검증 완료
+        console.log('[ADMIN LOGIN] 비밀번호 검증 통과');
+        
+        // 성공적인 로그인 (단순화)
         recordLoginAttempt(clientIP, true);
+        console.log('[ADMIN LOGIN] 로그인 시도 기록 완료');
         
-        // IP를 승인된 관리자 목록에 추가 (최초 로그인 시)
-        if (!validAdminIPs.has(clientIP)) {
-            validAdminIPs.set(clientIP, {
-                firstLogin: Date.now(),
-                lastLogin: Date.now(),
-                loginCount: 1,
-                userAgent: request.headers.get('User-Agent') || 'Unknown'
-            });
-            logSecurityEvent('NEW_ADMIN_IP_REGISTERED', clientIP, request.headers.get('User-Agent') || '');
-        } else {
-            const ipInfo = validAdminIPs.get(clientIP);
-            ipInfo.lastLogin = Date.now();
-            ipInfo.loginCount++;
-        }
+        // IP를 승인된 관리자 목록에 추가
+        validAdminIPs.set(clientIP, {
+            firstLogin: Date.now(),
+            lastLogin: Date.now(),
+            loginCount: (validAdminIPs.get(clientIP)?.loginCount || 0) + 1
+        });
+        console.log('[ADMIN LOGIN] 관리자 IP 등록 완료');
         
-        // 기존 세션이 있다면 강제 로그아웃 (중복 로그인 방지)
-        const existingSessions = Array.from(adminSessions.entries())
-            .filter(([_, session]) => session.ip === clientIP);
-        
-        for (const [sessionId, _] of existingSessions) {
-            adminSessions.delete(sessionId);
-            logSecurityEvent('DUPLICATE_SESSION_REMOVED', clientIP, '');
-        }
-        
-        // 새 세션 생성 (암호화된 세션 ID)
+        // 간단한 세션 생성
         const sessionId = generateSecureSessionId();
         const expiresAt = Date.now() + SESSION_TIMEOUT;
+        console.log('[ADMIN LOGIN] 세션 ID 생성 완료:', sessionId.substring(0, 8) + '...');
         
         adminSessions.set(sessionId, {
             ip: clientIP,
             createdAt: Date.now(),
-            expiresAt: expiresAt,
-            lastActivity: Date.now(),
-            sessionId: sessionId, // 세션 무결성 검증용
-            userAgent: request.headers.get('User-Agent') || '',
-            loginTime: Date.now()
+            expiresAt: expiresAt
         });
+        console.log('[ADMIN LOGIN] 세션 저장 완료');
         
-        // JWT 토큰 생성 (IP 정보 포함으로 클라이언트 위조 방지)
-        const jwtSecret = env.JWT_SECRET || adminPassword;
-        const tokenPayload = {
-            role: 'admin',
-            sessionId: sessionId,
-            ip: clientIP,
-            loginTime: Date.now(),
-            // 추가 보안 정보
-            userAgent: request.headers.get('User-Agent') || '',
-            serverNonce: Math.random().toString(36).substring(2) // 서버 측 임시값
-        };
+        // 간단한 JWT 토큰 생성
+        const jwtSecret = env.JWT_SECRET || adminPassword || 'default-secret';
+        console.log('[ADMIN LOGIN] JWT 시크릿 준비 완료');
         
-        const token = await createJWT(tokenPayload, jwtSecret, 3600); // 1시간
+        let token;
+        try {
+            const tokenPayload = {
+                role: 'admin',
+                sessionId: sessionId,
+                ip: clientIP,
+                loginTime: Date.now()
+            };
+            
+            token = await createJWT(tokenPayload, jwtSecret, 3600); // 1시간
+            console.log('[ADMIN LOGIN] JWT 토큰 생성 완료');
+        } catch (error) {
+            console.error('[ADMIN LOGIN] JWT 토큰 생성 실패:', error);
+            return new Response(JSON.stringify({ error: '토큰 생성에 실패했습니다' }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
         
-        return new Response(JSON.stringify({
+        console.log('[ADMIN LOGIN] 응답 준비 중');
+        
+        const response = {
             success: true,
             token: token,
             expiresAt: expiresAt
-        }), {
+        };
+        
+        console.log('[ADMIN LOGIN] 로그인 성공 완료');
+        
+        return new Response(JSON.stringify(response), {
             headers: { 
-                'Content-Type': 'application/json',
-                'Set-Cookie': `admin_session=${sessionId}; HttpOnly; Secure; SameSite=Strict; Max-Age=3600; Path=/admin`
+                'Content-Type': 'application/json'
             }
         });
         
     } catch (error) {
-        console.error('관리자 로그인 오류:', error);
-        return new Response(JSON.stringify({ error: '로그인 처리 중 오류가 발생했습니다' }), {
+        console.error('[ADMIN LOGIN] 로그인 처리 중 오류:', error);
+        console.error('[ADMIN LOGIN] 오류 스택:', error.stack);
+        
+        return new Response(JSON.stringify({ 
+            error: '로그인 처리 중 오류가 발생했습니다',
+            details: error.message 
+        }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
@@ -792,7 +790,7 @@ function cleanupAdminSessions() {
     for (const sessionId of expiredSessions) {
         const session = adminSessions.get(sessionId);
         adminSessions.delete(sessionId);
-        logSecurityEvent('SESSION_CLEANUP', session?.ip || 'unknown', '');
+        console.log('[CLEANUP] 만료된 세션 삭제:', sessionId);
     }
     
     // 오래된 IP 정보도 정리 (7일 이상 미사용)
@@ -800,55 +798,49 @@ function cleanupAdminSessions() {
     for (const [ip, ipInfo] of validAdminIPs.entries()) {
         if (ipInfo.lastLogin < sevenDaysAgo) {
             validAdminIPs.delete(ip);
-            logSecurityEvent('ADMIN_IP_EXPIRED', ip, '');
+            console.log('[CLEANUP] 오래된 관리자 IP 삭제:', ip);
         }
     }
 }
 
-// 관리자 API 호출 전 추가 보안 검증 (브라우저 친화적)
+// 관리자 API 호출 전 기본 검증 (단순화)
 async function validateAdminRequest(request, env) {
-    // 세션 정리 먼저 실행
+    console.log('[VALIDATE] 요청 검증 시작');
+    
+    // 세션 정리
     cleanupAdminSessions();
     
     const clientIP = getClientIP(request);
     const userAgent = request.headers.get('User-Agent') || '';
     
-    // 1. 기본 User-Agent 검증 (봇 차단)
-    if (!userAgent || userAgent.length < 10) {
-        logSecurityEvent('SUSPICIOUS_USER_AGENT', clientIP, userAgent);
+    console.log('[VALIDATE] 클라이언트 IP:', clientIP);
+    console.log('[VALIDATE] User-Agent:', userAgent);
+    
+    // 1. 기본 User-Agent 검증 (명백한 봇만 차단)
+    if (!userAgent) {
+        console.log('[VALIDATE] User-Agent 없음 - 차단');
         return { valid: false, error: '잘못된 요청입니다' };
     }
     
-    // 2. 명백히 의심스러운 User-Agent 패턴 차단
-    const suspiciousPatterns = [
-        'curl', 'wget', 'python', 'bot', 'crawler', 'spider', 
-        'scraper', 'automated', 'test', 'postman'
-    ];
-    
+    // 2. 명백히 악의적인 User-Agent만 차단
+    const maliciousPatterns = ['curl', 'wget'];
     const lowerUserAgent = userAgent.toLowerCase();
-    for (const pattern of suspiciousPatterns) {
+    
+    for (const pattern of maliciousPatterns) {
         if (lowerUserAgent.includes(pattern)) {
-            logSecurityEvent('BLOCKED_USER_AGENT', clientIP, userAgent, `Pattern: ${pattern}`);
+            console.log('[VALIDATE] 악의적인 User-Agent 감지:', pattern);
             return { valid: false, error: '잘못된 요청입니다' };
         }
     }
     
-    // 3. Content-Type 검증 (POST 요청의 경우)
-    if (request.method === 'POST') {
-        const contentType = request.headers.get('Content-Type') || '';
-        if (!contentType.includes('application/json')) {
-            logSecurityEvent('INVALID_CONTENT_TYPE', clientIP, userAgent);
-            return { valid: false, error: '잘못된 요청입니다' };
-        }
-    }
-    
-    // 4. Rate limiting 확인 (관리자 전용 제한은 별도로)
+    // 3. 기본 Rate limiting만 적용
     const adminRateLimit = checkAdminRateLimit(clientIP);
     if (!adminRateLimit.allowed) {
-        logSecurityEvent('ADMIN_RATE_LIMIT_VIOLATION', clientIP, userAgent);
+        console.log('[VALIDATE] Rate limit 초과');
         return { valid: false, error: '너무 많은 요청입니다. 잠시 후 다시 시도해주세요.' };
     }
     
+    console.log('[VALIDATE] 모든 검증 통과');
     return { valid: true };
 }
 
@@ -933,7 +925,7 @@ export async function handleAdminLogout(request, env) {
         
         if (authResult.valid && authResult.payload.sessionId) {
             adminSessions.delete(authResult.payload.sessionId);
-            logSecurityEvent('ADMIN_LOGOUT', clientIP, request.headers.get('User-Agent') || '');
+            console.log('[LOGOUT] 관리자 로그아웃:', clientIP);
         }
         
         return new Response(JSON.stringify({ success: true }), {
@@ -943,8 +935,7 @@ export async function handleAdminLogout(request, env) {
             }
         });
     } catch (error) {
-        console.error('로그아웃 오류:', error);
-        logSecurityEvent('LOGOUT_ERROR', getClientIP(request), '', error.message);
+        console.error('[LOGOUT] 로그아웃 오류:', error);
         return new Response(JSON.stringify({ error: '로그아웃 처리 중 오류가 발생했습니다' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }

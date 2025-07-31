@@ -203,8 +203,10 @@ function createSecureAdminRequest(url, options = {}) {
     return fetch(url, secureOptions);
 }
 
-// 관리자 로그인
+// 관리자 로그인 (단순화)
 window.adminLogin = async function() {
+    console.log('[CLIENT] 로그인 시작');
+    
     const passwordInput = document.getElementById('admin-password');
     const loginBtn = document.querySelector('.login-btn');
     const password = passwordInput.value;
@@ -220,6 +222,8 @@ window.adminLogin = async function() {
     loginBtn.textContent = '로그인 중...';
     
     try {
+        console.log('[CLIENT] API 요청 전송');
+        
         const response = await fetch('/api/admin/login', {
             method: 'POST',
             headers: {
@@ -228,9 +232,19 @@ window.adminLogin = async function() {
             body: JSON.stringify({ password })
         });
         
-        const result = await response.json();
+        console.log('[CLIENT] API 응답 수신, 상태:', response.status);
+        
+        let result;
+        try {
+            result = await response.json();
+            console.log('[CLIENT] 응답 파싱 완료:', result);
+        } catch (parseError) {
+            console.error('[CLIENT] 응답 파싱 실패:', parseError);
+            throw new Error('서버 응답을 해석할 수 없습니다');
+        }
         
         if (response.ok && result.success) {
+            console.log('[CLIENT] 로그인 성공');
             adminToken = result.token;
             
             // UI 업데이트
@@ -238,33 +252,44 @@ window.adminLogin = async function() {
             document.getElementById('admin-controls').style.display = 'block';
             document.getElementById('admin-content').style.display = 'block';
             
-            // 세션 타임아웃 설정 (토큰 만료 5분 전에 경고)
-            const expiresIn = (result.expiresAt - Date.now()) - (5 * 60 * 1000);
-            if (expiresIn > 0) {
-                sessionTimeout = setTimeout(() => {
-                    alert('세션이 곧 만료됩니다. 다시 로그인해주세요.');
-                    adminLogout();
-                }, expiresIn);
+            // 세션 타임아웃 설정
+            if (result.expiresAt) {
+                const expiresIn = (result.expiresAt - Date.now()) - (5 * 60 * 1000);
+                if (expiresIn > 0) {
+                    sessionTimeout = setTimeout(() => {
+                        alert('세션이 곧 만료됩니다. 다시 로그인해주세요.');
+                        adminLogout();
+                    }, expiresIn);
+                }
             }
             
+            console.log('[CLIENT] 대기 중인 팩 로드 시작');
             await loadPendingPacks();
             passwordInput.value = ''; // 비밀번호 지우기
             
         } else {
+            console.log('[CLIENT] 로그인 실패:', result);
+            
             if (response.status === 429) {
                 const blockTime = result.remainingTime ? Math.ceil(result.remainingTime / 60) : 5;
                 alert('보안을 위해 로그인이 일시적으로 제한되었습니다. ' + blockTime + '분 후 다시 시도해주세요.');
+            } else if (response.status === 500) {
+                alert('서버 오류: ' + (result.error || '알 수 없는 오류'));
+                if (result.details) {
+                    console.error('[CLIENT] 서버 오류 상세:', result.details);
+                }
             } else {
                 alert(result.error || '로그인에 실패했습니다.');
             }
         }
     } catch (error) {
-        console.error('로그인 오류:', error);
-        alert('로그인 중 오류가 발생했습니다.');
+        console.error('[CLIENT] 로그인 중 오류:', error);
+        alert('로그인 중 오류가 발생했습니다: ' + error.message);
     } finally {
         // 로딩 상태 해제
         loginBtn.disabled = false;
         loginBtn.textContent = originalText;
+        console.log('[CLIENT] 로그인 프로세스 완료');
     }
 };
 
@@ -1259,34 +1284,12 @@ async function loadUploadLimitStatus() {
     }
 }
 
-// 관리자 페이지 초기화 (보안 강화)
+// 관리자 페이지 초기화 (단순화)
 function setupAdminPage() {
+    console.log('[ADMIN SETUP] 관리자 페이지 초기화 시작');
+    
     // 보안 핑거프린트 초기화
     securityFingerprint = generateSecurityFingerprint();
-    
-    // 개발자 도구 감지 시작
-    detectDevTools();
-    
-    // 우클릭 및 단축키 차단 (기본 보안)
-    document.addEventListener('contextmenu', function(e) {
-        if (window.location.pathname === '/admin') {
-            e.preventDefault();
-            console.warn('[SECURITY] 관리자 페이지에서는 우클릭이 제한됩니다.');
-        }
-    });
-    
-    // 특정 단축키 차단
-    document.addEventListener('keydown', function(e) {
-        if (window.location.pathname === '/admin') {
-            // F12, Ctrl+Shift+I, Ctrl+U 등 차단
-            if (e.key === 'F12' || 
-                (e.ctrlKey && e.shiftKey && e.key === 'I') ||
-                (e.ctrlKey && e.key === 'u')) {
-                e.preventDefault();
-                console.warn('[SECURITY] 관리자 페이지에서는 해당 기능이 제한됩니다.');
-            }
-        }
-    });
     
     const passwordInput = document.getElementById('admin-password');
     
@@ -1301,13 +1304,12 @@ function setupAdminPage() {
         
         // 포커스 설정
         passwordInput.focus();
+        console.log('[ADMIN SETUP] 비밀번호 입력 필드 설정 완료');
+    } else {
+        console.error('[ADMIN SETUP] 비밀번호 입력 필드를 찾을 수 없음');
     }
     
-    // 페이지 로드 시 기존 세션 확인 (선택적)
-    checkExistingSession();
-    
-    // 보안 상태 주기적 확인
-    startSecurityMonitoring();
+    console.log('[ADMIN SETUP] 관리자 페이지 초기화 완료');
 }
 
 // 보안 모니터링 시작 (관리자 페이지 전용)
