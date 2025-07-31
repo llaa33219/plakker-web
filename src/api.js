@@ -842,6 +842,10 @@ export async function handleAdminLogin(request, env) {
     try {
         const clientIP = getClientIP(request);
         
+        // 🔒 DEBUG: 환경변수 확인
+        console.log('[DEBUG] JWT_SECRET 존재:', !!env.JWT_SECRET);
+        console.log('[DEBUG] ADMIN_PASSWORD_HASH 존재:', !!env.ADMIN_PASSWORD_HASH);
+        
         // Rate limiting 체크 (단순화)
         const rateLimitResult = checkRateLimit(clientIP);
         if (!rateLimitResult.allowed) {
@@ -887,29 +891,56 @@ export async function handleAdminLogin(request, env) {
             });
         }
         
-        // 비밀번호 검증 (보안 강화: 해싱된 비밀번호만 사용)
+        // 🔒 FIX: 환경변수 검증 개선
+        const jwtSecret = env.JWT_SECRET;
         const adminPasswordHash = env.ADMIN_PASSWORD_HASH;
         
-        if (!adminPasswordHash) {
+        if (!jwtSecret) {
+            console.error('[ERROR] JWT_SECRET 환경변수가 설정되지 않았습니다.');
             return new Response(JSON.stringify({ 
-                error: '서버 설정 오류입니다. 관리자에게 문의하세요.' 
+                error: '서버 설정 오류입니다. JWT_SECRET이 설정되지 않았습니다.' 
             }), {
                 status: 500,
                 headers: { 'Content-Type': 'application/json' }
             });
         }
         
+        if (!adminPasswordHash) {
+            console.error('[ERROR] ADMIN_PASSWORD_HASH 환경변수가 설정되지 않았습니다.');
+            return new Response(JSON.stringify({ 
+                error: '서버 설정 오류입니다. ADMIN_PASSWORD_HASH가 설정되지 않았습니다.' 
+            }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
+        // 비밀번호 검증 (보안 강화: 해싱된 비밀번호만 사용)
         let isValidPassword = false;
         
         try {
             const [storedHash, storedSalt] = adminPasswordHash.split(':');
             if (storedHash && storedSalt) {
                 isValidPassword = await verifyPassword(password, storedHash, storedSalt);
+                console.log('[DEBUG] 비밀번호 검증 결과:', isValidPassword);
             } else {
-                console.error('ADMIN_PASSWORD_HASH 형식이 올바르지 않습니다. hash:salt 형식이어야 합니다.');
+                console.error('[ERROR] ADMIN_PASSWORD_HASH 형식이 올바르지 않습니다. hash:salt 형식이어야 합니다.');
+                // 🔒 FIX: 형식 오류시에도 명확한 응답 반환
+                return new Response(JSON.stringify({ 
+                    error: 'ADMIN_PASSWORD_HASH 형식이 올바르지 않습니다. hash:salt 형식으로 설정해주세요.' 
+                }), {
+                    status: 500,
+                    headers: { 'Content-Type': 'application/json' }
+                });
             }
         } catch (error) {
-            console.error('해싱된 비밀번호 검증 오류:', error);
+            console.error('[ERROR] 해싱된 비밀번호 검증 오류:', error);
+            return new Response(JSON.stringify({ 
+                error: '비밀번호 검증 중 오류가 발생했습니다.' 
+            }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
         
         if (!isValidPassword) {
@@ -936,11 +967,6 @@ export async function handleAdminLogin(request, env) {
             timestamp: new Date().toISOString()
         });
 
-        // IP를 승인된 관리자 목록에 추가
-        // 이 부분은 메모리 기반 관리를 KV 기반으로 변경하면서 제거되었으므로,
-        // 여기서는 단순히 로그인 시도를 기록하는 것으로 유지
-        // 실제 관리자 IP 목록은 관리자 페이지에서 관리해야 함
-
         // 🔒 SECURITY FIX: 강화된 세션 생성
         const sessionId = generateSecureSessionId();
         const expiresAt = Date.now() + SESSION_TIMEOUT;
@@ -953,7 +979,7 @@ export async function handleAdminLogin(request, env) {
         if (sessionCleanup.invalidatedSessions > 0) {
             await logSecurityEvent(env, 'CONCURRENT_SESSION_BLOCKED', clientIP, {
                 invalidatedSessions: sessionCleanup.invalidatedSessions,
-                reason: '동일 IP에서 새로운 관리자 로그인으로 인한 기존 세션 무효화'
+                newSessionId: sessionId
             });
         }
         
@@ -969,16 +995,7 @@ export async function handleAdminLogin(request, env) {
             lastAccessAt: Date.now()
         }));
         
-        // 간단한 JWT 토큰 생성
-        const jwtSecret = env.JWT_SECRET;
-        
-        if (!jwtSecret) {
-            return new Response(JSON.stringify({ error: '서버 설정 오류입니다. 관리자에게 문의하세요.' }), {
-                status: 500,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-        
+        // 🔒 FIX: JWT 토큰 생성 개선
         let token;
         try {
             const tokenPayload = {
@@ -989,8 +1006,10 @@ export async function handleAdminLogin(request, env) {
             };
             
             token = await createJWT(tokenPayload, jwtSecret, 3600); // 1시간
+            console.log('[DEBUG] JWT 토큰 생성 성공, 길이:', token ? token.length : 0);
         } catch (error) {
-            return new Response(JSON.stringify({ error: '토큰 생성에 실패했습니다' }), {
+            console.error('[ERROR] 토큰 생성 실패:', error);
+            return new Response(JSON.stringify({ error: '토큰 생성에 실패했습니다: ' + error.message }), {
                 status: 500,
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -1002,6 +1021,8 @@ export async function handleAdminLogin(request, env) {
             expiresAt: expiresAt
         };
         
+        console.log('[DEBUG] 로그인 성공 응답 준비 완료');
+        
         return new Response(JSON.stringify(response), {
             headers: { 
                 'Content-Type': 'application/json'
@@ -1009,6 +1030,7 @@ export async function handleAdminLogin(request, env) {
         });
         
     } catch (error) {
+        console.error('[ERROR] 로그인 처리 중 예외 발생:', error);
         return new Response(JSON.stringify({ 
             error: '로그인 처리 중 오류가 발생했습니다',
             details: error.message 
