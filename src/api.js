@@ -1062,23 +1062,95 @@ export async function handleRejectPack(request, env) {
             });
         }
         
-        // 상태를 거부로 변경
-        pack.status = 'rejected';
-        pack.rejectedAt = new Date().toISOString();
-        pack.rejectionReason = reason || '승인 기준에 맞지 않음';
+        // 거부된 팩 완전 삭제 시작
+        console.log(`[REJECT] 팩 ${packId} 완전 삭제 시작`);
         
-        // KV에 업데이트된 팩 정보 저장
-        await env.PLAKKER_KV.put(`pack_${packId}`, JSON.stringify(pack));
+        const deletionResults = {
+            kvDeleted: false,
+            thumbnailDeleted: false,
+            emoticonsDeleted: 0,
+            totalEmoticons: pack.totalEmoticons || 0,
+            errors: []
+        };
         
-        // 선택적으로 R2에서 파일들을 삭제할 수도 있음 (여기서는 보관)
-        
-        return new Response(JSON.stringify({ 
-            success: true, 
-            message: '팩이 거부되었습니다',
-            packId: packId
-        }), {
-            headers: { 'Content-Type': 'application/json' }
-        });
+        try {
+            // 1. R2에서 썸네일 삭제
+            const thumbnailKey = `thumbnails/${packId}_thumbnail`;
+            try {
+                await env.PLAKKER_R2.delete(thumbnailKey);
+                deletionResults.thumbnailDeleted = true;
+                console.log(`[REJECT] 썸네일 삭제 완료: ${thumbnailKey}`);
+            } catch (error) {
+                console.error(`[REJECT] 썸네일 삭제 실패: ${thumbnailKey}`, error);
+                deletionResults.errors.push(`썸네일 삭제 실패: ${error.message}`);
+            }
+            
+            // 2. R2에서 모든 이모티콘 삭제
+            for (let i = 0; i < deletionResults.totalEmoticons; i++) {
+                const emoticonKey = `emoticons/${packId}_${i}`;
+                try {
+                    await env.PLAKKER_R2.delete(emoticonKey);
+                    deletionResults.emoticonsDeleted++;
+                    console.log(`[REJECT] 이모티콘 삭제 완료: ${emoticonKey}`);
+                } catch (error) {
+                    console.error(`[REJECT] 이모티콘 삭제 실패: ${emoticonKey}`, error);
+                    deletionResults.errors.push(`이모티콘 ${i+1} 삭제 실패: ${error.message}`);
+                }
+            }
+            
+            // 3. KV에서 팩 메타데이터 완전 삭제
+            try {
+                await env.PLAKKER_KV.delete(`pack_${packId}`);
+                deletionResults.kvDeleted = true;
+                console.log(`[REJECT] KV 메타데이터 삭제 완료: pack_${packId}`);
+            } catch (error) {
+                console.error(`[REJECT] KV 메타데이터 삭제 실패: pack_${packId}`, error);
+                deletionResults.errors.push(`메타데이터 삭제 실패: ${error.message}`);
+            }
+            
+            console.log(`[REJECT] 팩 ${packId} 삭제 완료 - 썸네일: ${deletionResults.thumbnailDeleted}, 이모티콘: ${deletionResults.emoticonsDeleted}/${deletionResults.totalEmoticons}, KV: ${deletionResults.kvDeleted}`);
+            
+            let responseMessage = '팩이 거부되어 완전히 삭제되었습니다';
+            if (deletionResults.errors.length > 0) {
+                responseMessage += ` (일부 파일 삭제 실패: ${deletionResults.errors.length}개)`;
+                console.warn(`[REJECT] 삭제 중 오류 발생:`, deletionResults.errors);
+            }
+            
+            return new Response(JSON.stringify({ 
+                success: true, 
+                message: responseMessage,
+                packId: packId,
+                deletionDetails: {
+                    thumbnailDeleted: deletionResults.thumbnailDeleted,
+                    emoticonsDeleted: deletionResults.emoticonsDeleted,
+                    totalEmoticons: deletionResults.totalEmoticons,
+                    kvDeleted: deletionResults.kvDeleted,
+                    errors: deletionResults.errors
+                }
+            }), {
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+        } catch (error) {
+            console.error(`[REJECT] 팩 ${packId} 삭제 중 예상치 못한 오류:`, error);
+            
+            // 삭제 실패 시에도 KV에서 최소한 메타데이터는 삭제 시도
+            try {
+                await env.PLAKKER_KV.delete(`pack_${packId}`);
+                console.log(`[REJECT] 복구: KV 메타데이터 삭제 완료`);
+            } catch (kvError) {
+                console.error(`[REJECT] 복구 실패: KV 메타데이터 삭제도 실패`, kvError);
+            }
+            
+            return new Response(JSON.stringify({ 
+                success: true, 
+                message: '팩이 거부되었지만 일부 파일 삭제에 실패했습니다',
+                packId: packId,
+                error: error.message
+            }), {
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
         
     } catch (error) {
         console.error('팩 거부 오류:', error);
