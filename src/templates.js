@@ -196,6 +196,21 @@ export const HTML_TEMPLATES = {
             </div>
             
             <div class="admin-content">
+                <!-- 비밀번호 해시 생성기 (임시 도구) -->
+                <div class="admin-section" style="margin-bottom: 30px; padding: 20px; background: #f5f5f5; border-radius: 8px;">
+                    <h3 style="margin-top: 0;">🔧 비밀번호 해시 생성기 (설정용)</h3>
+                    <div style="margin-bottom: 15px;">
+                        <label for="password-input" style="display: block; margin-bottom: 5px;">새 관리자 비밀번호:</label>
+                        <input type="password" id="password-input" placeholder="비밀번호 입력" style="padding: 8px; width: 200px; margin-right: 10px;">
+                        <button onclick="generatePasswordHash()" style="padding: 8px 15px;">해시 생성</button>
+                    </div>
+                    <div id="hash-result" style="display: none;">
+                        <label style="display: block; margin-bottom: 5px;">환경변수에 설정할 값:</label>
+                        <div style="background: white; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; word-break: break-all; margin-bottom: 10px;" id="hash-value"></div>
+                        <button onclick="copyHashToClipboard()" style="padding: 5px 10px; font-size: 12px;">복사</button>
+                    </div>
+                </div>
+                
                 <div class="pending-stats" id="pending-stats">
                     <div class="stat-item">
                         <span class="stat-label">대기 중인 팩:</span>
