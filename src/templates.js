@@ -186,53 +186,206 @@ export const HTML_TEMPLATES = {
     `,
     
     admin: () => `
-        <div class="container">
-            <div class="admin-header">
-                <h1>관리자 패널</h1>
-                <div class="admin-auth" id="admin-auth">
-                    <input type="password" id="admin-password" placeholder="관리자 비밀번호" />
-                    <button onclick="adminLogin()">로그인</button>
-                </div>
-                <div class="admin-controls" id="admin-controls" style="display: none;">
-                    <button onclick="loadPendingPacks()">대기 목록 새로고침</button>
-                    <button onclick="adminLogout()">로그아웃</button>
-                </div>
+<div class="container">
+    <h2 style="text-align: center;">관리 시스템 변경 안내</h2>
+    
+    <div class="admin-notice">
+        <div class="notice-header">
+            <span class="info-icon">ℹ️</span>
+            <h3>새로운 관리 방식</h3>
+        </div>
+        <div class="notice-content">
+            <p>이모티콘 팩 관리 시스템이 변경되었습니다.</p>
+            <p>이제 <strong>Cloudflare KV 대시보드</strong>에서 직접 관리할 수 있습니다.</p>
+        </div>
+    </div>
+    
+    <div class="management-guide">
+        <h3>🔧 관리 방법</h3>
+        <ol>
+            <li>
+                <strong>Cloudflare 대시보드</strong>에 로그인
+            </li>
+            <li>
+                <strong>Workers & Pages</strong> → 해당 사이트 → <strong>KV</strong>
+            </li>
+            <li>
+                <strong>PLAKKER_PENDING_KV</strong> 네임스페이스에서 대기 중인 팩 확인
+            </li>
+            <li>
+                <code>pending_</code>로 시작하는 키들이 대기 중인 팩들입니다
+            </li>
+            <li>
+                해당 키를 클릭하여 팩 정보 확인 후:
+                <ul>
+                    <li><code>"adminStatus": "approved"</code>로 변경 → 자동 승인</li>
+                    <li><code>"adminStatus": "rejected"</code>로 변경 → 자동 거부 및 삭제</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+    
+    <div class="features-section">
+        <h3>✨ 새로운 기능</h3>
+        <ul>
+            <li><strong>자동 처리:</strong> 팩 목록 조회 시 자동으로 승인/거부 처리</li>
+            <li><strong>대기 팩 조회:</strong> 대기 중인 팩도 직접 URL로 접근 가능</li>
+            <li><strong>파일 자동 삭제:</strong> 거부된 팩의 파일들 자동 삭제</li>
+            <li><strong>관리 편의성:</strong> 복잡한 관리자 인터페이스 없이 KV에서 직접 관리</li>
+        </ul>
+    </div>
+    
+    <div class="status-guide">
+        <h3>📋 상태 설명</h3>
+        <div class="status-table">
+            <div class="status-row">
+                <span class="status-badge pending">pending</span>
+                <span>승인 대기 중 (기본값)</span>
             </div>
-            
-            <div class="admin-content" id="admin-content" style="display: none;">
-                <div class="pending-stats" id="pending-stats">
-                    <div class="stat-item">
-                        <span class="stat-label">대기 중인 팩:</span>
-                        <span class="stat-value" id="pending-count">0</span>
-                    </div>
-                </div>
-                
-                <div class="pending-packs" id="pending-packs">
-                    <div class="loading">대기 중인 팩을 불러오는 중...</div>
-                </div>
+            <div class="status-row">
+                <span class="status-badge approved">approved</span>
+                <span>승인됨 → 자동으로 공개</span>
             </div>
-            
-            <div class="back-link">
-                <a href="/">← 메인으로 돌아가기</a>
+            <div class="status-row">
+                <span class="status-badge rejected">rejected</span>
+                <span>거부됨 → 자동으로 삭제</span>
             </div>
         </div>
-        
-        <div class="pack-modal" id="pack-modal" style="display: none;">
-            <div class="modal-backdrop" onclick="closePackModal()"></div>
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>팩 상세 정보</h3>
-                    <button class="modal-close" onclick="closePackModal()">×</button>
-                </div>
-                <div class="modal-body" id="pack-modal-body">
-                    <!-- 팩 상세 정보가 여기에 로드됩니다 -->
-                </div>
-                <div class="modal-footer" id="pack-modal-footer">
-                    <!-- 승인/거부 버튼이 여기에 표시됩니다 -->
-                </div>
-            </div>
-        </div>
-    `,
+    </div>
+    
+    <div class="action-buttons">
+        <button onclick="location.href='/'" class="btn btn-primary">홈으로 이동</button>
+        <button onclick="location.href='/upload'" class="btn btn-secondary">업로드 페이지</button>
+    </div>
+</div>
+
+<style>
+.admin-notice {
+    background: #e8f4f8;
+    border: 1px solid #4a90e2;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.notice-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.notice-header .info-icon {
+    font-size: 24px;
+}
+
+.management-guide, .features-section, .status-guide {
+    background: #f9f9f9;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.management-guide h3, .features-section h3, .status-guide h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.management-guide ol {
+    padding-left: 20px;
+}
+
+.management-guide li {
+    margin: 10px 0;
+    line-height: 1.6;
+}
+
+.management-guide code {
+    background: #e8e8e8;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+.features-section ul {
+    padding-left: 20px;
+}
+
+.features-section li {
+    margin: 10px 0;
+    line-height: 1.6;
+}
+
+.status-table {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.status-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 14px;
+    font-weight: bold;
+    min-width: 80px;
+    text-align: center;
+}
+
+.status-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.status-badge.approved {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-badge.rejected {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+}
+
+.btn.btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.btn.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+</style>`,
 
     apiDocs: () => `
 <div class="container">
