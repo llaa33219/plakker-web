@@ -110,7 +110,6 @@ export async function handleGetPacks(request, env) {
                 const pack = await env.PLAKKER_KV.get(key.name, 'json');
                 return pack;
             } catch (error) {
-                console.error(`Failed to load pack ${key.name}:`, error);
                 return null;
             }
         });
@@ -145,7 +144,6 @@ export async function handleGetPacks(request, env) {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
-        console.error('팩 리스트 조회 오류:', error);
         return new Response(JSON.stringify({ error: '팩 리스트 조회 실패' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
@@ -350,7 +348,6 @@ export async function handleUpload(request, env) {
         });
         
     } catch (error) {
-        console.error('업로드 오류 (IP:', maskIP(clientIP), '):', error.message);
         return new Response(JSON.stringify({ error: '업로드 처리 중 오류가 발생했습니다: ' + error.message }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
@@ -374,7 +371,6 @@ export async function handleUploadLimitStatus(request, env) {
         });
     } catch (error) {
         const clientIP = getClientIP(request);
-        console.error('업로드 제한 상태 확인 오류 (IP:', maskIP(clientIP), '):', error.message);
         return new Response(JSON.stringify({ 
             error: '제한 상태를 확인할 수 없습니다' 
         }), {
@@ -453,7 +449,6 @@ export async function handleGetPendingPacks(request, env) {
                 const pack = await env.PLAKKER_KV.get(key.name, 'json');
                 return pack;
             } catch (error) {
-                console.error(`Failed to load pack ${key.name}:`, error);
                 return null;
             }
         });
@@ -479,7 +474,6 @@ export async function handleGetPendingPacks(request, env) {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
-        console.error('대기 중인 팩 리스트 조회 오류:', error);
         return new Response(JSON.stringify({ error: '팩 리스트 조회 실패' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
@@ -562,32 +556,25 @@ function recordLoginAttempt(clientIP, success = false) {
 // 간단한 관리자 권한 검증
 async function verifyAdminToken(request, env) {
     try {
-        console.log('[TOKEN VERIFY] 토큰 검증 시작');
         const clientIP = getClientIP(request);
         
         // 1. 기본 토큰 검증
         const authHeader = request.headers.get('Authorization');
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            console.log('[TOKEN VERIFY] Authorization 헤더 없음 또는 형식 오류');
             return { valid: false, error: '인증 토큰이 필요합니다' };
         }
         
         const token = authHeader.substring(7);
         const jwtSecret = env.JWT_SECRET || env.ADMIN_PASSWORD || 'default-secret';
-        console.log('[TOKEN VERIFY] JWT 검증 시작');
         
         const verification = await verifyJWT(token, jwtSecret);
         if (!verification.valid) {
-            console.log('[TOKEN VERIFY] JWT 검증 실패:', verification.error);
             return { valid: false, error: '유효하지 않은 토큰입니다' };
         }
-        
-        console.log('[TOKEN VERIFY] JWT 검증 성공');
         
         // 2. 세션 확인
         const sessionId = verification.payload.sessionId;
         if (!adminSessions.has(sessionId)) {
-            console.log('[TOKEN VERIFY] 세션을 찾을 수 없음');
             return { valid: false, error: '세션이 만료되었습니다' };
         }
         
@@ -595,46 +582,37 @@ async function verifyAdminToken(request, env) {
         
         // 3. 세션 만료 확인
         if (Date.now() > session.expiresAt) {
-            console.log('[TOKEN VERIFY] 세션 만료');
             adminSessions.delete(sessionId);
             return { valid: false, error: '세션이 만료되었습니다' };
         }
         
         // 4. IP 확인 (기본적인 보안)
         if (verification.payload.ip !== clientIP) {
-            console.log('[TOKEN VERIFY] IP 불일치');
             return { valid: false, error: '보안 오류가 발생했습니다' };
         }
-        
-        console.log('[TOKEN VERIFY] 모든 검증 통과');
         
         // 세션 갱신
         session.expiresAt = Date.now() + SESSION_TIMEOUT;
         
         return { valid: true, payload: verification.payload };
     } catch (error) {
-        console.error('[TOKEN VERIFY] 토큰 검증 중 오류:', error);
         return { valid: false, error: '토큰 검증 실패' };
     }
 }
 
 // 간단한 보안 로깅
 function logSecurityEvent(eventType, ip, userAgent = '', details = '') {
-    const timestamp = new Date().toISOString();
-    console.log(`[SECURITY] ${timestamp} - ${eventType} from ${ip} ${details ? '| ' + details : ''}`);
+    // 보안 로깅은 서버 로그로만 처리
 }
 
 // 관리자 로그인 (단순화된 버전)
 export async function handleAdminLogin(request, env) {
     try {
-        console.log('[ADMIN LOGIN] 로그인 요청 시작');
         const clientIP = getClientIP(request);
-        console.log('[ADMIN LOGIN] 클라이언트 IP:', clientIP);
         
         // Rate limiting 체크 (단순화)
         const rateLimitResult = checkRateLimit(clientIP);
         if (!rateLimitResult.allowed) {
-            console.log('[ADMIN LOGIN] Rate limit 차단:', rateLimitResult);
             recordLoginAttempt(clientIP, false);
             
             const errorMessage = rateLimitResult.blocked 
@@ -651,14 +629,10 @@ export async function handleAdminLogin(request, env) {
             });
         }
         
-        console.log('[ADMIN LOGIN] Rate limit 통과');
-        
         let requestBody;
         try {
             requestBody = await request.json();
-            console.log('[ADMIN LOGIN] 요청 본문 파싱 완료');
         } catch (error) {
-            console.error('[ADMIN LOGIN] 요청 본문 파싱 실패:', error);
             return new Response(JSON.stringify({ error: '잘못된 요청 형식입니다' }), {
                 status: 400,
                 headers: { 'Content-Type': 'application/json' }
@@ -666,10 +640,8 @@ export async function handleAdminLogin(request, env) {
         }
         
         const { password } = requestBody;
-        console.log('[ADMIN LOGIN] 비밀번호 존재 여부:', !!password);
         
         if (!password) {
-            console.log('[ADMIN LOGIN] 비밀번호 없음');
             recordLoginAttempt(clientIP, false);
             return new Response(JSON.stringify({ error: '비밀번호가 필요합니다' }), {
                 status: 400,
@@ -679,10 +651,8 @@ export async function handleAdminLogin(request, env) {
         
         // 비밀번호 검증
         const adminPassword = env.ADMIN_PASSWORD;
-        console.log('[ADMIN LOGIN] 환경변수 비밀번호 존재 여부:', !!adminPassword);
         
         if (!adminPassword) {
-            console.error('[ADMIN LOGIN] ADMIN_PASSWORD 환경변수가 설정되지 않음');
             return new Response(JSON.stringify({ error: '서버 설정 오류입니다. 관리자에게 문의하세요.' }), {
                 status: 500,
                 headers: { 'Content-Type': 'application/json' }
@@ -690,7 +660,6 @@ export async function handleAdminLogin(request, env) {
         }
         
         if (password !== adminPassword) {
-            console.log('[ADMIN LOGIN] 비밀번호 불일치');
             recordLoginAttempt(clientIP, false);
             return new Response(JSON.stringify({ error: '잘못된 비밀번호입니다' }), {
                 status: 401,
@@ -698,11 +667,8 @@ export async function handleAdminLogin(request, env) {
             });
         }
         
-        console.log('[ADMIN LOGIN] 비밀번호 검증 통과');
-        
         // 성공적인 로그인 (단순화)
         recordLoginAttempt(clientIP, true);
-        console.log('[ADMIN LOGIN] 로그인 시도 기록 완료');
         
         // IP를 승인된 관리자 목록에 추가
         validAdminIPs.set(clientIP, {
@@ -710,23 +676,19 @@ export async function handleAdminLogin(request, env) {
             lastLogin: Date.now(),
             loginCount: (validAdminIPs.get(clientIP)?.loginCount || 0) + 1
         });
-        console.log('[ADMIN LOGIN] 관리자 IP 등록 완료');
         
         // 간단한 세션 생성
         const sessionId = generateSecureSessionId();
         const expiresAt = Date.now() + SESSION_TIMEOUT;
-        console.log('[ADMIN LOGIN] 세션 ID 생성 완료:', sessionId.substring(0, 8) + '...');
         
         adminSessions.set(sessionId, {
             ip: clientIP,
             createdAt: Date.now(),
             expiresAt: expiresAt
         });
-        console.log('[ADMIN LOGIN] 세션 저장 완료');
         
         // 간단한 JWT 토큰 생성
         const jwtSecret = env.JWT_SECRET || adminPassword || 'default-secret';
-        console.log('[ADMIN LOGIN] JWT 시크릿 준비 완료');
         
         let token;
         try {
@@ -738,24 +700,18 @@ export async function handleAdminLogin(request, env) {
             };
             
             token = await createJWT(tokenPayload, jwtSecret, 3600); // 1시간
-            console.log('[ADMIN LOGIN] JWT 토큰 생성 완료');
         } catch (error) {
-            console.error('[ADMIN LOGIN] JWT 토큰 생성 실패:', error);
             return new Response(JSON.stringify({ error: '토큰 생성에 실패했습니다' }), {
                 status: 500,
                 headers: { 'Content-Type': 'application/json' }
             });
         }
         
-        console.log('[ADMIN LOGIN] 응답 준비 중');
-        
         const response = {
             success: true,
             token: token,
             expiresAt: expiresAt
         };
-        
-        console.log('[ADMIN LOGIN] 로그인 성공 완료');
         
         return new Response(JSON.stringify(response), {
             headers: { 
@@ -764,9 +720,6 @@ export async function handleAdminLogin(request, env) {
         });
         
     } catch (error) {
-        console.error('[ADMIN LOGIN] 로그인 처리 중 오류:', error);
-        console.error('[ADMIN LOGIN] 오류 스택:', error.stack);
-        
         return new Response(JSON.stringify({ 
             error: '로그인 처리 중 오류가 발생했습니다',
             details: error.message 
@@ -791,7 +744,6 @@ function cleanupAdminSessions() {
     for (const sessionId of expiredSessions) {
         const session = adminSessions.get(sessionId);
         adminSessions.delete(sessionId);
-        console.log('[CLEANUP] 만료된 세션 삭제:', sessionId);
     }
     
     // 오래된 IP 정보도 정리 (7일 이상 미사용)
@@ -799,27 +751,20 @@ function cleanupAdminSessions() {
     for (const [ip, ipInfo] of validAdminIPs.entries()) {
         if (ipInfo.lastLogin < sevenDaysAgo) {
             validAdminIPs.delete(ip);
-            console.log('[CLEANUP] 오래된 관리자 IP 삭제:', ip);
         }
     }
 }
 
 // 관리자 API 호출 전 기본 검증 (단순화)
 async function validateAdminRequest(request, env) {
-    console.log('[VALIDATE] 요청 검증 시작');
-    
     // 세션 정리
     cleanupAdminSessions();
     
     const clientIP = getClientIP(request);
     const userAgent = request.headers.get('User-Agent') || '';
     
-    console.log('[VALIDATE] 클라이언트 IP:', clientIP);
-    console.log('[VALIDATE] User-Agent:', userAgent);
-    
     // 1. 기본 User-Agent 검증 (명백한 봇만 차단)
     if (!userAgent) {
-        console.log('[VALIDATE] User-Agent 없음 - 차단');
         return { valid: false, error: '잘못된 요청입니다' };
     }
     
@@ -829,7 +774,6 @@ async function validateAdminRequest(request, env) {
     
     for (const pattern of maliciousPatterns) {
         if (lowerUserAgent.includes(pattern)) {
-            console.log('[VALIDATE] 악의적인 User-Agent 감지:', pattern);
             return { valid: false, error: '잘못된 요청입니다' };
         }
     }
@@ -837,11 +781,9 @@ async function validateAdminRequest(request, env) {
     // 3. 기본 Rate limiting만 적용
     const adminRateLimit = checkAdminRateLimit(clientIP);
     if (!adminRateLimit.allowed) {
-        console.log('[VALIDATE] Rate limit 초과');
         return { valid: false, error: '너무 많은 요청입니다. 잠시 후 다시 시도해주세요.' };
     }
     
-    console.log('[VALIDATE] 모든 검증 통과');
     return { valid: true };
 }
 
@@ -926,7 +868,6 @@ export async function handleAdminLogout(request, env) {
         
         if (authResult.valid && authResult.payload.sessionId) {
             adminSessions.delete(authResult.payload.sessionId);
-            console.log('[LOGOUT] 관리자 로그아웃:', clientIP);
         }
         
         return new Response(JSON.stringify({ success: true }), {
@@ -936,7 +877,6 @@ export async function handleAdminLogout(request, env) {
             }
         });
     } catch (error) {
-        console.error('[LOGOUT] 로그아웃 오류:', error);
         return new Response(JSON.stringify({ error: '로그아웃 처리 중 오류가 발생했습니다' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
@@ -1007,7 +947,6 @@ export async function handleApprovePack(request, env) {
         });
         
     } catch (error) {
-        console.error('팩 승인 오류:', error);
         return new Response(JSON.stringify({ error: '팩 승인 처리 중 오류가 발생했습니다' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
@@ -1063,8 +1002,6 @@ export async function handleRejectPack(request, env) {
         }
         
         // 거부된 팩 완전 삭제 시작
-        console.log(`[REJECT] 팩 ${packId} 완전 삭제 시작`);
-        
         const deletionResults = {
             kvDeleted: false,
             thumbnailDeleted: false,
@@ -1079,9 +1016,7 @@ export async function handleRejectPack(request, env) {
             try {
                 await env.PLAKKER_R2.delete(thumbnailKey);
                 deletionResults.thumbnailDeleted = true;
-                console.log(`[REJECT] 썸네일 삭제 완료: ${thumbnailKey}`);
             } catch (error) {
-                console.error(`[REJECT] 썸네일 삭제 실패: ${thumbnailKey}`, error);
                 deletionResults.errors.push(`썸네일 삭제 실패: ${error.message}`);
             }
             
@@ -1091,9 +1026,7 @@ export async function handleRejectPack(request, env) {
                 try {
                     await env.PLAKKER_R2.delete(emoticonKey);
                     deletionResults.emoticonsDeleted++;
-                    console.log(`[REJECT] 이모티콘 삭제 완료: ${emoticonKey}`);
                 } catch (error) {
-                    console.error(`[REJECT] 이모티콘 삭제 실패: ${emoticonKey}`, error);
                     deletionResults.errors.push(`이모티콘 ${i+1} 삭제 실패: ${error.message}`);
                 }
             }
@@ -1102,18 +1035,13 @@ export async function handleRejectPack(request, env) {
             try {
                 await env.PLAKKER_KV.delete(`pack_${packId}`);
                 deletionResults.kvDeleted = true;
-                console.log(`[REJECT] KV 메타데이터 삭제 완료: pack_${packId}`);
             } catch (error) {
-                console.error(`[REJECT] KV 메타데이터 삭제 실패: pack_${packId}`, error);
                 deletionResults.errors.push(`메타데이터 삭제 실패: ${error.message}`);
             }
-            
-            console.log(`[REJECT] 팩 ${packId} 삭제 완료 - 썸네일: ${deletionResults.thumbnailDeleted}, 이모티콘: ${deletionResults.emoticonsDeleted}/${deletionResults.totalEmoticons}, KV: ${deletionResults.kvDeleted}`);
             
             let responseMessage = '팩이 거부되어 완전히 삭제되었습니다';
             if (deletionResults.errors.length > 0) {
                 responseMessage += ` (일부 파일 삭제 실패: ${deletionResults.errors.length}개)`;
-                console.warn(`[REJECT] 삭제 중 오류 발생:`, deletionResults.errors);
             }
             
             return new Response(JSON.stringify({ 
@@ -1132,14 +1060,11 @@ export async function handleRejectPack(request, env) {
             });
             
         } catch (error) {
-            console.error(`[REJECT] 팩 ${packId} 삭제 중 예상치 못한 오류:`, error);
-            
             // 삭제 실패 시에도 KV에서 최소한 메타데이터는 삭제 시도
             try {
                 await env.PLAKKER_KV.delete(`pack_${packId}`);
-                console.log(`[REJECT] 복구: KV 메타데이터 삭제 완료`);
             } catch (kvError) {
-                console.error(`[REJECT] 복구 실패: KV 메타데이터 삭제도 실패`, kvError);
+                // 복구도 실패
             }
             
             return new Response(JSON.stringify({ 
@@ -1153,7 +1078,6 @@ export async function handleRejectPack(request, env) {
         }
         
     } catch (error) {
-        console.error('팩 거부 오류:', error);
         return new Response(JSON.stringify({ error: '팩 거부 처리 중 오류가 발생했습니다' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
