@@ -238,11 +238,26 @@ export const HTML_TEMPLATES = {
             });
             
             function initializeAuthenticatedAdminPage() {
-                // 저장된 토큰을 전역 변수에 설정
-                window.adminToken = sessionStorage.getItem('admin_token');
+                console.log('[ADMIN] 서버 인증된 관리자 페이지 초기화 중...');
                 
-                // 대기 중인 팩 자동 로드
-                loadPendingPacks();
+                // 저장된 토큰을 전역 변수에 설정
+                const storedToken = sessionStorage.getItem('admin_token');
+                if (storedToken) {
+                    window.adminToken = storedToken;
+                    console.log('[ADMIN] 토큰 설정 완료');
+                } else {
+                    console.warn('[ADMIN] sessionStorage에 토큰이 없습니다.');
+                }
+                
+                // 잠시 후 대기 중인 팩 자동 로드 (DOM이 완전히 로드된 후)
+                setTimeout(() => {
+                    if (typeof loadPendingPacks === 'function') {
+                        console.log('[ADMIN] 대기 중인 팩 로드 시작');
+                        loadPendingPacks();
+                    } else {
+                        console.error('[ADMIN] loadPendingPacks 함수를 찾을 수 없습니다.');
+                    }
+                }, 100);
             }
         </script>
     `,

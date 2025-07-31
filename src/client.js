@@ -333,13 +333,27 @@ window.adminLogout = async function() {
 
 // 대기 중인 팩 로드
 window.loadPendingPacks = async function() {
-    if (!adminToken) {
+    // adminToken이 없으면 sessionStorage에서 가져오기
+    const token = adminToken || sessionStorage.getItem('admin_token');
+    
+    if (!token) {
         alert('로그인이 필요합니다.');
         return;
     }
     
+    // adminToken 전역 변수가 없으면 설정
+    if (!adminToken && token) {
+        adminToken = token;
+    }
+    
     try {
-        const response = await createSecureAdminRequest('/api/admin/pending-packs');
+        const response = await fetch('/api/admin/pending-packs', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            }
+        });
         
         if (!response.ok) {
             if (response.status === 401) {
@@ -398,9 +412,21 @@ function displayPendingPacks(packs) {
 
 // 팩 상세보기
 window.viewPackDetails = async function(packId) {
+    const token = adminToken || sessionStorage.getItem('admin_token');
+    if (!token) {
+        alert('로그인이 필요합니다.');
+        return;
+    }
+    
     try {
         // 대기 중인 팩의 상세 정보를 가져오기 위해 보안 요청 사용
-        const response = await createSecureAdminRequest('/api/admin/pending-packs');
+        const response = await fetch('/api/admin/pending-packs', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            }
+        });
         
         if (!response.ok) throw new Error('API 호출 실패');
         
@@ -461,9 +487,19 @@ window.closePackModal = function() {
 window.approvePack = async function(packId) {
     if (!confirm('이 팩을 승인하시겠습니까?')) return;
     
+    const token = adminToken || sessionStorage.getItem('admin_token');
+    if (!token) {
+        alert('로그인이 필요합니다.');
+        return;
+    }
+    
     try {
-        const response = await createSecureAdminRequest('/api/admin/approve-pack', {
+        const response = await fetch('/api/admin/approve-pack', {
             method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({ packId })
         });
         
@@ -499,9 +535,19 @@ window.showRejectModal = function(packId) {
 window.rejectPack = async function(packId, reason = '') {
     if (!reason && !confirm('이 팩을 거부하시겠습니까?')) return;
     
+    const token = adminToken || sessionStorage.getItem('admin_token');
+    if (!token) {
+        alert('로그인이 필요합니다.');
+        return;
+    }
+    
     try {
-        const response = await createSecureAdminRequest('/api/admin/reject-pack', {
+        const response = await fetch('/api/admin/reject-pack', {
             method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({ packId, reason })
         });
         
