@@ -233,14 +233,28 @@ window.adminLogin = async function() {
         });
         
         console.log('[CLIENT] API 응답 수신, 상태:', response.status);
+        console.log('[CLIENT] 응답 헤더:', Object.fromEntries(response.headers.entries()));
+        
+        // 먼저 응답을 텍스트로 읽어서 확인
+        const responseText = await response.text();
+        console.log('[CLIENT] 원본 응답 텍스트:', responseText);
         
         let result;
         try {
-            result = await response.json();
+            result = JSON.parse(responseText);
             console.log('[CLIENT] 응답 파싱 완료:', result);
         } catch (parseError) {
             console.error('[CLIENT] 응답 파싱 실패:', parseError);
-            throw new Error('서버 응답을 해석할 수 없습니다');
+            console.error('[CLIENT] 파싱 실패한 응답 내용:', responseText);
+            
+            // HTML 오류 페이지인지 확인
+            if (responseText.includes('<html>') || responseText.includes('<!DOCTYPE')) {
+                throw new Error('서버에서 HTML 오류 페이지를 반환했습니다. API 경로를 확인해주세요.');
+            } else if (responseText.trim() === '') {
+                throw new Error('서버에서 빈 응답을 반환했습니다.');
+            } else {
+                throw new Error('서버 응답 형식이 올바르지 않습니다: ' + responseText.substring(0, 100));
+            }
         }
         
         if (response.ok && result.success) {
@@ -1291,6 +1305,9 @@ function setupAdminPage() {
     // 보안 핑거프린트 초기화
     securityFingerprint = generateSecurityFingerprint();
     
+    // API 연결 테스트
+    testAdminAPI();
+    
     const passwordInput = document.getElementById('admin-password');
     
     if (passwordInput) {
@@ -1310,6 +1327,42 @@ function setupAdminPage() {
     }
     
     console.log('[ADMIN SETUP] 관리자 페이지 초기화 완료');
+}
+
+// 관리자 API 연결 테스트
+async function testAdminAPI() {
+    try {
+        console.log('[API TEST] 관리자 API 연결 테스트 시작');
+        
+        const response = await fetch('/api/admin/test');
+        const responseText = await response.text();
+        
+        console.log('[API TEST] 응답 상태:', response.status);
+        console.log('[API TEST] 응답 내용:', responseText);
+        
+        if (response.ok) {
+            const result = JSON.parse(responseText);
+            console.log('[API TEST] 관리자 API 연결 성공:', result);
+            
+            if (!result.hasAdminPassword) {
+                console.warn('[API TEST] ⚠️ ADMIN_PASSWORD 환경변수가 설정되지 않았습니다!');
+                
+                // 사용자에게 알림
+                const warningDiv = document.createElement('div');
+                warningDiv.style.cssText = 'background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin: 10px 0; border-radius: 5px; color: #856404;';
+                warningDiv.innerHTML = '<strong>⚠️ 경고:</strong> ADMIN_PASSWORD 환경변수가 설정되지 않았습니다. Cloudflare Dashboard에서 설정해주세요.';
+                
+                const adminAuth = document.getElementById('admin-auth');
+                if (adminAuth) {
+                    adminAuth.appendChild(warningDiv);
+                }
+            }
+        } else {
+            console.error('[API TEST] 관리자 API 연결 실패:', response.status, responseText);
+        }
+    } catch (error) {
+        console.error('[API TEST] 관리자 API 테스트 중 오류:', error);
+    }
 }
 
 // 보안 모니터링 시작 (관리자 페이지 전용)
