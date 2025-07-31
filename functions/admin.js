@@ -96,37 +96,9 @@ export async function onRequest(context) {
                                 console.log('[CLIENT-DEBUG] 토큰 저장:', token ? '성공' : '실패');
                                 sessionStorage.setItem('admin_token', token);
                                 
-                                // 🔒 FIX: 토큰과 함께 인증된 페이지 요청
-                                console.log('[CLIENT-DEBUG] 인증된 페이지 요청 시작');
-                                
-                                const adminResponse = await fetch(window.location.href, {
-                                    headers: { 'Authorization': 'Bearer ' + token }
-                                });
-                                
-                                if (adminResponse.ok) {
-                                    const adminPageHtml = await adminResponse.text();
-                                    // 전체 페이지를 교체
-                                    document.documentElement.innerHTML = adminPageHtml;
-                                    
-                                    // 새로운 페이지의 스크립트 실행을 위해 스크립트 태그들을 다시 실행
-                                    const scripts = document.querySelectorAll('script');
-                                    scripts.forEach(script => {
-                                        if (script.src) {
-                                            const newScript = document.createElement('script');
-                                            newScript.src = script.src;
-                                            document.head.appendChild(newScript);
-                                        } else if (script.textContent) {
-                                            const newScript = document.createElement('script');
-                                            newScript.textContent = script.textContent;
-                                            document.head.appendChild(newScript);
-                                        }
-                                    });
-                                    
-                                    console.log('[CLIENT-DEBUG] 관리자 페이지 로드 완료');
-                                } else {
-                                    console.error('[CLIENT-DEBUG] 인증된 페이지 요청 실패:', adminResponse.status);
-                                    alert('관리자 페이지 로드에 실패했습니다.');
-                                }
+                                // 🔒 FIX: 새로고침으로 안전하게 인증된 페이지 로드
+                                console.log('[CLIENT-DEBUG] 페이지 새로고침으로 인증된 페이지 로드');
+                                window.location.reload();
                             } else {
                                 console.error('[CLIENT-DEBUG] 로그인 실패:', result.error);
                                 if (response.status === 429) {
@@ -153,7 +125,7 @@ export async function onRequest(context) {
                         }
                     });
                     
-                    // 🔒 FIX: 자동 인증된 페이지 로드 (토큰이 있는 경우)
+                    // 페이지 로드 시 저장된 토큰이 있으면 자동으로 새로고침
                     window.addEventListener('load', function() {
                         console.log('[CLIENT-DEBUG] 페이지 로드 완료');
                         
@@ -161,43 +133,9 @@ export async function onRequest(context) {
                         console.log('[CLIENT-DEBUG] 저장된 토큰:', token ? '있음' : '없음');
                         
                         if (token) {
-                            console.log('[CLIENT-DEBUG] 자동 인증 시도');
-                            
-                            // 토큰이 있으면 인증된 페이지를 자동으로 가져오기
-                            fetch(window.location.href, {
-                                headers: { 'Authorization': 'Bearer ' + token }
-                            }).then(response => {
-                                console.log('[CLIENT-DEBUG] 자동 인증 응답:', response.status);
-                                if (response.ok) {
-                                    return response.text();
-                                } else {
-                                    // 토큰이 무효하면 제거
-                                    sessionStorage.removeItem('admin_token');
-                                    console.log('[CLIENT-DEBUG] 무효한 토큰 제거됨');
-                                    throw new Error('토큰 무효');
-                                }
-                            }).then(adminPageHtml => {
-                                console.log('[CLIENT-DEBUG] 자동 인증 성공, 페이지 교체');
-                                // 전체 페이지를 교체
-                                document.documentElement.innerHTML = adminPageHtml;
-                                
-                                // 새로운 페이지의 스크립트 실행을 위해 스크립트 태그들을 다시 실행
-                                const scripts = document.querySelectorAll('script');
-                                scripts.forEach(script => {
-                                    if (script.src) {
-                                        const newScript = document.createElement('script');
-                                        newScript.src = script.src;
-                                        document.head.appendChild(newScript);
-                                    } else if (script.textContent) {
-                                        const newScript = document.createElement('script');
-                                        newScript.textContent = script.textContent;
-                                        document.head.appendChild(newScript);
-                                    }
-                                });
-                            }).catch(error => {
-                                console.error('[CLIENT-DEBUG] 자동 인증 실패:', error);
-                                // 자동 인증 실패 시 현재 페이지 유지 (로그인 폼 표시)
-                            });
+                            console.log('[CLIENT-DEBUG] 토큰이 있어서 페이지 새로고침');
+                            // 토큰이 있으면 즉시 새로고침 (서버에서 인증된 페이지 로드)
+                            window.location.reload();
                         }
                         
                         // 포커스 설정
@@ -212,7 +150,38 @@ export async function onRequest(context) {
         `));
     }
     
-    // 🔒 FIX: 인증된 경우 관리자 페이지 반환
+    // 🔒 FIX: 인증된 경우 관리자 페이지 반환 (스크립트 충돌 방지)
     console.log('[ADMIN-DEBUG] 인증 성공, 관리자 페이지 표시');
-    return createSecureAdminHtmlResponse(HTML_TEMPLATES.base('관리자 패널', HTML_TEMPLATES.admin()));
+    const authenticatedPage = createSecureAdminHtmlResponse(HTML_TEMPLATES.base('관리자 패널', HTML_TEMPLATES.admin()));
+    
+    // 🔒 FIX: 인증된 페이지에서 중복 토큰 체크 방지 스크립트 추가
+    const originalBody = await authenticatedPage.text();
+    const modifiedBody = originalBody.replace('</body>', `
+        <script>
+            console.log('[ADMIN-DEBUG] 관리자 페이지 로드됨');
+            
+            // 🔒 FIX: 무한 새로고침 방지 - 이미 인증된 페이지에서는 토큰 체크 안함
+            const currentPath = window.location.pathname;
+            if (currentPath === '/admin') {
+                // sessionStorage에서 토큰 확인하되 추가 검증은 하지 않음
+                const token = sessionStorage.getItem('admin_token');
+                if (token) {
+                    console.log('[ADMIN-DEBUG] 토큰 확인됨, 관리자 기능 활성화');
+                    
+                    // 관리자 기능들이 정상 작동하도록 전역 변수 설정
+                    if (typeof window.adminToken === 'undefined') {
+                        window.adminToken = token;
+                    }
+                } else {
+                    console.log('[ADMIN-DEBUG] 토큰 없음, 로그인 페이지로 이동');
+                    window.location.reload();
+                }
+            }
+        </script>
+    </body>`);
+    
+    return new Response(modifiedBody, {
+        status: authenticatedPage.status,
+        headers: authenticatedPage.headers
+    });
 } 
