@@ -1,6 +1,6 @@
 import { HTML_TEMPLATES } from '../src/templates.js';
 import { createSecureAdminHtmlResponse } from '../src/utils.js';
-import { verifyAdminToken } from '../src/api.js';
+import { verifyAdminToken } from '../src/api.js'; // 🔒 FIX: 누락된 import 추가
 
 export async function onRequest(context) {
     const { request, env } = context;
@@ -44,6 +44,9 @@ export async function onRequest(context) {
                 </div>
                 
                 <script>
+                    // 🔒 FIX: 무한 새로고침 방지를 위한 플래그
+                    let isReloading = false;
+                    
                     // 🔒 SECURITY FIX: XSS 방지를 위한 안전한 DOM 조작
                     async function performLogin() {
                         const passwordInput = document.getElementById('admin-password');
@@ -71,21 +74,14 @@ export async function onRequest(context) {
                             const result = await response.json();
                             
                             if (response.ok && result.success) {
-                                // 토큰을 헤더에 설정하고 페이지 재요청
+                                // 토큰을 저장하고 새로고침
                                 const token = result.token;
+                                sessionStorage.setItem('admin_token', token);
                                 
-                                // Authorization 헤더를 포함해서 현재 페이지 다시 요청
-                                const adminResponse = await fetch(window.location.href, {
-                                    headers: { 'Authorization': 'Bearer ' + token }
-                                });
-                                
-                                if (adminResponse.ok) {
-                                    // 🔒 SECURITY FIX: innerHTML 대신 안전한 방법으로 페이지 교체
-                                    sessionStorage.setItem('admin_token', token);
-                                    window.location.reload();
-                                } else {
-                                    alert('관리자 페이지 로드에 실패했습니다.');
-                                }
+                                // 🔒 FIX: 무한 새로고침 방지 - 플래그 설정 후 새로고침
+                                isReloading = true;
+                                sessionStorage.setItem('login_success', 'true');
+                                window.location.reload();
                             } else {
                                 if (response.status === 429) {
                                     const blockTime = result.remainingTime ? Math.ceil(result.remainingTime / 60) : 5;
@@ -110,23 +106,41 @@ export async function onRequest(context) {
                         }
                     });
                     
-                    // 페이지 로드 시 저장된 토큰으로 재시도 (🔒 SECURITY FIX: 안전한 자동 로그인)
+                    // 🔒 FIX: 개선된 자동 로그인 로직 (무한 새로고침 방지)
                     window.addEventListener('load', function() {
+                        // 이미 새로고침 중이면 더 이상 진행하지 않음
+                        if (isReloading) {
+                            return;
+                        }
+                        
                         const token = sessionStorage.getItem('admin_token');
+                        const loginSuccess = sessionStorage.getItem('login_success');
+                        
+                        // 로그인 성공 플래그가 있으면 제거하고 자동 로그인 시도 안함 (이미 성공한 상태)
+                        if (loginSuccess) {
+                            sessionStorage.removeItem('login_success');
+                            return;
+                        }
+                        
                         if (token) {
-                            // 토큰이 있으면 자동으로 인증된 페이지 로드 시도
-                            fetch(window.location.href, {
+                            // 토큰 검증을 위한 요청 (새로고침 없이)
+                            fetch('/api/admin/verify', {
                                 headers: { 'Authorization': 'Bearer ' + token }
                             }).then(response => {
                                 if (response.ok) {
-                                    // 성공하면 페이지 새로고침으로 안전하게 전환
-                                    window.location.reload();
+                                    // 토큰이 유효하면 한 번만 새로고침
+                                    if (!sessionStorage.getItem('auto_login_attempted')) {
+                                        sessionStorage.setItem('auto_login_attempted', 'true');
+                                        window.location.reload();
+                                    }
                                 } else {
-                                    // 토큰이 만료되었으면 제거
+                                    // 토큰이 무효하면 제거
                                     sessionStorage.removeItem('admin_token');
+                                    sessionStorage.removeItem('auto_login_attempted');
                                 }
                             }).catch(() => {
                                 sessionStorage.removeItem('admin_token');
+                                sessionStorage.removeItem('auto_login_attempted');
                             });
                         }
                         
@@ -142,6 +156,21 @@ export async function onRequest(context) {
         `));
     }
     
-    // 인증된 경우 관리자 페이지 반환 (🔒 SECURITY FIX: 강화된 보안 헤더 적용)
-    return createSecureAdminHtmlResponse(HTML_TEMPLATES.base('관리자 패널', HTML_TEMPLATES.admin()));
+    // 🔒 FIX: 인증된 경우 자동 로그인 플래그 정리
+    const authenticatedPage = createSecureAdminHtmlResponse(HTML_TEMPLATES.base('관리자 패널', HTML_TEMPLATES.admin()));
+    
+    // 응답에 자동 로그인 플래그 정리 스크립트 추가
+    const originalBody = await authenticatedPage.text();
+    const modifiedBody = originalBody.replace('</body>', `
+        <script>
+            // 자동 로그인 관련 플래그 정리
+            sessionStorage.removeItem('auto_login_attempted');
+            sessionStorage.removeItem('login_success');
+        </script>
+    </body>`);
+    
+    return new Response(modifiedBody, {
+        status: authenticatedPage.status,
+        headers: authenticatedPage.headers
+    });
 } 
