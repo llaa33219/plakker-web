@@ -268,7 +268,7 @@ window.adminLogin = async function() {
         } else {
             if (response.status === 429) {
                 const blockTime = result.remainingTime ? Math.ceil(result.remainingTime / 60) : 5;
-                showSecureError(`보안상 ${blockTime}분간 로그인이 제한되었습니다.`);
+                showSecureError('보안상 ' + blockTime + '분간 로그인이 제한되었습니다.');
             } else if (response.status === 500) {
                 showSecureError('서버 오류가 발생했습니다. 관리자에게 문의하세요.');
             } else {
@@ -398,11 +398,7 @@ window.loadPendingPacks = async function() {
         if (!packsContainer) return;
         
         if (pendingPacks.length === 0) {
-            packsContainer.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #6c757d;">
-                    <p>대기 중인 팩이 없습니다.</p>
-                </div>
-            `;
+            packsContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #6c757d;"><p>대기 중인 팩이 없습니다.</p></div>';
             return;
         }
         
@@ -521,35 +517,94 @@ window.viewPackDetails = async function(packId) {
     }
 };
 
-// 팩 상세 모달 표시
+// 🔒 SECURITY ENHANCEMENT: 팩 상세 모달 표시 (안전한 DOM 조작)
 function showPackModal(pack) {
     const modal = document.getElementById('pack-modal');
     const modalBody = document.getElementById('pack-modal-body');
     const modalFooter = document.getElementById('pack-modal-footer');
     
-    modalBody.innerHTML = \`
-        <div class="pack-detail-modal">
-            <div class="pack-header">
-                <img src="\${pack.thumbnail}" alt="\${pack.title}" class="pack-thumbnail-large" />
-                <div class="pack-meta">
-                    <h3>\${pack.title}</h3>
-                    <p><strong>제작자:</strong> \${pack.creator}</p>
-                    \${pack.creatorLink ? \`<p><strong>제작자 링크:</strong> <a href="\${pack.creatorLink}" target="_blank">\${pack.creatorLink}</a></p>\` : ''}
-                    <p><strong>업로드 시간:</strong> \${new Date(pack.createdAt).toLocaleString('ko-KR')}</p>
-                    <p><strong>이모티콘 개수:</strong> \${pack.totalEmoticons}개</p>
-                </div>
-            </div>
-            <div class="pack-emoticons">
-                <p>이모티콘들이 실제로는 여기에 표시되어야 하지만, 승인 전이므로 미리보기는 제한됩니다.</p>
-            </div>
-        </div>
-    \`;
+    // 안전한 DOM 생성
+    const modalDiv = document.createElement('div');
+    modalDiv.className = 'pack-detail-modal';
     
-    modalFooter.innerHTML = \`
-        <button class="btn btn-success" onclick="approvePack('\${pack.id}'); closePackModal();">승인</button>
-        <button class="btn btn-danger" onclick="showRejectModal('\${pack.id}')">거부</button>
-        <button class="btn btn-secondary" onclick="closePackModal()">닫기</button>
-    \`;
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'pack-header';
+    
+    const img = document.createElement('img');
+    img.src = pack.thumbnail;
+    img.alt = pack.title;
+    img.className = 'pack-thumbnail-large';
+    
+    const metaDiv = document.createElement('div');
+    metaDiv.className = 'pack-meta';
+    
+    const titleH3 = document.createElement('h3');
+    titleH3.textContent = pack.title;
+    
+    const creatorP = document.createElement('p');
+    creatorP.innerHTML = '<strong>제작자:</strong> ';
+    creatorP.appendChild(document.createTextNode(pack.creator));
+    
+    const timeP = document.createElement('p');
+    timeP.innerHTML = '<strong>업로드 시간:</strong> ';
+    timeP.appendChild(document.createTextNode(new Date(pack.createdAt).toLocaleString('ko-KR')));
+    
+    const countP = document.createElement('p');
+    countP.innerHTML = '<strong>이모티콘 개수:</strong> ';
+    countP.appendChild(document.createTextNode(pack.totalEmoticons + '개'));
+    
+    metaDiv.appendChild(titleH3);
+    metaDiv.appendChild(creatorP);
+    
+    if (pack.creatorLink) {
+        const linkP = document.createElement('p');
+        linkP.innerHTML = '<strong>제작자 링크:</strong> ';
+        const linkA = document.createElement('a');
+        linkA.href = pack.creatorLink;
+        linkA.target = '_blank';
+        linkA.textContent = pack.creatorLink;
+        linkP.appendChild(linkA);
+        metaDiv.appendChild(linkP);
+    }
+    
+    metaDiv.appendChild(timeP);
+    metaDiv.appendChild(countP);
+    
+    headerDiv.appendChild(img);
+    headerDiv.appendChild(metaDiv);
+    
+    const emoticonsDiv = document.createElement('div');
+    emoticonsDiv.className = 'pack-emoticons';
+    const emoticonP = document.createElement('p');
+    emoticonP.textContent = '이모티콘들이 실제로는 여기에 표시되어야 하지만, 승인 전이므로 미리보기는 제한됩니다.';
+    emoticonsDiv.appendChild(emoticonP);
+    
+    modalDiv.appendChild(headerDiv);
+    modalDiv.appendChild(emoticonsDiv);
+    
+    modalBody.innerHTML = '';
+    modalBody.appendChild(modalDiv);
+    
+    // 안전한 버튼 생성
+    const approveBtn = document.createElement('button');
+    approveBtn.className = 'btn btn-success';
+    approveBtn.textContent = '승인';
+    approveBtn.onclick = () => { approvePack(pack.id); closePackModal(); };
+    
+    const rejectBtn = document.createElement('button');
+    rejectBtn.className = 'btn btn-danger';
+    rejectBtn.textContent = '거부';
+    rejectBtn.onclick = () => showRejectModal(pack.id);
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'btn btn-secondary';
+    closeBtn.textContent = '닫기';
+    closeBtn.onclick = closePackModal;
+    
+    modalFooter.innerHTML = '';
+    modalFooter.appendChild(approveBtn);
+    modalFooter.appendChild(rejectBtn);
+    modalFooter.appendChild(closeBtn);
     
     modal.style.display = 'block';
 }
