@@ -585,7 +585,7 @@ function recordLoginAttempt(clientIP, success = false) {
 }
 
 // 간단한 관리자 권한 검증
-async function verifyAdminToken(request, env) {
+export async function verifyAdminToken(request, env) {
     try {
         const clientIP = getClientIP(request);
         
@@ -831,7 +831,7 @@ async function cleanupAdminSessions(env) {
 }
 
 // 관리자 API 호출 전 기본 검증 (단순화)
-async function validateAdminRequest(request, env) {
+export async function validateAdminRequest(request, env) {
     // 세션 정리
     await cleanupAdminSessions(env);
     
