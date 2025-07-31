@@ -1021,14 +1021,45 @@ export async function hashPassword(password, salt = null) {
     };
 }
 
-// 비밀번호 검증
+// 비밀번호 해시 검증 함수 (보안 강화)
 export async function verifyPassword(password, storedHash, storedSalt) {
     try {
-        const saltBytes = new Uint8Array(storedSalt.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+        if (!password || !storedHash || !storedSalt) {
+            return false;
+        }
+        
+        // Salt를 바이트 배열로 복원
+        const saltBytes = new Uint8Array(
+            storedSalt.match(/.{2}/g).map(byte => parseInt(byte, 16))
+        );
+        
+        // 입력된 비밀번호를 같은 salt로 해싱
         const { hash } = await hashPassword(password, saltBytes);
-        return hash === storedHash;
+        
+        // 타이밍 공격 방지를 위한 상수 시간 비교
+        if (hash.length !== storedHash.length) {
+            return false;
+        }
+        
+        let result = 0;
+        for (let i = 0; i < hash.length; i++) {
+            result |= hash.charCodeAt(i) ^ storedHash.charCodeAt(i);
+        }
+        
+        return result === 0;
     } catch (error) {
+        // 에러 발생 시 항상 false 반환
         return false;
+    }
+}
+
+// 관리자 비밀번호 해시 생성 헬퍼 함수 (초기 설정용)
+export async function generateAdminPasswordHash(password) {
+    try {
+        const { hash, salt } = await hashPassword(password);
+        return `${hash}:${salt}`;
+    } catch (error) {
+        throw new Error('비밀번호 해시 생성 실패');
     }
 }
 

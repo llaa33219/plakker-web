@@ -1292,21 +1292,12 @@ async function testAdminAPI() {
         
         if (response.ok) {
             const result = JSON.parse(responseText);
-            
-            if (!result.hasAdminPassword) {
-                // 사용자에게 알림
-                const warningDiv = document.createElement('div');
-                warningDiv.style.cssText = 'background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin: 10px 0; border-radius: 5px; color: #856404;';
-                warningDiv.innerHTML = '<strong>⚠️ 경고:</strong> ADMIN_PASSWORD 환경변수가 설정되지 않았습니다. Cloudflare Dashboard에서 설정해주세요.';
-                
-                const adminAuth = document.getElementById('admin-auth');
-                if (adminAuth) {
-                    adminAuth.appendChild(warningDiv);
-                }
-            }
+            console.log('[ADMIN] API 연결 테스트 성공:', result.message);
+            // hasAdminPassword 체크 제거 - 보안 강화
         }
     } catch (error) {
         // API 테스트 실패 시 무시
+        console.log('[ADMIN] API 연결 테스트 실패 (정상적일 수 있음)');
     }
 }
 

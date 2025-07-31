@@ -9,8 +9,8 @@ export async function onRequest(context) {
         success: true,
         message: '관리자 API 라우팅이 정상적으로 작동합니다',
         timestamp: new Date().toISOString(),
-        method: request.method,
-        hasAdminPassword: !!env.ADMIN_PASSWORD
+        method: request.method
+        // hasAdminPassword 정보 제거 - 보안 취약점 수정
     }), {
         headers: { 'Content-Type': 'application/json' }
     });

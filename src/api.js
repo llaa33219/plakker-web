@@ -17,7 +17,8 @@ import {
     verifyJWT,
     hashPassword,
     isValidIP,
-    generateSecureSessionId
+    generateSecureSessionId,
+    verifyPassword // 해싱된 비밀번호 검증 함수 추가
 } from './utils.js';
 
 // Rate limiting을 위한 맵 (실제 프로덕션에서는 Redis 등 사용 권장)
@@ -565,10 +566,11 @@ async function verifyAdminToken(request, env) {
         }
         
         const token = authHeader.substring(7);
-        const jwtSecret = env.JWT_SECRET || env.ADMIN_PASSWORD;
         
+        // JWT_SECRET 우선 사용, 없으면 ADMIN_PASSWORD 사용 (보안 강화)
+        const jwtSecret = env.JWT_SECRET;
         if (!jwtSecret) {
-            return { valid: false, error: '서버 설정 오류입니다' };
+            return { valid: false, error: 'JWT 시크릿이 설정되지 않았습니다. 관리자에게 문의하세요.' };
         }
         
         const verification = await verifyJWT(token, jwtSecret);
@@ -653,17 +655,38 @@ export async function handleAdminLogin(request, env) {
             });
         }
         
-        // 비밀번호 검증
+        // 비밀번호 검증 (보안 강화: 해싱된 비밀번호 우선 사용)
+        const adminPasswordHash = env.ADMIN_PASSWORD_HASH;
         const adminPassword = env.ADMIN_PASSWORD;
         
-        if (!adminPassword) {
+        if (!adminPasswordHash && !adminPassword) {
             return new Response(JSON.stringify({ error: '서버 설정 오류입니다. 관리자에게 문의하세요.' }), {
                 status: 500,
                 headers: { 'Content-Type': 'application/json' }
             });
         }
         
-        if (password !== adminPassword) {
+        let isValidPassword = false;
+        
+        // 해싱된 비밀번호가 설정되어 있으면 우선 사용
+        if (adminPasswordHash) {
+            try {
+                const [storedHash, storedSalt] = adminPasswordHash.split(':');
+                if (storedHash && storedSalt) {
+                    isValidPassword = await verifyPassword(password, storedHash, storedSalt);
+                }
+            } catch (error) {
+                console.error('해싱된 비밀번호 검증 오류:', error);
+                // 해시 검증 실패 시 fallback으로 평문 검증 시도
+            }
+        }
+        
+        // 해시 검증이 실패했거나 해시가 없으면 평문 비교 (하위 호환성)
+        if (!isValidPassword && adminPassword) {
+            isValidPassword = (password === adminPassword);
+        }
+        
+        if (!isValidPassword) {
             recordLoginAttempt(clientIP, false);
             return new Response(JSON.stringify({ error: '잘못된 비밀번호입니다' }), {
                 status: 401,
@@ -692,7 +715,7 @@ export async function handleAdminLogin(request, env) {
         });
         
         // 간단한 JWT 토큰 생성
-        const jwtSecret = env.JWT_SECRET || adminPassword;
+        const jwtSecret = env.JWT_SECRET;
         
         if (!jwtSecret) {
             return new Response(JSON.stringify({ error: '서버 설정 오류입니다. 관리자에게 문의하세요.' }), {
@@ -772,24 +795,8 @@ async function validateAdminRequest(request, env) {
     cleanupAdminSessions();
     
     const clientIP = getClientIP(request);
-    const userAgent = request.headers.get('User-Agent') || '';
     
-    // 1. 기본 User-Agent 검증 (명백한 봇만 차단)
-    if (!userAgent) {
-        return { valid: false, error: '잘못된 요청입니다' };
-    }
-    
-    // 2. 명백히 악의적인 User-Agent만 차단
-    const maliciousPatterns = ['curl', 'wget'];
-    const lowerUserAgent = userAgent.toLowerCase();
-    
-    for (const pattern of maliciousPatterns) {
-        if (lowerUserAgent.includes(pattern)) {
-            return { valid: false, error: '잘못된 요청입니다' };
-        }
-    }
-    
-    // 3. 기본 Rate limiting만 적용
+    // 기본 Rate limiting만 적용
     const adminRateLimit = checkAdminRateLimit(clientIP);
     if (!adminRateLimit.allowed) {
         return { valid: false, error: '너무 많은 요청입니다. 잠시 후 다시 시도해주세요.' };
