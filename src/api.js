@@ -989,19 +989,26 @@ export async function handleAdminLogin(request, env) {
     try {
         const clientIP = getClientIP(request);
         
-        // 🔒 SECURITY ENHANCEMENT: 환경변수 보안 검증
+        // 🔒 SECURITY ENHANCEMENT: 환경변수 보안 검증 (개선된 버전)
+        console.log('[DEBUG] 환경변수 검증 시작');
         const envValidation = validateEnvironmentSecurity(env);
+        
         if (!envValidation.valid) {
             console.error('[SECURITY] 환경변수 보안 요구사항 미충족:', envValidation.errors);
+            console.error('[DEBUG] 사용 가능한 환경변수:', Object.keys(env).filter(key => !key.includes('SECRET') && !key.includes('HASH')));
             
-            // 🔒 SECURITY: 보안 이벤트 로깅
-            await logSecurityEvent(env, 'INSECURE_ENVIRONMENT', clientIP, {
-                errors: envValidation.errors,
-                securityLevel: envValidation.securityLevel
-            });
+            // 🔒 SECURITY: 보안 이벤트 로깅 (에러가 있을 때만)
+            try {
+                await logSecurityEvent(env, 'INSECURE_ENVIRONMENT', clientIP, {
+                    errors: envValidation.errors,
+                    securityLevel: envValidation.securityLevel
+                });
+            } catch (logError) {
+                console.error('[DEBUG] 보안 이벤트 로깅 실패:', logError);
+            }
             
             return new Response(JSON.stringify({ 
-                error: '서버 보안 설정이 요구사항을 충족하지 않습니다. 관리자에게 문의하세요.',
+                error: '서버 보안 설정이 요구사항을 충족하지 않습니다.',
                 details: envValidation.errors
             }), {
                 status: 500,
@@ -1009,10 +1016,12 @@ export async function handleAdminLogin(request, env) {
             });
         }
         
-        // 경고가 있는 경우 로깅
+        // 경고가 있는 경우 로깅 (에러는 아니므로 계속 진행)
         if (envValidation.warnings.length > 0) {
-            console.warn('[SECURITY] 환경변수 보안 경고:', envValidation.warnings);
+            console.warn('[SECURITY] 환경변수 보안 경고 (로그인 계속 진행):', envValidation.warnings);
         }
+        
+        console.log('[DEBUG] 환경변수 검증 통과');
         
         // 🔒 SECURITY ENHANCEMENT: KV 기반 Rate limiting
         const rateLimitResult = await checkRateLimitKV(env, clientIP);
@@ -1058,28 +1067,59 @@ export async function handleAdminLogin(request, env) {
             });
         }
         
-        // 비밀번호 검증 (보안 강화: 해싱된 비밀번호만 사용)
+        // 비밀번호 검증 (보안 강화: 해싱된 비밀번호만 사용) - 자세한 디버그 추가
         let isValidPassword = false;
         
+        console.log('[DEBUG] 비밀번호 검증 시작');
+        console.log('[DEBUG] 입력된 비밀번호 길이:', password ? password.length : 0);
+        console.log('[DEBUG] ADMIN_PASSWORD_HASH 존재:', !!env.ADMIN_PASSWORD_HASH);
+        
+        if (!env.ADMIN_PASSWORD_HASH) {
+            console.error('[ERROR] ADMIN_PASSWORD_HASH 환경변수가 없습니다.');
+            return new Response(JSON.stringify({ 
+                error: 'ADMIN_PASSWORD_HASH가 설정되지 않았습니다.' 
+            }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        
         try {
-            const [storedHash, storedSalt] = env.ADMIN_PASSWORD_HASH.split(':');
-            if (storedHash && storedSalt) {
-                isValidPassword = await verifyPassword(password, storedHash, storedSalt);
-                if (env.ENVIRONMENT === 'development') {
-                    console.log('[DEBUG] 비밀번호 검증 결과:', isValidPassword);
-                }
-            } else {
-                console.error('[ERROR] ADMIN_PASSWORD_HASH 형식이 올바르지 않습니다. hash:salt 형식이어야 합니다.');
-                // 🔒 FIX: 형식 오류시에도 명확한 응답 반환
+            console.log('[DEBUG] ADMIN_PASSWORD_HASH 파싱 시작');
+            const parts = env.ADMIN_PASSWORD_HASH.split(':');
+            console.log('[DEBUG] 분할된 부분 수:', parts.length);
+            
+            if (parts.length !== 2) {
+                console.error('[ERROR] ADMIN_PASSWORD_HASH 형식 오류. 분할된 부분:', parts.length);
                 return new Response(JSON.stringify({ 
-                    error: '서버 설정 오류가 발생했습니다. 관리자에게 문의하세요.' 
+                    error: 'ADMIN_PASSWORD_HASH 형식이 올바르지 않습니다 (hash:salt 형식 필요)' 
                 }), {
                     status: 500,
                     headers: { 'Content-Type': 'application/json' }
                 });
             }
+            
+            const [storedHash, storedSalt] = parts;
+            console.log('[DEBUG] 저장된 해시 길이:', storedHash ? storedHash.length : 0);
+            console.log('[DEBUG] 저장된 솔트 길이:', storedSalt ? storedSalt.length : 0);
+            
+            if (!storedHash || !storedSalt) {
+                console.error('[ERROR] 해시 또는 솔트가 비어있습니다.');
+                return new Response(JSON.stringify({ 
+                    error: '저장된 비밀번호 정보가 올바르지 않습니다.' 
+                }), {
+                    status: 500,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
+            
+            console.log('[DEBUG] verifyPassword 함수 호출 시작');
+            isValidPassword = await verifyPassword(password, storedHash, storedSalt);
+            console.log('[DEBUG] 비밀번호 검증 완료. 결과:', isValidPassword);
+            
         } catch (error) {
-            console.error('[ERROR] 해싱된 비밀번호 검증 오류:', error);
+            console.error('[ERROR] 비밀번호 검증 중 예외 발생:', error);
+            console.error('[ERROR] 스택 트레이스:', error.stack);
             return new Response(JSON.stringify({ 
                 error: '비밀번호 검증 중 오류가 발생했습니다.' 
             }), {
@@ -1129,7 +1169,9 @@ export async function handleAdminLogin(request, env) {
         
         // 🔒 SECURITY ENHANCEMENT: 세션 정보에 디바이스 핑거프린트 추가
         const sessionKey = `${KV_PREFIXES.adminSession}${sessionId}`;
-        await env.PLAKKER_KV.put(sessionKey, JSON.stringify({
+        console.log('[DEBUG] 세션 저장 시도:', sessionKey);
+        
+        const sessionData = {
             sessionId: sessionId,
             ip: clientIP,
             createdAt: Date.now(),
@@ -1139,7 +1181,11 @@ export async function handleAdminLogin(request, env) {
             loginAttempts: 0,
             lastAccessAt: Date.now(),
             csrfToken: await generateStrongCSRFToken(sessionId) // CSRF 토큰 생성
-        }));
+        };
+        
+        console.log('[DEBUG] 세션 데이터 생성 완료');
+        await env.PLAKKER_KV.put(sessionKey, JSON.stringify(sessionData));
+        console.log('[DEBUG] 세션 KV 저장 완료');
         
         // 🔒 FIX: JWT 토큰 생성 개선
         let token;
