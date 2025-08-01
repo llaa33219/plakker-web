@@ -44,9 +44,6 @@ export async function handleAPI(request, env, path) {
 // 팩 리스트 조회 (pack_list 없이 직접 KV에서 조회)
 export async function handleGetPacks(request, env) {
     try {
-        // PLAKKER_PENDING_KV에서 대기 중인 팩들 자동 처리
-        await processPendingPacks(env);
-        
         const url = new URL(request.url);
         const baseUrl = `${url.protocol}//${url.host}`;
         const page = parseInt(url.searchParams.get('page')) || 1;
@@ -54,14 +51,33 @@ export async function handleGetPacks(request, env) {
         const limit = 20; // 한 페이지당 20개
         const offset = (page - 1) * limit;
         
-        // KV에서 모든 팩 키 가져오기
-        const list = await env.PLAKKER_KV.list({
-            prefix: 'pack_',
-            limit: 1000
-        });
+        // PLAKKER_PENDING_KV에서 대기 중인 팩들 자동 처리 (첫 페이지이고 검색이 없을 때만)
+        if (page === 1 && !searchQuery) {
+            await processPendingPacks(env);
+        }
+        
+        // KV에서 모든 팩 키 가져오기 (cursor를 사용하여 전체 조회)
+        let allKeys = [];
+        let cursor = undefined;
+        
+        do {
+            const listOptions = {
+                prefix: 'pack_',
+                limit: 1000
+            };
+            if (cursor) {
+                listOptions.cursor = cursor;
+            }
+            
+            const list = await env.PLAKKER_KV.list(listOptions);
+            allKeys = allKeys.concat(list.keys.map(key => key.name));
+            cursor = list.list_complete ? undefined : list.cursor;
+        } while (cursor);
+        
+        console.log(`총 ${allKeys.length}개의 팩 키를 찾았습니다.`);
         
         // 키들을 배열로 변환
-        const packKeys = list.keys.map(key => key.name);
+        const packKeys = allKeys;
         
         // 모든 팩 데이터를 병렬로 가져오기
         const packPromises = packKeys.map(async (key) => {
@@ -92,6 +108,20 @@ export async function handleGetPacks(request, env) {
         // 페이지네이션 적용
         const totalPacks = allPacks.length;
         const paginatedPacks = allPacks.slice(offset, offset + limit);
+        const totalPages = Math.ceil(totalPacks / limit);
+        const hasNext = page < totalPages;
+        
+        // 디버깅용 로그
+        console.log('페이지네이션 계산:', {
+            page,
+            searchQuery,
+            limit,
+            offset,
+            totalPacks,
+            totalPages,
+            hasNext,
+            paginatedPacksLength: paginatedPacks.length
+        });
         
         // 절대 URL로 변환
         const packsWithAbsoluteUrls = paginatedPacks.map(pack => 
@@ -101,9 +131,9 @@ export async function handleGetPacks(request, env) {
         return new Response(JSON.stringify({
             packs: packsWithAbsoluteUrls,
             currentPage: page,
-            totalPages: Math.ceil(totalPacks / limit),
+            totalPages: totalPages,
             totalPacks: totalPacks,
-            hasNext: page < Math.ceil(totalPacks / limit)
+            hasNext: hasNext
         }), {
             headers: { 'Content-Type': 'application/json' }
         });
@@ -127,14 +157,28 @@ export async function handleGetPacks(request, env) {
 // PLAKKER_PENDING_KV의 대기 중인 팩들을 자동으로 처리하는 함수
 async function processPendingPacks(env) {
     try {
-        // 대기 중인 모든 팩 키 가져오기
-        const pendingList = await env.PLAKKER_PENDING_KV.list({
-            prefix: 'pending_',
-            limit: 1000
-        });
+        // 대기 중인 모든 팩 키 가져오기 (cursor를 사용하여 전체 조회)
+        let allPendingKeys = [];
+        let cursor = undefined;
+        
+        do {
+            const listOptions = {
+                prefix: 'pending_',
+                limit: 1000
+            };
+            if (cursor) {
+                listOptions.cursor = cursor;
+            }
+            
+            const pendingList = await env.PLAKKER_PENDING_KV.list(listOptions);
+            allPendingKeys = allPendingKeys.concat(pendingList.keys);
+            cursor = pendingList.list_complete ? undefined : pendingList.cursor;
+        } while (cursor);
+        
+        console.log(`총 ${allPendingKeys.length}개의 대기 중인 팩을 찾았습니다.`);
         
         // 각 대기 중인 팩 처리
-        for (const keyInfo of pendingList.keys) {
+        for (const keyInfo of allPendingKeys) {
             try {
                 const pendingPack = await env.PLAKKER_PENDING_KV.get(keyInfo.name, 'json');
                 

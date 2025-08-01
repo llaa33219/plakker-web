@@ -144,8 +144,19 @@ async function loadPackList(page = 1, searchQuery = '') {
         if (searchQuery) {
             url += '&search=' + encodeURIComponent(searchQuery);
         }
+        console.log('API 요청:', url); // 디버깅용 로그
         const response = await fetch(url);
         const data = await response.json();
+        
+        // 디버깅용 로그 추가
+        console.log('API 응답 데이터:', {
+            currentPage: data.currentPage,
+            totalPages: data.totalPages,
+            totalPacks: data.totalPacks,
+            hasNext: data.hasNext,
+            packsCount: data.packs ? data.packs.length : 0,
+            searchQuery: searchQuery
+        });
         
         const container = document.getElementById('pack-list');
         if (data.packs && data.packs.length > 0) {
@@ -198,6 +209,7 @@ async function loadPackList(page = 1, searchQuery = '') {
 
 function setupPagination() {
     document.getElementById('prev-page').addEventListener('click', () => {
+        console.log('이전 페이지 클릭, currentPage:', currentPage, 'searchQuery:', currentSearchQuery);
         if (currentPage > 1) {
             currentPage--;
             loadPackList(currentPage, currentSearchQuery);
@@ -205,8 +217,14 @@ function setupPagination() {
     });
     
     document.getElementById('next-page').addEventListener('click', () => {
-        currentPage++;
-        loadPackList(currentPage, currentSearchQuery);
+        console.log('다음 페이지 클릭, currentPage:', currentPage, 'searchQuery:', currentSearchQuery);
+        const nextButton = document.getElementById('next-page');
+        if (!nextButton.disabled) {
+            currentPage++;
+            loadPackList(currentPage, currentSearchQuery);
+        } else {
+            console.log('다음 페이지 버튼이 비활성화되어 있어 요청하지 않음');
+        }
     });
 }
 
@@ -251,10 +269,15 @@ function setupSearch() {
 }
 
 function updatePagination(page, hasNext) {
+    console.log('updatePagination 호출:', { page, hasNext, currentSearchQuery });
     currentPage = page;
     document.getElementById('page-info').textContent = page + '페이지';
     document.getElementById('prev-page').disabled = page <= 1;
     document.getElementById('next-page').disabled = !hasNext;
+    console.log('페이지네이션 버튼 상태:', {
+        prevDisabled: page <= 1,
+        nextDisabled: !hasNext
+    });
 }
 
 function setupUploadForm() {
