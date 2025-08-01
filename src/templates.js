@@ -421,7 +421,7 @@ export const HTML_TEMPLATES = {
                     <span class="path">/api/packs</span>
                 </div>
                 <div class="endpoint-content">
-                    <p class="description">이모티콘 팩 목록을 페이지네이션으로 조회합니다.</p>
+                    <p class="description">이모티콘 팩 목록을 페이지네이션으로 조회합니다. 제목이나 제작자 이름으로 검색할 수 있습니다.</p>
                     
                     <h4>Query Parameters</h4>
                     <table class="param-table">
@@ -437,8 +437,22 @@ export const HTML_TEMPLATES = {
                             <td>No</td>
                             <td>페이지 번호 (기본값: 1, 페이지당 20개)</td>
                         </tr>
+                        <tr>
+                            <td><code>search</code></td>
+                            <td>string</td>
+                            <td>No</td>
+                            <td>검색어 (제목이나 제작자 이름으로 검색, 대소문자 구분 안함)</td>
+                        </tr>
                     </table>
                     
+                    <h4>사용 예시</h4>
+                    <ul>
+                        <li><code>GET /api/packs</code> - 전체 팩 목록 조회 (1페이지)</li>
+                        <li><code>GET /api/packs?page=2</code> - 2페이지 조회</li>
+                        <li><code>GET /api/packs?search=고양이</code> - "고양이" 검색</li>
+                        <li><code>GET /api/packs?search=고양이&page=2</code> - "고양이" 검색 결과의 2페이지</li>
+                    </ul>
+
                     <h4>Response Example</h4>
                     <pre class="code-block">{
   "packs": [
@@ -451,8 +465,9 @@ export const HTML_TEMPLATES = {
     }
   ],
   "currentPage": 1,
-  "hasNext": true,
-  "total": 25
+  "totalPages": 3,
+  "totalPacks": 25,
+  "hasNext": true
 }</pre>
                 </div>
             </div>
@@ -501,7 +516,7 @@ export const HTML_TEMPLATES = {
         </div>
 
         <div class="api-section">
-            <h3>제한사항</h3>
+            <h3>제한사항 및 특징</h3>
             <ul>
                 <li>개별 파일 크기: 최대 25MB (Cloudflare Workers 제한)</li>
                 <li>요청 CPU 시간: 최대 50ms (무료 플랜 기준)</li>
@@ -509,6 +524,8 @@ export const HTML_TEMPLATES = {
                 <li>이모티콘 최소 개수: 3개</li>
                 <li>지원 이미지 형식: PNG, JPEG, GIF, WebP</li>
                 <li>이미지 자동 리사이즈: 이모티콘 150x150, 썸네일 200x200</li>
+                <li><strong>검색 기능:</strong> 부분 문자열 매칭, 대소문자 구분 안함, 제목과 제작자 이름에서 동시 검색</li>
+                <li><strong>검색 성능:</strong> 모든 팩을 메모리에 로드 후 필터링 (소규모 데이터셋에 최적화)</li>
             </ul>
         </div>
     </div>
