@@ -50,6 +50,7 @@ export async function handleGetPacks(request, env) {
         const url = new URL(request.url);
         const baseUrl = `${url.protocol}//${url.host}`;
         const page = parseInt(url.searchParams.get('page')) || 1;
+        const searchQuery = url.searchParams.get('search')?.trim().toLowerCase() || '';
         const limit = 20; // 한 페이지당 20개
         const offset = (page - 1) * limit;
         
@@ -73,9 +74,20 @@ export async function handleGetPacks(request, env) {
             }
         });
         
-        const allPacks = (await Promise.all(packPromises))
-            .filter(pack => pack !== null && pack.status === 'approved') // 승인된 팩만 표시
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // 최신순 정렬
+        let allPacks = (await Promise.all(packPromises))
+            .filter(pack => pack !== null && pack.status === 'approved'); // 승인된 팩만 표시
+            
+        // 검색 쿼리가 있는 경우 필터링
+        if (searchQuery) {
+            allPacks = allPacks.filter(pack => {
+                const title = (pack.title || '').toLowerCase();
+                const creator = (pack.creator || '').toLowerCase();
+                return title.includes(searchQuery) || creator.includes(searchQuery);
+            });
+        }
+        
+        // 최신순 정렬
+        allPacks = allPacks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         
         // 페이지네이션 적용
         const totalPacks = allPacks.length;

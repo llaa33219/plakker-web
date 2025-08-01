@@ -44,6 +44,15 @@ export const HTML_TEMPLATES = {
     home: () => `
 <div class="container">
     <h2 style="text-align: center;">이모티콘 목록</h2>
+    
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="제목이나 제작자 이름으로 검색..." class="search-input">
+            <button id="search-btn" class="search-btn">검색</button>
+            <button id="clear-search" class="clear-btn" style="display: none;">초기화</button>
+        </div>
+    </div>
+    
     <div id="pack-list" class="pack-grid">
         <div class="loading">로딩 중...</div>
     </div>

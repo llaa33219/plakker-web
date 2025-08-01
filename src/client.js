@@ -31,6 +31,7 @@ function createButton(text, clickHandler, className = '') {
 }
 
 let currentPage = 1;
+let currentSearchQuery = '';
 
 // 캐시 무효화 및 버전 관리
 const CACHE_VERSION_KEY = 'plakker_cache_version';
@@ -127,6 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (path === '/') {
         loadPackList(1);
         setupPagination();
+        setupSearch();
     } else if (path === '/upload') {
         setupUploadForm();
         loadUploadLimitStatus();
@@ -136,9 +138,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-async function loadPackList(page = 1) {
+async function loadPackList(page = 1, searchQuery = '') {
     try {
-        const response = await fetch('/api/packs?page=' + page);
+        let url = '/api/packs?page=' + page;
+        if (searchQuery) {
+            url += '&search=' + encodeURIComponent(searchQuery);
+        }
+        const response = await fetch(url);
         const data = await response.json();
         
         const container = document.getElementById('pack-list');
@@ -175,7 +181,11 @@ async function loadPackList(page = 1) {
                 container.appendChild(packDiv);
             });
         } else {
-            container.innerHTML = '<div class="loading">등록된 이모티콘 팩이 없습니다.</div>';
+            if (searchQuery) {
+                container.innerHTML = '<div class="loading">검색 결과가 없습니다.</div>';
+            } else {
+                container.innerHTML = '<div class="loading">등록된 이모티콘 팩이 없습니다.</div>';
+            }
         }
         
         updatePagination(data.currentPage, data.hasNext);
@@ -190,14 +200,54 @@ function setupPagination() {
     document.getElementById('prev-page').addEventListener('click', () => {
         if (currentPage > 1) {
             currentPage--;
-            loadPackList(currentPage);
+            loadPackList(currentPage, currentSearchQuery);
         }
     });
     
     document.getElementById('next-page').addEventListener('click', () => {
         currentPage++;
-        loadPackList(currentPage);
+        loadPackList(currentPage, currentSearchQuery);
     });
+}
+
+function setupSearch() {
+    const searchInput = document.getElementById('search-input');
+    const searchBtn = document.getElementById('search-btn');
+    const clearBtn = document.getElementById('clear-search');
+    
+    function performSearch() {
+        const query = searchInput.value.trim();
+        currentSearchQuery = query;
+        currentPage = 1;
+        loadPackList(1, query);
+        
+        if (query) {
+            clearBtn.style.display = 'inline-block';
+        } else {
+            clearBtn.style.display = 'none';
+        }
+    }
+    
+    function clearSearch() {
+        searchInput.value = '';
+        currentSearchQuery = '';
+        currentPage = 1;
+        loadPackList(1, '');
+        clearBtn.style.display = 'none';
+    }
+    
+    // 검색 버튼 클릭
+    searchBtn.addEventListener('click', performSearch);
+    
+    // 엔터 키 입력
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            performSearch();
+        }
+    });
+    
+    // 초기화 버튼 클릭
+    clearBtn.addEventListener('click', clearSearch);
 }
 
 function updatePagination(page, hasNext) {

@@ -110,6 +110,65 @@ button:disabled {
     padding: 0 1rem;
 }
 
+/* 검색 스타일 */
+.search-container {
+    max-width: 800px;
+    margin: 2rem auto 0;
+    padding: 0 1rem;
+}
+
+.search-box {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    background: white;
+    border-radius: 12px;
+    padding: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 0.75rem 1rem;
+    font-size: 16px;
+    background: transparent;
+}
+
+.search-input::placeholder {
+    color: #6c757d;
+}
+
+.search-btn, .clear-btn {
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    margin: 0;
+    min-height: auto;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: none;
+    transition: background-color 0.2s ease;
+}
+
+.search-btn:hover, .clear-btn:hover {
+    background-color: #005BDD;
+    transform: none;
+    box-shadow: none;
+}
+
+.clear-btn {
+    background-color: #6c757d;
+    margin-left: 0.5rem;
+}
+
+.clear-btn:hover {
+    background-color: #5a6268;
+}
+
 .pack-grid {
     display: flex;
     flex-direction: column;
