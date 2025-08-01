@@ -35,7 +35,7 @@ let currentSearchQuery = '';
 
 // 캐시 무효화 및 버전 관리
 const CACHE_VERSION_KEY = 'plakker_cache_version';
-const CURRENT_VERSION = '20250130_urlfix_v3'; // 고정 버전
+const CURRENT_VERSION = '20250131_update_v1'; // 고정 버전
 
 function checkCacheVersion() {
     try {
