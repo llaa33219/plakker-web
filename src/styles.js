@@ -144,20 +144,23 @@ button:disabled {
     background-color: #007BFF;
     color: white;
     border: none;
-    border-radius: 8px;
-    padding: 0.75rem 1.5rem;
+    border-radius: 20px;
+    padding: 15px 30px;
     margin: 0;
-    min-height: auto;
-    font-size: 14px;
-    font-weight: 500;
-    box-shadow: none;
-    transition: background-color 0.2s ease;
+    min-height: 61px;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .search-btn:hover, .clear-btn:hover {
     background-color: #005BDD;
-    transform: none;
-    box-shadow: none;
+    transform: translateY(2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .clear-btn {
@@ -167,6 +170,8 @@ button:disabled {
 
 .clear-btn:hover {
     background-color: #5a6268;
+    transform: translateY(2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .pack-grid {
